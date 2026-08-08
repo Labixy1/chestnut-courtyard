@@ -1277,10 +1277,10 @@ function openPhotoWall(){
 
 let PHOTO_ALBUM_SORT='time';
 function openPhotoLibrary(){document.querySelector('.photo-wall-scene')?.classList.add('library-open');renderPhotoAlbums();}
+function photoAssetId(value){let h=2166136261;for(const char of String(value||'')){h^=char.charCodeAt(0);h=Math.imul(h,16777619);}return Math.abs(h>>>0).toString(36);}
 
 function seedPhotoAlbums(){
-  const saved=readNoticeList('cozy_photo_albums');
-  if(saved.length)return saved;
+  const saved=readNoticeList('cozy_photo_albums').filter(album=>album.id!=='courtyard_all');
   const personal=((CORE.estate_state&&CORE.estate_state.wall_photos)||[]).map(p=>({id:p.id||'photo_'+Math.random().toString(36).slice(2),src:p.file||'',caption:p.note||p.title||'随手拍',date:p.date||localCalendarDate()})).filter(p=>p.src);
   const allTrips = JSON.parse(localStorage.getItem('cozy_trips') || '[]').concat((CORE.estate_state&&CORE.estate_state.travel&&CORE.estate_state.travel.history)||[]);
   const travelAlbums=allTrips.map((trip,index)=>({id:'travel_'+(trip.id||index),title:trip.place||'一次旅行',source:'travel',date:trip.date||localCalendarDate(),photos:(trip.photos&&trip.photos.length?trip.photos:[trip.file]).filter(Boolean).map((src,pIndex)=>({id:'travel_photo_'+index+'_'+pIndex,src,caption:trip.line||trip.place||'旅行照片',date:trip.date||localCalendarDate()}))})).filter(album=>album.photos.length);
@@ -1289,15 +1289,18 @@ function seedPhotoAlbums(){
     {id:'demo_2',src:'assets/estate/panorama_rain.webp',caption:'雨天场景测试',date:'2026-08-08'},
     {id:'demo_3',src:'assets/plants/orchard_summer.jpg',caption:'夏日成长田',date:'2026-08-08'}
   ]};
-  const albums=[];
-  if(personal.length)albums.push({id:'personal_'+Date.now(),title:'八月随手拍',source:'upload',date:personal[0].date,photos:personal});
-  albums.push(...travelAlbums,demo);
-  savePhotoAlbums(albums);
-  return albums;
+  let albums=saved.length?saved.slice():[];
+  if(!albums.length){if(personal.length)albums.push({id:'personal_initial',title:'八月随手拍',source:'upload',date:personal[0].date,photos:personal});albums.push(...travelAlbums,demo);savePhotoAlbums(albums);}
+  const existingIds=new Set(albums.map(album=>album.id));travelAlbums.forEach(album=>{if(!existingIds.has(album.id))albums.push(album);});
+  const extraPhotos=[...personal,...travelAlbums.flatMap(album=>album.photos||[])];
+  const allPhotos=[],seen=new Set();
+  [...albums.flatMap(album=>album.photos||[]),...extraPhotos].forEach(photo=>{const key=String(photo.src||'');if(!key||seen.has(key))return;seen.add(key);allPhotos.push({...photo,id:'all_'+photoAssetId(key)});});
+  const latest=allPhotos.map(photo=>photo.date||'').sort().reverse()[0]||localCalendarDate();
+  return [{id:'courtyard_all',title:'小院的所有照片',source:'aggregate',date:latest,photos:allPhotos},...albums];
 }
 
 function savePhotoAlbums(albums){
-  localStorage.setItem('cozy_photo_albums',JSON.stringify(albums.slice(0,60)));
+  localStorage.setItem('cozy_photo_albums',JSON.stringify(albums.filter(album=>album.id!=='courtyard_all').slice(0,60)));
   window.CozyButler?.persistLocal(['cozy_photo_albums']);
 }
 
@@ -1324,8 +1327,9 @@ function createPhotoAlbum(){
 
 function openPhotoAlbum(id){
   const box=document.getElementById('photo-library');const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===id);if(!box||!album)return;
-  const photos=(album.photos||[]).map((photo,index)=>'<figure class="photo-detail-item"><img src="'+escapeNotice(photo.src)+'" alt=""><figcaption><span>'+escapeNotice(photo.caption||'照片')+'</span><span class="photo-date-mark">'+escapeNotice(photoDateLabel(photo.date||album.date))+'</span><span class="photo-detail-controls"><button title="向前移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',-1)">←</button><button title="向后移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',1)">→</button><button title="删除照片" onclick="removeAlbumPhoto(\''+escapeNotice(id)+'\','+index+')">×</button></span></figcaption></figure>').join('');
-  box.innerHTML='<div class="photo-album-toolbar"><button onclick="renderPhotoAlbums()">← 照片集</button><h2>'+escapeNotice(album.title)+'</h2><button onclick="document.getElementById(\'photo-wall-upload\').click()">＋ 照片</button><button class="danger" onclick="deletePhotoAlbum(\''+escapeNotice(id)+'\')">删除整组</button></div><div class="photo-detail-grid">'+(photos||'<div class="photo-album-add" onclick="document.getElementById(\'photo-wall-upload\').click()">＋</div>')+'</div><div class="photo-wall-status" id="photo-wall-status"></div><input id="photo-wall-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onchange="uploadPhotoWallFiles(this.files,\''+escapeNotice(id)+'\')">';
+  const aggregate=album.source==='aggregate';
+  const photos=(album.photos||[]).map((photo,index)=>'<figure class="photo-detail-item"><img src="'+escapeNotice(photo.src)+'" alt=""><figcaption><span>'+escapeNotice(photo.caption||'照片')+'</span><span class="photo-date-mark">'+escapeNotice(photoDateLabel(photo.date||album.date))+'</span>'+(aggregate?'':'<span class="photo-detail-controls"><button title="向前移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',-1)">←</button><button title="向后移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',1)">→</button><button title="删除照片" onclick="removeAlbumPhoto(\''+escapeNotice(id)+'\','+index+')">×</button></span>')+'</figcaption></figure>').join('');
+  box.innerHTML='<div class="photo-album-toolbar"><button onclick="renderPhotoAlbums()">← 照片集</button><h2>'+escapeNotice(album.title)+'</h2>'+(aggregate?'':'<button onclick="document.getElementById(\'photo-wall-upload\').click()">＋ 照片</button><button class="danger" onclick="deletePhotoAlbum(\''+escapeNotice(id)+'\')">删除整组</button>')+'</div><div class="photo-detail-grid">'+(photos||(aggregate?'<div class="empty-note">小院里还没有照片。</div>':'<div class="photo-album-add" onclick="document.getElementById(\'photo-wall-upload\').click()">＋</div>'))+'</div><div class="photo-wall-status" id="photo-wall-status"></div>'+(aggregate?'':'<input id="photo-wall-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onchange="uploadPhotoWallFiles(this.files,\''+escapeNotice(id)+'\')">');
 }
 
 function fileAsDataUrl(file){

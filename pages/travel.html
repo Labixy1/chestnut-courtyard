@@ -159,15 +159,14 @@ function render(){
     const filler = Array.from({length:Math.max(0,3-photoFiles.length)},()=>'<img src="../assets/travel/travel_postcard.webp" alt="">').join('');
     const start = first.start || first.date || '';
     const end = first.end || '';
-    const insight = trips.map(t=>reflections[t._key]).find(Boolean);
+    const insight = combinedPlaceReflection(trips,reflections);
     const status=tripStatus(first);
     const local=isLocalTrip(first.id);
     return '<article class="trip-card" tabindex="0" role="button" aria-label="查看 '+escapeTravel(place)+' 的旅行记录" onclick="openTripDetail(\''+escapeTravel(first.id)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openTripDetail(\''+escapeTravel(first.id)+'\')}"><div class="trip-photos">'+imgs+filler+'</div><h2>'+escapeTravel(place)+'</h2>'+
-      '<p>'+escapeTravel(first.summary || first.line || '这趟旅行先记下地点和时间，之后挑两三张代表照片留在这里。')+'</p>'+
+      '<p>'+escapeTravel(tripCardDescription(first,insight))+'</p>'+
       '<div class="date">'+start+(end?(' → '+end):'')+' · '+trips.length+' 条记录</div>'+
       '<span class="trip-status">'+escapeTravel(status.label)+'</span>'+
-      (insight ? '<div class="trip-insight"><b>旅行感悟 · </b>'+escapeTravel(insight.summary || insight.text)+'</div>' : '')+
-      '<div class="trip-actions"><button onclick="event.stopPropagation();openTripEditor(\''+escapeTravel(first.id)+'\')">编辑旅程</button><button onclick="event.stopPropagation();pickTripPhotos(\''+escapeTravel(first.id)+'\')">添加照片</button>'+(local&&status.key!=='completed'?'<button onclick="event.stopPropagation();finishTrip(\''+escapeTravel(first.id)+'\')">记录回家</button>':'')+(local?'<button class="danger" onclick="event.stopPropagation();removeTrip(\''+escapeTravel(first.id)+'\')">删除</button>':'')+'</div>'+
+      '<div class="trip-actions"><button onclick="event.stopPropagation();openTripEditor(\''+escapeTravel(first.id)+'\')">编辑旅程</button><button onclick="event.stopPropagation();pickTripPhotos(\''+escapeTravel(first.id)+'\')">添加照片</button>'+(local?'<button class="danger" onclick="event.stopPropagation();removeTrip(\''+escapeTravel(first.id)+'\')">删除</button>':'')+'</div>'+
       '</article>';
   }).join('');
 }
@@ -193,6 +192,12 @@ function tripStatus(trip){
 function getReflections(){
   return JSON.parse(localStorage.getItem('cozy_trip_reflections') || '{}');
 }
+function reflectionPieces(data){if(!data)return[];if(Array.isArray(data.entries)&&data.entries.length)return data.entries.map(item=>String(item.text||'').trim()).filter(Boolean);return data.text?[String(data.text).trim()]:[];}
+function combinedPlaceReflection(trips,reflections=getReflections()){
+  const summaries=trips.map(trip=>reflections[trip._key]).filter(Boolean).map(item=>String(item.summary||item.text||'').trim()).filter(Boolean);
+  return Array.from(new Set(summaries)).join(' ').slice(0,260);
+}
+function tripCardDescription(trip,insight){const saved=String(trip.summary||trip.line||'').trim();if(insight)return insight;if(!saved||/^这趟旅行先记下地点和时间/.test(saved))return'这趟旅行先记下地点和时间，之后挑两三张照片留在这里。';return saved;}
 function renderReflectionOptions(trips){
   const select = document.getElementById('reflection-trip');
   if(!select) return;
@@ -216,9 +221,9 @@ function loadTripReflection(){
   const ai = document.getElementById('reflection-ai');
   if(!select || !textarea || !ai) return;
   const data = getReflections()[select.value];
-  textarea.value = data ? data.text : '';
+  textarea.value = '';
   ai.dataset.summary = data&&data.summary ? data.summary : '';
-  ai.textContent = data ? (data.summary || '已保存感悟，可以继续用语音补充修改。') : '这段旅行还没有感悟。可以打字，也可以点麦克风说。';
+  ai.textContent = data ? ('已保存摘要：'+(data.summary || data.text || '这段旅行已有感悟。')) : '这段旅行还没有感悟。可以打字，也可以点麦克风说。';
 }
 let reflectionVoice=null;
 function setReflectionVoiceState(state,message){
@@ -268,10 +273,13 @@ async function saveReflection(){
   if(!select || !textarea || !ai) return;
   const text = textarea.value.trim();
   if(!select.value || !text){ ai.textContent = '先选择旅行，并写下一点感悟。'; return; }
-  await summarizeReflection();
-  const summary = ai.dataset.summary || buildReflectionSummary(text, getSelectedTrip());
   const all = getReflections();
-  all[select.value] = {text, summary, updatedAt:new Date().toISOString()};
+  const previous=all[select.value]||{},entries=[...(previous.entries||reflectionPieces(previous).map(value=>({text:value,createdAt:previous.updatedAt||''}))),{text,createdAt:new Date().toISOString()}].slice(-30);
+  const combined=entries.map(item=>item.text).join('\n');
+  textarea.value=combined;
+  await summarizeReflection();
+  const summary = ai.dataset.summary || buildReflectionSummary(combined, getSelectedTrip());
+  all[select.value] = {text:combined,entries,summary,updatedAt:new Date().toISOString()};
   localStorage.setItem('cozy_trip_reflections', JSON.stringify(all));
   window.CozyButler?.persistLocal(['cozy_trip_reflections']);
   if(window.CozyMemory){
@@ -284,7 +292,9 @@ async function saveReflection(){
       summary:'旅行感悟：'+summary
     });
   }
-  ai.textContent = '已保存：' + summary;
+  textarea.value='';
+  ai.dataset.summary=summary;
+  ai.textContent = '已保存摘要：' + summary;
   render();
 }
 function getSelectedTrip(){
@@ -316,8 +326,8 @@ function openTripDetail(id){
   const photos=trips.flatMap(trip=>tripPhotoFiles(trip)).slice(0,12);
   const gallery=(photos.length?photos:['../assets/travel/travel_postcard.webp']).map(file=>'<img src="'+travelAsset(file)+'" alt="'+escapeTravel(selected.place||'旅行照片')+'">').join('');
   const records=trips.map(trip=>'<div class="trip-detail-record"><b>'+escapeTravel((trip.start||trip.date||'未写日期')+(trip.end?' → '+trip.end:''))+'</b><span>'+escapeTravel(trip.summary||trip.line||'这次旅行还没有补充描述。')+'</span></div>').join('');
-  const insight=trips.map(trip=>reflections[trip._key]).find(Boolean);
-  document.getElementById('trip-detail-card').innerHTML='<header class="trip-detail-head"><div><h2>'+escapeTravel(selected.place||'一段旅行')+'</h2><p>'+trips.length+' 条旅行记录 · '+photos.length+' 张照片</p></div><button class="trip-editor-close" type="button" onclick="closeTripDetail()" aria-label="关闭旅行详情">×</button></header><div class="trip-detail-gallery">'+gallery+'</div><div class="trip-detail-copy"><section class="trip-detail-section"><h3>旅行记录</h3>'+records+'</section><section class="trip-detail-section"><h3>旅行感悟</h3><p>'+escapeTravel(insight?(insight.summary||insight.text):'这段旅行还没有留下感悟。')+'</p></section></div>';
+  const insight=combinedPlaceReflection(trips,reflections);
+  document.getElementById('trip-detail-card').innerHTML='<header class="trip-detail-head"><div><h2>'+escapeTravel(selected.place||'一段旅行')+'</h2><p>'+trips.length+' 条旅行记录 · '+photos.length+' 张照片</p></div><button class="trip-editor-close" type="button" onclick="closeTripDetail()" aria-label="关闭旅行详情">×</button></header><div class="trip-detail-gallery">'+gallery+'</div><div class="trip-detail-copy"><section class="trip-detail-section"><h3>旅行记录</h3>'+records+'</section><section class="trip-detail-section"><h3>旅行感悟</h3><p>'+escapeTravel(insight||'这段旅行还没有留下感悟。')+'</p></section></div>';
   document.getElementById('trip-detail').classList.add('show');
 }
 function closeTripDetail(){document.getElementById('trip-detail').classList.remove('show');}
