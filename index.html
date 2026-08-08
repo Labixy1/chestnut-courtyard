@@ -700,7 +700,7 @@ function openToolbox(){
   const combined = ((CORE.manifest && CORE.manifest.items)||[]).filter(i=>i.type==='toolbox').concat(localItems);
   const seen = new Set();
   const items = combined.slice().reverse().filter(item=>{
-    const key = String(item.url || item.title || '').trim().toLowerCase();
+    const key = [item.title || '',item.url || ''].map(value=>String(value).trim().toLowerCase()).join('|');
     if(!key || seen.has(key)) return false;
     seen.add(key); return true;
   }).reverse().map(item=>Object.assign({},item,{category:toolboxCategory(item)}));
