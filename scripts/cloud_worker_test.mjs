@@ -17,9 +17,10 @@ const baseEnv = {
   ALLOW_UNAUTHENTICATED: "true",
   PUBLIC_READ_ONLY: "false"
 };
+const pendingTasks = [];
 const request = (path, body, env = baseEnv) => handleRequest(new Request(`https://owner.example${path}`, body === undefined ? {} : {
   method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(body)
-}), env, {waitUntil: promise => promise});
+}), env, {waitUntil: promise => pendingTasks.push(promise)});
 const payload = async response => ({status: response.status, body: await response.json()});
 
 let result = await payload(await request("/api/status"));
@@ -84,10 +85,12 @@ globalThis.fetch = async (url, options) => {
   return nativeFetch(url, options);
 };
 result = await payload(await request("/api/weekly/run", {force: true}, aiEnv));
+assert.equal(result.status, 202);
+assert.equal(result.body.status, "running");
+await Promise.all(pendingTasks.splice(0));
 globalThis.fetch = nativeFetch;
-assert.equal(result.status, 200);
-assert.equal(result.body.report.hot_items.length, 1);
 assert.equal((await payload(await request("/api/data?key=notice_reports", undefined, aiEnv))).body.reports.length, 1);
+assert.equal((await payload(await request("/api/automation", undefined, aiEnv))).body.automation.jobs.notice_report.status, "completed");
 
 const blocked = await payload(await handleRequest(new Request("https://owner.example/api/status"), {
   COZY_STATE: new MemoryKV(), ALLOW_UNAUTHENTICATED: "false", OWNER_EMAIL: "owner@example.com",

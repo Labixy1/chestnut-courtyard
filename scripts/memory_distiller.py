@@ -440,7 +440,16 @@ class MemoryDistiller:
             self._write(self.status_path, state)
             try:
                 raw, provider = self._call_model(self._prompt(cards))
-                proposal = self._parse_json(raw)
+                try:
+                    proposal = self._parse_json(raw)
+                except ValueError:
+                    repair_prompt = (
+                        "把下面不完整或不严格的模型输出修复成一个合法 JSON 对象。"
+                        "只修复语法和缺失的闭合符号，不新增事实，不输出 Markdown。\n原输出：\n" + str(raw)[:14000]
+                    )
+                    repaired, repair_provider = self._call_model(repair_prompt)
+                    proposal = self._parse_json(repaired)
+                    provider = repair_provider or provider
                 updated_visible, profile, changes = self._apply_proposal(proposal, cards)
                 updated_map = {str(item.get("id")): item for item in updated_visible}
                 final_cards = [updated_map.get(str(item.get("id")), item) for item in before_cards.get("items", [])]

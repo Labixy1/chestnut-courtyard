@@ -379,6 +379,7 @@
   .notice-dialogue h3{font-size:16px;color:#794a55;margin-bottom:6px}
   .notice-task-list:empty{display:none}
   .notice-task-list{margin:7px 0 10px;border-bottom:1px solid rgba(184,112,128,.14)}
+  .notice-task-log{margin:8px 0 10px;border:1px solid rgba(184,112,128,.14);border-radius:12px;background:rgba(255,255,255,.36);overflow:hidden}.notice-task-log>summary{display:flex;align-items:center;justify-content:space-between;cursor:pointer;list-style:none;padding:9px 11px;font-size:12px;font-weight:650;color:#70424d}.notice-task-log>summary::-webkit-details-marker{display:none}.notice-task-log>summary:after{content:"展开";font-size:10px;font-weight:500;color:#a06c79}.notice-task-log[open]>summary:after{content:"收起"}.notice-task-log .notice-task-list{max-height:300px;overflow:auto;margin:0;padding:0 10px 8px;border:0}
   .notice-task-row{display:grid;grid-template-columns:9px minmax(0,1fr) auto;gap:8px;align-items:start;padding:9px 1px;border-top:1px solid rgba(184,112,128,.14)}
   .notice-task-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;background:#c7984f}
   .notice-task-row.running .notice-task-dot{animation:noticeTaskPulse 1.2s ease-in-out infinite;box-shadow:0 0 0 4px rgba(199,152,79,.12)}
@@ -388,7 +389,7 @@
   .notice-task-state{font-size:10px;font-weight:650;color:#9b6c3f;white-space:nowrap;padding-top:1px}.notice-task-row.completed .notice-task-state{color:#57825f}.notice-task-row.failed .notice-task-state{color:#a9505c}
   @keyframes noticeTaskPulse{50%{opacity:.45;transform:scale(.75)}}
   .notice-board-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
-  .notice-heading-actions{display:flex;align-items:center;gap:8px}.notice-refresh{width:30px;height:30px;border:1px solid rgba(184,112,128,.2);border-radius:50%;background:rgba(255,255,255,.62);color:#8f5967;font-size:17px;cursor:pointer}.notice-refresh:disabled{opacity:.45;cursor:default}
+  .notice-heading-actions{display:flex;align-items:center;gap:8px}.notice-refresh{width:30px;height:30px;border:1px solid rgba(184,112,128,.2);border-radius:50%;background:rgba(255,255,255,.62);color:#8f5967;font-size:17px;cursor:pointer}.notice-refresh:disabled{opacity:.72;cursor:default}.notice-refresh.running{animation:noticeRefreshSpin 1s linear infinite}@keyframes noticeRefreshSpin{to{transform:rotate(360deg)}}
   .butler-connection{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:650;color:#8b5360;
      background:rgba(255,255,255,.68);border:1px solid rgba(184,112,128,.16);border-radius:999px;padding:5px 9px;white-space:nowrap}
   .butler-connection:before{content:"";width:7px;height:7px;border-radius:50%;background:#d3a552;box-shadow:0 0 0 3px rgba(211,165,82,.12)}
@@ -496,6 +497,7 @@
   .bb-material h4,.bb-review-card h4{font-size:14px;color:#6b4618;margin-bottom:8px}
   .bb-material ul,.bb-review-card ul,.bb-standard{padding-left:20px}
   .bb-material li,.bb-review-card li,.bb-standard li{font-size:13px;line-height:1.75;color:rgba(83,54,22,.82);margin:3px 0}
+  .bb-polished{display:grid;gap:9px}.bb-polished p{margin:0;padding:9px 11px;border-left:3px solid rgba(180,123,36,.34);border-radius:0 9px 9px 0;background:rgba(255,251,240,.7);white-space:pre-wrap}
   .bb-helper{margin:14px 0 18px;border:1px solid rgba(143,94,25,.14);border-radius:16px;background:rgba(255,255,255,.48);overflow:hidden}
   .bb-helper-head{display:flex;align-items:center;gap:9px;padding:11px 13px;border-bottom:1px solid rgba(143,94,25,.1)}
   .bb-helper-avatar{width:28px;height:28px;flex:0 0 auto;border-radius:50%;background:url("assets/estate/butler_dog.webp") center/116% no-repeat}
@@ -1067,7 +1069,7 @@ function renderBlackboardHistory(state){
     const done=!!item.answer;
     const types=(item.types||[]).filter(Boolean).map(type=>'<span class="bb-pill">'+escapeNotice(type)+'</span>').join('');
     const answer=done?'<article class="bb-review-card"><h4>我的答案</h4><p>'+escapeNotice(item.answer)+'</p></article>':'<p class="bb-note">这道题还没有作答记录。</p>';
-    const review=done&&item.review&&item.review.revised?'<article class="bb-review-card"><h4>阿栗帮答</h4><p>'+escapeNotice(item.review.revised)+'</p></article>':'';
+    const review=done&&item.review&&item.review.revised?'<article class="bb-review-card"><h4>阿栗帮答</h4>'+renderPolishedAnswer(item.review.revised)+'</article>':'';
     const standard=done&&item.standard&&item.standard.length?'<article class="bb-review-card"><h4>标准答案</h4><ol class="bb-standard">'+item.standard.map(point=>'<li>'+escapeNotice(point)+'</li>').join('')+'</ol></article>':'';
     return '<details class="category-archive"><summary><span>'+escapeNotice(item.title)+'</span><span class="category-archive-count">'+escapeNotice(item.date||'未标日期')+'</span></summary><div class="category-archive-list"><div class="bb-history-question">'+escapeNotice(item.question||item.title)+'</div><div class="bb-pills">'+types+'</div><span class="bb-history-state '+(done?'done':'')+'">'+(done?'已作答':'未作答')+'</span>'+answer+review+standard+'</div></details>';
   }).join('')||'<p class="bb-note">还没有历史题目。</p>';
@@ -1099,7 +1101,7 @@ async function submitBbAnswer(){
       suggestions:Array.isArray(result.suggestions)&&result.suggestions.length?result.suggestions:buildBbReview(value,q).suggestions,
       thinking:Array.isArray(result.thinking_directions)?result.thinking_directions:[],
       diagnosis:Array.isArray(result.diagnosis)?result.diagnosis:[],
-      scoreBreakdown:normalizeBlackboardScores(result.score_breakdown),
+      scoreBreakdown:isEmptyBlackboardAnswer(value)?zeroBlackboardScores():normalizeBlackboardScores(result.score_breakdown),
       scoreSummary:result.score_summary||result.score||''
     };
     window.BB_STATE.review.score=window.BB_STATE.review.scoreBreakdown.length?window.BB_STATE.review.scoreBreakdown.reduce((sum,item)=>sum+item.awarded,0)+'/100 · '+window.BB_STATE.review.scoreSummary:window.BB_STATE.review.scoreSummary;
@@ -1134,12 +1136,26 @@ function normalizeBlackboardScores(items){
   return names.map((name,index)=>{const raw=source.find(item=>String(item?.criterion||'').includes(name.slice(0,2)))||source[index]||{};return{criterion:name,max:25,awarded:Math.round(Math.max(0,Math.min(25,Number(raw.awarded)||0))),reason:String(raw.reason||'本项没有给出有效评分依据。')};});
 }
 
+function isEmptyBlackboardAnswer(value){
+  const clean=String(value||'').replace(/[\s，。！？,.!?~～…]/g,'');
+  return clean.length<12&&/^(不会|好难|不知道|不懂|不会做|答不出|没思路|太难了|不会好难)+$/.test(clean);
+}
+
+function zeroBlackboardScores(reason='原答案没有提供可评分的观点或方案。'){
+  return ['问题理解','方案完整','验证与指标','风险与回滚'].map(criterion=>({criterion,max:25,awarded:0,reason}));
+}
+
+function renderPolishedAnswer(value){
+  const parts=String(value||'').split(/\n+/).map(item=>item.trim()).filter(Boolean);
+  return '<div class="bb-polished">'+(parts.length?parts:[String(value||'')]).map(part=>'<p>'+escapeNotice(part)+'</p>').join('')+'</div>';
+}
+
 async function regradeBlackboardAnswer(){
   const state=window.BB_STATE,q=state?.questionData,button=document.getElementById('bb-regrade');if(!state?.answer||!q||button?.disabled)return;
   button.disabled=true;button.textContent='核分中…';
   try{
     const data=await CozyButler.api('/api/room',{room:'blackboard',message:state.answer,context:{intent:'grade_answer',title:q.title,question:q.question,materials:[...(q.materials||[]),...(q.supplementalMaterials||[])],reference:q.standard}}),result=data?.result||{};
-    const scores=normalizeBlackboardScores(result.score_breakdown),fallback=buildBbReview(state.answer,q);if(scores.length!==4)throw new Error('模型没有返回完整的四项评分，已保留原结果');
+    const scores=isEmptyBlackboardAnswer(state.answer)?zeroBlackboardScores():normalizeBlackboardScores(result.score_breakdown),fallback=buildBbReview(state.answer,q);if(scores.length!==4)throw new Error('模型没有返回完整的四项评分，已保留原结果');
     state.review={revised:result.polished_answer||fallback.revised,suggestions:Array.isArray(result.suggestions)&&result.suggestions.length?result.suggestions:fallback.suggestions,thinking:Array.isArray(result.thinking_directions)?result.thinking_directions:[],diagnosis:Array.isArray(result.diagnosis)?result.diagnosis:[],scoreBreakdown:scores,scoreSummary:result.score_summary||'已按四项标准重新核分'};
     state.review.score=scores.reduce((sum,item)=>sum+item.awarded,0)+'/100 · '+state.review.scoreSummary;
     if(Array.isArray(result.standard_points)&&result.standard_points.length)q.standard=result.standard_points;
@@ -1208,7 +1224,7 @@ async function askBlackboardHelper(){
     const data=await CozyButler.api('/api/room',{room:'blackboard',message:question,context:{intent:'question_helper',title:q.title,question:q.question,materials:[...(q.materials||[]),...(q.supplementalMaterials||[])]}});
     const result=data?.result||{},reply=result.reply||data?.reply||'暂时没有找到可靠信息。';
     chat.innerHTML='<p>'+escapeNotice(reply)+'</p>';
-    if(result.material){q.supplementalMaterials=Array.isArray(q.supplementalMaterials)?q.supplementalMaterials:[];const material=String(result.material).trim();if(material&&!q.supplementalMaterials.includes(material)){q.supplementalMaterials.push(material);const list=document.getElementById('bb-material-list');if(list)list.insertAdjacentHTML('beforeend','<li class="bb-added-material">'+escapeNotice(material)+'</li>');}}
+    if(result.material){q.supplementalMaterials=Array.isArray(q.supplementalMaterials)?q.supplementalMaterials:[];let material=String(result.material).trim();if(material&&!/^用户问[:：]/.test(material))material='用户问：'+question+'；阿栗补充：'+material;if(material&&!q.supplementalMaterials.includes(material)){q.supplementalMaterials.push(material);const list=document.getElementById('bb-material-list');if(list)list.insertAdjacentHTML('beforeend','<li class="bb-added-material">'+escapeNotice(material)+'</li>');}}
     input.value='';
   }catch(error){chat.innerHTML='<p>这次没有查到：'+escapeNotice(error.message)+'</p>';}
   finally{button.disabled=false;button.textContent='问问';}
@@ -1219,7 +1235,7 @@ function renderBlackboardResult(q, answer, review){
   return '<section class="bb-question"><div class="eyebrow">批改结果</div><h3>'+escapeNotice(q.title)+' · 答案对照</h3>'+
     (review.score?'<div class="bb-review-card"><h4>本次完成度</h4><p>'+escapeNotice(review.score)+'</p>'+scoreGrid+'<button id="bb-regrade" class="bb-submit" onclick="regradeBlackboardAnswer()">重新核分</button></div>':'')+
     (review.diagnosis&&review.diagnosis.length?'<div class="bb-review-card"><h4>答案诊断</h4><ul>'+review.diagnosis.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>':'')+
-    '<div class="bb-review-card"><h4>阿栗帮答</h4><p>'+escapeNotice(review.revised)+'</p></div>'+
+    '<div class="bb-review-card"><h4>阿栗帮答</h4>'+renderPolishedAnswer(review.revised)+'</div>'+
     '<div class="bb-comparison"><div class="bb-review-card"><h4>你的原答案</h4><p>'+escapeNotice(answer)+'</p></div>'+
     '<div class="bb-review-card"><h4>标准答案</h4><ol class="bb-standard">'+q.standard.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ol></div></div>'+
     '<div class="bb-review-card"><h4>AI 修改建议</h4><ul>'+review.suggestions.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>'+
@@ -1344,20 +1360,21 @@ function openNotice(){
       '<button class="active" onclick="showNoticeView(\'current\',this)">最新巡报</button>'+
       '<button onclick="showNoticeView(\'weeks\',this)">往期巡报</button>'+
       '<button onclick="showNoticeView(\'categories\',this)">按分类查看</button>'+
-      '<button onclick="showNoticeView(\'inbox\',this)">待读篮</button>'+
+      '<button onclick="showNoticeView(\'inbox\',this)">稍后看</button>'+
     '</div>'+
     '<div id="notice-content"></div>'+
-    '<section id="notice-composer" class="notice-dialogue"><h3>给阿栗留言</h3><div class="notice-task-list" id="notice-task-list" aria-live="polite"></div>'+
+    '<section id="notice-composer" class="notice-dialogue"><h3>给阿栗留言</h3><details class="notice-task-log" id="notice-task-log"><summary><span id="notice-task-summary">最近操作</span></summary><div class="notice-task-list" id="notice-task-list" aria-live="polite"></div></details>'+
     '<div class="notice-hints"><span>下次重点</span><span>总结口径</span><span>链接归类</span><span>工具箱补充</span><span>以后也看看这个来源</span></div>'+
     '<textarea id="notice-request" placeholder="例如：这篇链接归到产品效率；以后也看看某某媒体；把 Claude Science 工具放进学术分类。"></textarea>'+
     '<div class="voice-note"><button class="send-note-btn" id="notice-send-btn" onclick="saveNoticeRequest()" aria-label="交给阿栗" title="发送给阿栗"><span></span></button><button class="parse-note-btn" id="notice-parse-btn" onclick="parseNoticeRequestLink()" aria-label="解析链接" title="抓取并解析链接"><span></span></button><button class="mic-note-btn" id="notice-mic-btn" onclick="startNoticeVoice()" aria-label="语音留言" title="语音留言" aria-pressed="false"><span></span></button></div>'+
     '<div class="butler-reply" id="butler-reply"></div></section>'+
-    '<div class="archive-line" id="notice-status">阿栗可以：加入待读、收入栗夹、解析链接、调整下周关注方向、补工具箱。</div>'+
+    '<div class="archive-line" id="notice-status">阿栗可以：放入稍后看、收入栗夹、解析链接、调整下次关注方向、补工具箱。</div>'+
     '</div>',
     'notice-panel');
   showNoticeView('current');
   refreshButlerConnection();
   resumeNoticeTasks();
+  resumeNoticeRefresh();
 }
 
 function getWeekRange(offset=0){
@@ -1373,13 +1390,33 @@ function getWeekRange(offset=0){
 
 async function runWeeklyNow(){
   const button=document.getElementById('notice-refresh'),title=document.getElementById('notice-week-title');
-  if(button)button.disabled=true;if(title)title.textContent='阿栗正在重新巡逻信息源并筛选近期重点…';
+  setNoticeRefreshState('running','阿栗正在重新巡逻信息源并筛选近期重点…');
   try{
     const data=await cozyApi('/api/weekly/run',{force:true},480000);
-    CORE.notice_reports=data.reports||CORE.notice_reports;
-    showNoticeView('current',document.querySelector('.notice-tabs button'));
-  }catch(error){if(title)title.textContent='资讯巡报获取失败：'+error.message;}
-  finally{if(button)button.disabled=false;}
+    if(data.accepted){setNoticeRefreshState('running','巡报正在后台更新，可以先离开公告板。');resumeNoticeRefresh();}
+    else{CORE.notice_reports=data.reports||CORE.notice_reports;setNoticeRefreshState('completed','巡报已经更新完成。');showNoticeView('current',document.querySelector('.notice-tabs button'));}
+  }catch(error){setNoticeRefreshState('failed','资讯巡报获取失败：'+error.message);}
+}
+
+const NOTICE_REFRESH_KEY='cozy_notice_refresh_status';
+let noticeRefreshPollTimer=null;
+function setNoticeRefreshState(status,message){
+  const state={status,message:String(message||''),updated_at:new Date().toISOString()};
+  localStorage.setItem(NOTICE_REFRESH_KEY,JSON.stringify(state));
+  const button=document.getElementById('notice-refresh'),title=document.getElementById('notice-week-title');
+  if(button){button.disabled=status==='running';button.classList.toggle('running',status==='running');button.title=status==='failed'?message:(status==='running'?'正在更新巡报':'立即更新巡报');}
+  if(title&&message)title.textContent=message;
+  return state;
+}
+function readNoticeRefreshState(){try{return JSON.parse(localStorage.getItem(NOTICE_REFRESH_KEY)||'null');}catch(error){return null;}}
+async function resumeNoticeRefresh(){
+  clearTimeout(noticeRefreshPollTimer);noticeRefreshPollTimer=null;
+  const cached=readNoticeRefreshState();if(cached)setNoticeRefreshState(cached.status,cached.message);
+  try{
+    const data=await cozyApi('/api/automation',undefined,6000),jobs=data.automation?.jobs||{},job=jobs.weekly_report||jobs.notice_report;
+    if(job){const status=job.status==='ready'?'completed':job.status;setNoticeRefreshState(status,job.message||(status==='running'?'阿栗正在更新巡报。':status==='failed'?'巡报更新失败。':'巡报已经更新完成。'));if(status==='completed'){let reports=await cozyApi('/api/data?key=notice_reports',undefined,6000).catch(()=>null);if(!reports?.reports){reports=await fetch('core/notice_reports.json',{cache:'no-store'}).then(response=>response.ok?response.json():null).catch(()=>null);}if(reports?.reports){CORE.notice_reports=reports;const active=document.querySelector('.notice-tabs button.active');if(active?.textContent.includes('最新'))showNoticeView('current',active);}}}
+  }catch(error){}
+  if(readNoticeRefreshState()?.status==='running')noticeRefreshPollTimer=setTimeout(resumeNoticeRefresh,1800);
 }
 
 const NOTICE_REPORT = {
@@ -1508,7 +1545,7 @@ function reportCardHtml(item, category){
     '<div class="notice-analysis"><div class="notice-analysis-block"><b>AI总结</b><p>'+escapeNotice(aiSummary)+'</p></div></div>'+
     '<div class="report-meta"><span>'+escapeNotice(item.published || '本周')+' · '+escapeNotice(item.media || '阿栗整理')+'</span>'+
     '<div class="report-actions">'+link+linkActions+
-    '<button class="readlater-btn '+(laterActive ? 'is-active' : '')+'" data-category="'+escapeNotice(payload.category)+'" data-notice-tag="'+escapeNotice(tag)+'" data-title="'+escapeNotice(payload.title)+'" data-summary="'+escapeNotice(payload.summary)+'" data-ai-summary="'+escapeNotice(payload.ai_summary)+'" data-media="'+escapeNotice(payload.media)+'" data-published="'+escapeNotice(payload.published)+'" data-url="'+escapeNotice(payload.url)+'" onclick="toggleNoticeReadLater(this)">'+(laterActive ? '移出待读' : '加入待读')+'</button>'+
+    '<button class="readlater-btn '+(laterActive ? 'is-active' : '')+'" data-category="'+escapeNotice(payload.category)+'" data-notice-tag="'+escapeNotice(tag)+'" data-title="'+escapeNotice(payload.title)+'" data-summary="'+escapeNotice(payload.summary)+'" data-ai-summary="'+escapeNotice(payload.ai_summary)+'" data-media="'+escapeNotice(payload.media)+'" data-published="'+escapeNotice(payload.published)+'" data-url="'+escapeNotice(payload.url)+'" onclick="toggleNoticeReadLater(this)">'+(laterActive ? '移出稍后看' : '稍后看')+'</button>'+
     '<button class="readlater-btn chest-btn '+(chestActive ? 'is-active' : '')+'" data-category="'+escapeNotice(payload.category)+'" data-notice-tag="'+escapeNotice(tag)+'" data-title="'+escapeNotice(payload.title)+'" data-summary="'+escapeNotice(payload.summary)+'" data-ai-summary="'+escapeNotice(payload.ai_summary)+'" data-media="'+escapeNotice(payload.media)+'" data-published="'+escapeNotice(payload.published)+'" data-url="'+escapeNotice(payload.url)+'" onclick="openChestPicker(this)">'+(chestActive ? '已入栗夹' : '收入栗夹')+'</button>'+
     '</div></div></article>';
 }
@@ -1742,6 +1779,8 @@ function showNoticeView(view, btn){
       '</section>' : '';
     const dynamicItems = curatedNoticeItems(sectionItemsBy(report, isDynamicItem), 4);
     const productItems = curatedNoticeItems(sectionItemsBy(report, isProductItem), 4);
+    const ownerItems = (report.sections||[]).filter(section=>section.name==='主人关注').flatMap(section=>section.items||[]).slice(0,4);
+    const ownerBlock = ownerItems.length?'<section class="report-section owner-focus-section"><h3>主人关注</h3>'+ownerItems.map(item=>reportCardHtml(item,item.category)).join('')+'</section>':'';
     const hotItems = Array.isArray(report.hot_items) && report.hot_items.length ? report.hot_items : [];
     box.innerHTML = '<section class="report-section hot-report-section"><h3>热点速览</h3><div class="brief-list">'+
       (hotItems.length ? hotItems.map(item=>reportCardHtml(item, '热点速览')).join('') : ((report.quick || []).map((x,i)=>quickCardHtml(x,i)).join('') || emptyReportCard('本周还没有速览','阿栗会在周报生成时补上本周最重要的真实热点。')))+'</div></section>'+
@@ -1750,7 +1789,7 @@ function showNoticeView(view, btn){
       '</section>'+
       '<section class="report-section"><h3>产品相关动态</h3>'+
         (productItems.length ? productItems.map(item=>reportCardHtml(item, item.category)).join('') : emptyNoticeLine('阿栗本周没有抓到足够明确的产品相关动态。'))+
-      '</section>'+foundBlock+
+      '</section>'+ownerBlock+foundBlock+
       noticeInsightBlock(report)+noticeAdviceBlock(report);
   }else if(view === 'weeks'){
     const reports = getNoticeReports();
@@ -1770,11 +1809,11 @@ function showNoticeView(view, btn){
   }else{
     const links = JSON.parse(localStorage.getItem('cozy_notice_links') || '[]');
     const requests = JSON.parse(localStorage.getItem('cozy_notice_requests') || '[]');
-    box.innerHTML = '<section class="report-section"><h3>待读资讯</h3>'+
-      (links.length ? links.map(x=>'<article class="report-card"><h4>'+escapeNotice(x.title || x.url)+'</h4><p>'+escapeNotice((x.category||'待读')+' · '+(x.media||''))+'</p><div class="report-meta"><span>'+escapeNotice(x.published || x.date)+' 放入</span><div class="report-actions">'+(x.url?'<a class="source-link" href="'+escapeNotice(x.url)+'" target="_blank">查看原文</a>':'')+'<button class="readlater-btn is-active" data-category="'+escapeNotice(x.category||'待读')+'" data-title="'+escapeNotice(x.title||x.url)+'" data-summary="'+escapeNotice(x.summary||'')+'" data-media="'+escapeNotice(x.media||'')+'" data-published="'+escapeNotice(x.published||'')+'" data-url="'+escapeNotice(x.url||'')+'" onclick="toggleNoticeReadLater(this)">移出待读</button></div></div></article>').join('') : '<p>还没有待读资讯。可以在本周资讯的小卡片上点“加入待读”。</p>')+
-      '</section><section class="report-section"><h3>阿栗任务</h3>'+
-      (requests.filter(x=>x.kind !== 'media_source').length ? requests.filter(x=>x.kind !== 'media_source').map(x=>'<article class="report-card"><h4>'+escapeNotice(x.text)+'</h4><p>'+escapeNotice(x.date)+' 留言。</p></article>').join('') : '<p>还没有留言任务。</p>')+
-      '</section>';
+    box.innerHTML = '<section class="report-section"><h3>稍后看的资讯</h3>'+
+      (links.length ? links.map(x=>'<article class="report-card"><h4>'+escapeNotice(x.title || x.url)+'</h4><p>'+escapeNotice((x.category||'稍后看')+' · '+(x.media||''))+'</p><div class="report-meta"><span>'+escapeNotice(x.published || x.date)+' 放入</span><div class="report-actions">'+(x.url?'<a class="source-link" href="'+escapeNotice(x.url)+'" target="_blank">查看原文</a>':'')+'<button class="readlater-btn is-active" data-category="'+escapeNotice(x.category||'稍后看')+'" data-title="'+escapeNotice(x.title||x.url)+'" data-summary="'+escapeNotice(x.summary||'')+'" data-media="'+escapeNotice(x.media||'')+'" data-published="'+escapeNotice(x.published||'')+'" data-url="'+escapeNotice(x.url||'')+'" onclick="toggleNoticeReadLater(this)">移出稍后看</button></div></div></article>').join('') : '<p>还没有稍后看的资讯。</p>')+
+      '</section><details class="category-archive"><summary><span>阿栗任务</span><span class="category-archive-count">'+requests.filter(x=>x.kind !== 'media_source').length+' 条</span></summary><div class="category-archive-list">'+
+      (requests.filter(x=>x.kind !== 'media_source').length ? requests.filter(x=>x.kind !== 'media_source').slice(0,10).map(x=>'<article class="report-card"><h4>'+escapeNotice(x.text)+'</h4><p>'+escapeNotice(x.date)+' 留言。</p></article>').join('') : '<p>还没有留言任务。</p>')+
+      '</div></details>';
   }
 }
 
@@ -1885,14 +1924,14 @@ function toggleNoticeReadLater(btn){
   if(active){
     removeNoticeListItem('cozy_notice_links', item);
     btn.classList.remove('is-active');
-    btn.textContent = '加入待读';
+    btn.textContent = '稍后看';
     const status = document.getElementById('notice-status');
     if(status) status.textContent = '已移出待读：' + item.title;
     return;
   }
   saveNoticeItem(item.category, item.title, item.media, item.published, item.url, item.summary);
   btn.classList.add('is-active');
-  btn.textContent = '移出待读';
+  btn.textContent = '移出稍后看';
 }
 
 function saveNoticeChestFromButton(btn){
@@ -2321,7 +2360,7 @@ function readNoticeJobs(){
 }
 
 function writeNoticeJobs(jobs){
-  localStorage.setItem(NOTICE_JOB_KEY,JSON.stringify((jobs||[]).slice(0,20)));
+  localStorage.setItem(NOTICE_JOB_KEY,JSON.stringify((jobs||[]).slice(0,10)));
 }
 
 function noticeTaskLabel(status){
@@ -2333,7 +2372,10 @@ function noticeTaskLabel(status){
 function renderNoticeJobs(){
   const box=document.getElementById('notice-task-list');
   if(!box)return;
-  const jobs=readNoticeJobs().slice(0,6);
+  const jobs=readNoticeJobs().slice(0,10),summary=document.getElementById('notice-task-summary'),log=document.getElementById('notice-task-log');
+  const running=jobs.filter(job=>!['completed','failed'].includes(job.status)).length;
+  if(summary)summary.textContent=running?'最近操作 · '+running+' 项进行中':'最近操作 · '+jobs.length+' 条';
+  if(log)log.style.display=jobs.length?'block':'none';
   box.innerHTML=jobs.map(job=>{
     const status=['completed','failed'].includes(job.status)?job.status:'running';
     const message=status==='completed'?(job.reply||'阿栗已完成。'):(job.message||(status==='failed'?'任务没有完成，可以重新下达。':'阿栗正在读取公告板、栗夹和知识库。'));

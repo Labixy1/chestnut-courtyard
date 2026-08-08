@@ -508,7 +508,8 @@ def call_openai(prompt: str) -> str:
 def call_ai(prompt: str) -> tuple[str, str]:
     online = MODEL_GATEWAY.text_provider()
     if online:
-        return MODEL_GATEWAY.call_text(prompt, online)
+        token_budget = 4200 if ("记忆编辑器" in prompt or "蒸馏提案" in prompt or "只修复下面输出" in prompt) else 1800
+        return MODEL_GATEWAY.call_text(prompt, online, max_output_tokens=token_budget)
     raise RuntimeError("阿栗还没有连接你自己的文本模型 API。请配置 OpenAI、DeepSeek、GLM 或通义 API Key。")
 
 
@@ -1018,9 +1019,9 @@ def room_reply(room: str, message: str, context: dict) -> dict:
             '用60-160字回应主人话里的一个具体细节，可以提供判断或陪伴梳理，最多问一个真正有用的问题；不急着安慰，不硬套树的隐喻。'
             '只有内容具体、包含真实经历或形成了可持续成长线索时 should_grow 才为 true；短促情绪、试音和重复句必须为 false。成长信号不得复述树洞原话、人物、公司、地点或其他私密细节。'
         ),
-        "blackboard": ('只返回 JSON：{"reply":"仅小助手模式使用","material":"仅小助手模式使用的一条可独立阅读的补充资料","score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"方案完整","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"验证与指标","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"风险与回滚","max":25,"awarded":0到25,"reason":"必须引用原答案证据"}],"score_summary":"一句总评，不自行写总分","diagnosis":["逐点指出原答案已覆盖和遗漏"],"polished_answer":"在主人答案基础上补全的阿栗帮答","standard_points":["4到7条标准答案要点"],"suggestions":["具体修改建议"],"thinking_directions":["后续思考方向"],"next_question":"下一步练习"}。'
-                       '若 context.intent=question_helper：只回答与当前题目直接相关的概念、组织、事实背景，不泄露标准答案，不替主人完成方案；reply 用80到180字解释，material 用一句带来源边界的资料摘要，其余评分字段返回空数组。只能把上下文资料明确写出的内容当事实；资料未说明组织性质、归属、价格或指标时，必须说现有资料无法确认，禁止凭模型印象补全。组织性质未明确时只能称“该项目”或“该发布主体”，不得称为公司、社区、机构或团队。'
-                       '若 context.intent=grade_answer：无论答案多短都必须返回完整四项评分，不能省略 score_breakdown；必须按四项各25分逐项评分，没有在原答案明确出现的内容不得给分，四项 awarded 必须为整数且总和不得超过100。极短或无关答案可低分，但每项 reason 仍要说明缺失了什么。'),
+        "blackboard": ('只返回 JSON：{"reply":"仅小助手模式使用","material":"仅小助手模式使用的一条可独立阅读的补充资料","score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"方案完整","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"验证与指标","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"风险与回滚","max":25,"awarded":0到25,"reason":"必须引用原答案证据"}],"score_summary":"一句总评，不自行写总分","diagnosis":["逐点指出原答案已覆盖和遗漏"],"polished_answer":"严格按判断、拆解、验证、边界、例子五段输出的完整回答","standard_points":["4到7条标准答案要点"],"suggestions":["具体修改建议"],"thinking_directions":["后续思考方向"],"next_question":"下一步练习"}。'
+                       '若 context.intent=question_helper：回答必须直接关联当前题目和用户追问；可以使用模型通用知识补足背景，但最新归属、版本、价格和指标未联网核验时必须标注。reply 用80到180字解释，material 必须写成“用户问：问题；阿栗补充：答案摘要”，其余评分字段返回空数组。不得泄露标准答案或替主人完成方案。'
+                       '若 context.intent=grade_answer：没有在原答案明确出现的内容不得给分；“不会、好难、不知道”等只有困惑没有答案的内容四项必须全部为0。polished_answer 严格按“判断：”“拆解：1...2...3...”“验证：”“边界：”“例子：”分段。'),
         "travel": '只返回 JSON：{"summary":"忠于原话的旅行感悟摘要，120字内","title":"简短名称"}',
     }
     prompt = f"""你在栗壳小院中处理一个房间内任务。

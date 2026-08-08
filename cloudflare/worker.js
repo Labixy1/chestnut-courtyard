@@ -106,7 +106,7 @@ async function hmac(secret, value) {
 }
 
 const loginPage = (message = "") => new Response(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>回到栗壳小院</title><style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f2e9dc;color:#49392d;font-family:"PingFang SC","Microsoft YaHei",sans-serif}.login{width:min(360px,calc(100vw - 32px));padding:28px;background:rgba(255,252,246,.96);border:1px solid rgba(91,65,42,.14);border-radius:16px;box-shadow:0 22px 65px rgba(77,54,35,.18)}.mark{width:64px;height:64px;margin:0 auto 16px;border-radius:50%;background:#ead8be url('/assets/estate/butler_dog.png') center/cover no-repeat}h1{font-size:21px;text-align:center;margin:0 0 6px}p{font-size:12px;line-height:1.7;text-align:center;color:#8b7563;margin:0 0 18px}input{width:100%;height:44px;border:1px solid rgba(91,65,42,.22);border-radius:10px;background:#fff;padding:0 12px;font:14px inherit;outline:none}input:focus{border-color:#9a7655;box-shadow:0 0 0 3px rgba(154,118,85,.12)}button{width:100%;height:42px;margin-top:10px;border:0;border-radius:10px;background:#765c45;color:#fff;font:14px inherit;cursor:pointer}button:disabled{opacity:.5}.error{min-height:18px;margin-top:10px;color:#a04e43;font-size:11px;text-align:center}</style></head><body><main class="login"><div class="mark"></div><h1>栗壳小院</h1><p>这是主人的私人入口。阿栗会守住这里的数据。</p><form id="form"><input id="passcode" type="password" autocomplete="current-password" placeholder="输入小院口令" aria-label="小院口令" required><button id="submit">回小院</button><div class="error" id="error">${String(message).replace(/[<>&]/g, "")}</div></form></main><script>document.getElementById('form').addEventListener('submit',async event=>{event.preventDefault();const button=document.getElementById('submit'),error=document.getElementById('error');button.disabled=true;error.textContent='阿栗正在确认…';try{const response=await fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({passcode:document.getElementById('passcode').value})});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'口令不正确');location.replace('/');}catch(reason){error.textContent=reason.message;button.disabled=false;}});</script></body></html>`, {status: 401, headers: {"content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "referrer-policy": "no-referrer"}});
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f2e9dc;color:#49392d;font-family:"PingFang SC","Microsoft YaHei",sans-serif}.login{width:min(360px,calc(100vw - 32px));padding:28px;background:rgba(255,252,246,.96);border:1px solid rgba(91,65,42,.14);border-radius:16px;box-shadow:0 22px 65px rgba(77,54,35,.18)}.mark{width:64px;height:64px;margin:0 auto 16px;border-radius:50%;background:#ead8be url('/assets/estate/butler_dog.png') center/cover no-repeat}h1{font-size:21px;text-align:center;margin:0 0 6px}p{font-size:12px;line-height:1.7;text-align:center;color:#8b7563;margin:0 0 18px}input{width:100%;height:44px;border:1px solid rgba(91,65,42,.22);border-radius:10px;background:#fff;padding:0 12px;font:14px inherit;outline:none}input:focus{border-color:#9a7655;box-shadow:0 0 0 3px rgba(154,118,85,.12)}button{width:100%;height:42px;margin-top:10px;border:0;border-radius:10px;background:#765c45;color:#fff;font:14px inherit;cursor:pointer}button:disabled{opacity:.5}.error{display:block;width:100%;min-height:18px;margin-top:10px;color:#a04e43;font-size:11px;line-height:1.5;text-align:center;white-space:normal;word-break:normal;overflow-wrap:break-word}</style></head><body><main class="login"><div class="mark"></div><h1>栗壳小院</h1><p>这是主人的私人入口。阿栗会守住这里的数据。</p><form id="form"><input id="passcode" type="password" autocomplete="current-password" placeholder="输入小院口令" aria-label="小院口令" required><button id="submit">回小院</button><div class="error" id="error">${String(message).replace(/[<>&]/g, "")}</div></form></main><script>document.getElementById('form').addEventListener('submit',async event=>{event.preventDefault();const button=document.getElementById('submit'),error=document.getElementById('error');button.disabled=true;error.textContent='阿栗正在确认…';try{const response=await fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({passcode:document.getElementById('passcode').value})});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'口令不正确');location.replace('/');}catch(reason){error.textContent=reason.message;button.disabled=false;}});</script></body></html>`, {status: 401, headers: {"content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "referrer-policy": "no-referrer"}});
 
 async function login(request, env) {
   if (!env.OWNER_PASSCODE || !env.SESSION_SECRET) return json({ok: false, error: "主人登录密钥尚未配置"}, 503);
@@ -244,12 +244,15 @@ async function fetchNewsRss(query) {
 
 async function runCloudReport(env, force = false) {
   const reportsData = await readData(env, "notice_reports");
+  const butlerState = await readData(env, "butler_state");
+  const watchTopics = (butlerState.watch_topics || []).map(item => String(item.text || item.title || "").trim()).filter(Boolean).slice(0, 8);
   const latest = (reportsData.reports || [])[0];
   if (!force && latest?.generated_at && Date.now() - Date.parse(latest.generated_at) < 46 * 60 * 60 * 1000) return latest;
   const queries = [
     '(OpenAI OR Anthropic OR Google Gemini OR Claude) AI when:3d',
     '(DeepSeek OR Kimi OR 通义千问 OR 豆包 OR Seedance OR Seedream) when:3d',
-    '(AI 产品 原型 OR Agent 评测 OR 记忆系统 OR AI 工作流) when:7d'
+    '(AI 产品 原型 OR Agent 评测 OR 记忆系统 OR AI 工作流) when:7d',
+    ...watchTopics.map(topic => `${topic.replace(/[()"']/g, " ").slice(0, 80)} when:7d`)
   ];
   const settled = await Promise.allSettled(queries.map(fetchNewsRss));
   const articleKeys = item => {
@@ -269,8 +272,9 @@ async function runCloudReport(env, force = false) {
   const pool = settled.flatMap(item => item.status === "fulfilled" ? item.value : []).filter(item => ![...articleKeys(item)].some(key => previousKeys.has(key))).slice(0, 45);
   if (!pool.length) throw new Error("近期资讯源没有返回可整理内容");
   const prompt = `你是阿栗，负责为 AI 产品经理整理一次“资讯巡报”。从候选中只挑真正重要、具体、多样的 7 到 11 条，不要为了凑数收录普通软文。
-只返回 JSON：{"focus_title":"本期最重要变化","hot_items":[{"source_id":"候选id","category":"模型与技术","original_summary":"基于标题与已有摘要的忠实短摘要","ai_summary":"120到200字，说明具体变化、关键数字或能力、值得关注的结论"}],"sections":[{"name":"国内外动态","items":[同结构]},{"name":"产品相关动态","items":[同结构]}],"insights":["跨文章案例总结"],"advice":["给正在做AI产品的主人一个有深度且可执行的建议"]}。
+只返回 JSON：{"focus_title":"本期最重要变化","hot_items":[{"source_id":"候选id","category":"模型与技术","original_summary":"基于标题与已有摘要的忠实短摘要","ai_summary":"120到200字，说明具体变化、关键数字或能力、值得关注的结论"}],"sections":[{"name":"国内外动态","items":[同结构]},{"name":"产品相关动态","items":[同结构]},{"name":"主人关注","items":[同结构]}],"insights":["跨文章案例总结"],"advice":["给正在做AI产品的主人一个有深度且可执行的建议"]}。
 热点速览只放行业级重要发布；国内外动态兼顾 OpenAI、Anthropic、Google 与国内 DeepSeek、Kimi、通义、豆包；产品相关动态只放评测、记忆、Agent、原型、工作流等真正能提升产品能力的案例。分类只用模型与技术、产品与实践、行业动态、学术研究。不得编造候选中没有的价格、指标和事实。
+主人关注方向：${JSON.stringify(watchTopics)}。只有候选中确实有直接相关内容时才增加“主人关注”栏目；没有匹配内容就不要生成该栏目，不能拿普通 AI 新闻凑数。
 候选：${JSON.stringify(pool).slice(0, 30000)}`;
   const result = await callText(env, prompt, 3600);
   const curated = extractJson(result.text);
@@ -620,8 +624,8 @@ async function roomReply(env, room, message, context) {
   const guide = roomPrompts[room] || "根据当前房间和上下文直接回应。";
   const formats = {
     blackboard: String(context?.intent || "grade_answer") === "question_helper"
-      ? '只返回 JSON：{"reply":"80到180字解释题目涉及的组织、概念或事实背景，不泄露标准答案，不代写方案","material":"一条可加入本题资料的简明摘要，并说明信息边界"}。只回答当前题目相关问题；只能把上下文资料明确写出的内容当事实。资料未说明组织性质、归属、价格或指标时必须说现有资料无法确认，禁止凭模型印象补全。组织性质未明确时只能称“该项目”或“该发布主体”，不得称为公司、社区、机构或团队。'
-      : '只返回 JSON：{"score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"方案完整","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"验证与指标","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"风险与回滚","max":25,"awarded":0到25,"reason":"引用原答案证据"}],"score_summary":"一句总评，不写总分","diagnosis":["逐点诊断"],"polished_answer":"在主人答案基础上补全的阿栗帮答","standard_points":["4到7条参考答案要点"],"suggestions":["具体建议"],"thinking_directions":["思考方向"],"next_question":"下一步练习"}。无论答案多短都必须返回完整四项评分，不能省略 score_breakdown；四项各25分，没有在原答案明确出现的内容不得给分，awarded 必须为整数；极短答案可低分，但每项仍要说明缺失内容。',
+      ? '只返回 JSON：{"reply":"80到180字、直接关联当前题目和用户追问的背景解释","material":"用户问：问题；阿栗补充：可独立阅读的答案摘要"}。可使用模型通用知识补足背景；最新归属、版本、价格和指标未联网核验时必须明确标注。不得泄露标准答案或代写方案。'
+      : '只返回 JSON：{"score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"方案完整","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"验证与指标","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"风险与回滚","max":25,"awarded":0到25,"reason":"引用原答案证据"}],"score_summary":"一句总评，不写总分","diagnosis":["逐点诊断"],"polished_answer":"按判断、拆解、验证、边界、例子五段输出的完整回答","standard_points":["4到7条参考答案要点"],"suggestions":["具体建议"],"thinking_directions":["思考方向"],"next_question":"下一步练习"}。没有在原答案明确出现的内容不得给分；“不会、好难、不知道”等只有困惑没有答案的内容四项必须全部为0。polished_answer 严格使用“判断：”“拆解：1...2...3...”“验证：”“边界：”“例子：”并换行。',
     orchard: '只返回 JSON：{"reply":"直接而有余味的解答","seed_summary":"成长主题","key_insight":"可复用判断","next_step":"3天内的小实验","knowledge_topic":{"match_id":"","title":"可持续更新的专题名","category":"成长与方向","entities":[],"summary":"专题最新摘要","knowledge_points":[]}}',
     heart_hollow: String(context?.mode || "oracle") === "dialogue"
       ? '只返回 JSON：{"reply":"自然的对话回应","mode":"dialogue","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。'
@@ -722,14 +726,22 @@ async function distillMemory(env) {
   if (!events.length) throw new Error("还没有足够的非封存记忆可整理");
   const status = {status: "running", last_run: now(), provider: textProvider(env), recent_runs: []};
   await writeState(env, "memory:distillation", status);
-  const result = await callText(env, `请增量更新一份给私人AI助手使用的中文记忆档案。输入包含旧档案和新近非封存行为；保留仍有效的稳定偏好、长期目标、关注领域、合作方式，纠正冲突信息，不写逐条流水，不推断敏感身份。返回 JSON：{"summary":"...","sections":[{"title":"偏好与合作方式","text":"..."},{"title":"长期目标与成长方向","text":"..."},{"title":"知识关注","text":"..."}]}。\n旧档案：${JSON.stringify(memory.profile)}\n新近行为：${JSON.stringify(events)}`, 1400);
-  const match = result.text.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("模型没有返回可用的记忆档案");
-  const parsed = JSON.parse(match[0]);
-  const profile = {summary: String(parsed.summary || "").slice(0, 800), sections: (parsed.sections || []).slice(0, 8).map(item => ({title: String(item.title || "记忆").slice(0, 40), text: String(item.text || "").slice(0, 1800)})), generator: "ai_distillation", generated_at: now()};
-  await writeState(env, "memory:profile", profile);
-  await writeState(env, "memory:distillation", {...status, status: "completed", last_success: now(), provider: result.provider});
-  return profile;
+  try {
+    let result = await callText(env, `请增量更新一份给私人AI助手使用的中文记忆档案。输入包含旧档案和新近非封存行为；保留仍有效的稳定偏好、长期目标、关注领域、合作方式，纠正冲突信息，不写逐条流水，不推断敏感身份。返回 JSON：{"summary":"...","sections":[{"title":"偏好与合作方式","text":"..."},{"title":"长期目标与成长方向","text":"..."},{"title":"知识关注","text":"..."}]}。\n旧档案：${JSON.stringify(memory.profile)}\n新近行为：${JSON.stringify(events)}`, 1800);
+    let parsed;
+    try { parsed = extractJson(result.text); }
+    catch (_error) {
+      result = await callText(env, `只修复下面输出的 JSON 语法和缺失闭合，不新增事实，不输出 Markdown：\n${String(result.text).slice(0, 14000)}`, 1800);
+      parsed = extractJson(result.text);
+    }
+    const profile = {summary: String(parsed.summary || "").slice(0, 800), sections: (parsed.sections || []).slice(0, 8).map(item => ({title: String(item.title || "记忆").slice(0, 40), text: String(item.text || "").slice(0, 1800)})), generator: "ai_distillation", generated_at: now()};
+    await writeState(env, "memory:profile", profile);
+    await writeState(env, "memory:distillation", {...status, status: "completed", last_success: now(), last_error: "", provider: result.provider});
+    return profile;
+  } catch (error) {
+    await writeState(env, "memory:distillation", {...status, status: "failed", last_error: String(error.message || error).slice(0, 500)});
+    throw error;
+  }
 }
 
 export async function handleRequest(request, env, ctx = {}) {
@@ -844,7 +856,14 @@ export async function handleRequest(request, env, ctx = {}) {
       const state = await appendButlerItem(env, "toolbox", tool);
       return json({ok: true, item: tool, state});
     }
-    if (url.pathname === "/api/weekly/run") return json({ok: true, report: await runCloudReport(env, Boolean(input.force))});
+    if (url.pathname === "/api/weekly/run") {
+      await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "running", message: "阿栗正在巡逻近期资讯"}}});
+      const work = runCloudReport(env, Boolean(input.force)).catch(async error => {
+        await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "failed", last_error: now(), message: String(error.message || error).slice(0, 300)}}});
+      });
+      ctx.waitUntil(work);
+      return json({ok: true, accepted: true, status: "running"}, 202);
+    }
     if (url.pathname === "/api/voice/start" || url.pathname === "/api/voice/stop") return json({ok: false, error: "云端使用浏览器语音识别，不启用本机语音服务"}, 501);
     if (url.pathname === "/api/media/generate") {
       const task = input.kind === "video" ? await createVideo(env, input) : await generateImage(env, input);

@@ -635,6 +635,13 @@ def build_report(items, sources, source_config, args):
     sections = [section for section in sections if section.get("name") != "产品技巧"]
     if product_items:
         sections.append({"name": "产品相关精选", "items": product_items})
+    focus_terms = []
+    for topic in topics:
+        focus_terms.extend(re.findall(r"[A-Za-z][A-Za-z0-9_.-]{2,}|[\u4e00-\u9fff]{2,}", str(topic).lower()))
+    focus_terms = [term for term in dict.fromkeys(focus_terms) if term not in {"下次", "看看", "相关内容", "关注", "资讯", "主人", "ai"}]
+    owner_items = [item for item in ranked if any(term in (item.get("title", "") + " " + item.get("summary", "")).lower() for term in focus_terms)][:3]
+    if topics and owner_items:
+        sections.insert(0, {"name": "主人关注", "items": [enrich_item(item) for item in owner_items]})
     focus = hot_items[0]["title"] if hot_items else (selected[0]["title"] if selected else "阿栗本周还没有抓到足够资讯")
     quick = [
         "[" + item.get("hot_label", "AI进展") + "] " + item.get("title", "")
