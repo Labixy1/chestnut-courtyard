@@ -17,6 +17,10 @@ cd cloudflare
 wrangler deploy --config wrangler.toml
 ```
 
+The owner app is published at `https://dcxin.neuralnode.top`. The custom domain
+hides the immutable Cloudflare account subdomain while preserving the existing
+Worker, KV namespace and secrets.
+
 Required secrets:
 
 - `OWNER_PASSCODE`

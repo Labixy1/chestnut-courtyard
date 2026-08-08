@@ -1,6 +1,11 @@
 name = "chestnut-courtyard-owner"
+account_id = "42d36bec076af7c710aa8b8d50246870"
 main = "worker.js"
 compatibility_date = "2026-08-01"
+
+routes = [
+  { pattern = "dcxin.neuralnode.top", custom_domain = true }
+]
 
 [vars]
 COZY_TEXT_PROVIDER = "deepseek"

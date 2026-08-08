@@ -1,4 +1,5 @@
 name = "cozy-estate"
+account_id = "42d36bec076af7c710aa8b8d50246870"
 main = "worker.js"
 compatibility_date = "2026-08-01"
 
