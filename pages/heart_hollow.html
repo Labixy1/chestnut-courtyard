@@ -249,6 +249,7 @@ async function addEntry(){
   const now = new Date();
   const pad = n=>String(n).padStart(2,'0');
   const e = {
+    id: 'heart_'+Date.now()+'_'+Math.random().toString(16).slice(2,8),
     date: now.getFullYear()+'-'+pad(now.getMonth()+1)+'-'+pad(now.getDate()),
     time: pad(now.getHours())+':'+pad(now.getMinutes()),
     transcript: t, echo: '已收好，等你说完整。', weather: '', mode:hollowMode
@@ -282,12 +283,13 @@ async function addEntry(){
     const data = window.CozyButler ? await CozyButler.api('/api/room',{room:'heart_hollow',message:requestText,context:{date:e.date,time:e.time,mode:hollowMode,recent}}) : null;
     if(data && data.result && data.result.reply){
       e.echo=data.result.reply;
+      recordOrchardGrowth(e,data.result.growth_signal);
       if(hollowMode==='oracle')clearPendingOracle();
       const local=JSON.parse(localStorage.getItem('cozy_heart_entries')||'[]');
       const match=local.find(item=>item.date===e.date&&item.time===e.time&&item.transcript===e.transcript);if(match)match.echo=e.echo;
       localStorage.setItem('cozy_heart_entries',JSON.stringify(local));window.CozyButler?.persistLocal(['cozy_heart_entries']);render();showTreeReply(e.echo,hollowMode);
     }
-  }catch(error){e.echo=hollowMode==='oracle'?localEcho():'我听见了。你愿意再说说，哪一部分最让你放不下？';render();showTreeReply(e.echo,hollowMode);}
+  }catch(error){e.echo=hollowMode==='oracle'?localEcho():'我听见了。你愿意再说说，哪一部分最让你放不下？';recordOrchardGrowth(e,null);render();showTreeReply(e.echo,hollowMode);}
 }
 
 function saveLocalHeartEntry(entry){
@@ -306,6 +308,26 @@ function memorySpecificityScore(text){
   return score;
 }
 function hasDetailedMemory(text){return memorySpecificityScore(text)>=4;}
+function privateSafeGrowthFallback(text){
+  const value=String(text||'');
+  if(/工作|公司|项目|会议|同事|产品|面试|职业/.test(value))return{title:'重新整理工作的方向',hint:'这段经历正在让取舍、边界或下一步变得更清楚。'};
+  if(/朋友|关系|家人|家里|他说|她说|相处/.test(value))return{title:'在关系里辨认边界',hint:'这段经历正在形成一种更清楚的相处判断。'};
+  if(/学习|课程|读书|工具|模型|AI|代码|知识/.test(value))return{title:'把新知变成自己的判断',hint:'新的理解正在和已有经验连接起来。'};
+  if(/决定|选择|以后|方向|计划|想要/.test(value))return{title:'为下一步辨认方向',hint:'这段经历正在帮助一个选择慢慢显形。'};
+  return{title:'消化一段真实经历',hint:'这段经历正在沉淀成更清楚的感受与判断。'};
+}
+function recordOrchardGrowth(entry,signal){
+  if(!hasDetailedMemory(entry.transcript))return;
+  const provided=signal&&typeof signal==='object'?signal:null;
+  if(provided&&provided.should_grow===false)return;
+  const fallback=privateSafeGrowthFallback(entry.transcript),title=String(provided?.title||fallback.title).replace(/[\r\n]+/g,' ').trim().slice(0,28),hint=String(provided?.hint||fallback.hint).replace(/[\r\n]+/g,' ').trim().slice(0,90);
+  if(!title)return;
+  const key='cozy_orchard_growth_events',events=JSON.parse(localStorage.getItem(key)||'[]'),id='growth_'+entry.id;
+  if(events.some(item=>item.id===id))return;
+  events.unshift({id,source:'heart_hollow',sourceDate:entry.date,title,hint,nourishment:Math.max(1,Math.min(3,Number(provided?.nourishment)||2)),createdAt:new Date().toISOString(),consumed:false,privacy:'distilled_only'});
+  localStorage.setItem(key,JSON.stringify(events.slice(0,240)));
+  window.CozyButler?.persistLocal([key]);
+}
 function summarizeMemoryTitle(text){
   const clean=String(text||'').replace(/[\n\r]+/g,' ').replace(/^(今天|昨天|我想说|就是|然后|其实)[，,、\s]*/,'').trim();
   const first=clean.split(/[。！？!?；;]/)[0].slice(0,22);

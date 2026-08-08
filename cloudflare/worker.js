@@ -518,7 +518,9 @@ async function roomReply(env, room, message, context) {
   const formats = {
     blackboard: '只返回 JSON：{"score":"分数与一句依据","diagnosis":["逐点诊断"],"polished_answer":"保留原意的优化答案","standard_points":["4到7条参考答案要点"],"suggestions":["针对原答案的具体建议"],"thinking_directions":["下一轮思考或验证方向"],"next_question":"下一步练习"}',
     orchard: '只返回 JSON：{"reply":"直接而有余味的解答","seed_summary":"成长主题","key_insight":"可复用判断","next_step":"3天内的小实验","knowledge_topic":{"match_id":"","title":"可持续更新的专题名","category":"成长与方向","entities":[],"summary":"专题最新摘要","knowledge_points":[]}}',
-    heart_hollow: String(context?.mode || "oracle") === "dialogue" ? '只返回 JSON：{"reply":"自然的对话回应","mode":"dialogue"}' : '只返回 JSON：{"reply":"18到45字、回应具体内容的一句签语","mode":"oracle"}',
+    heart_hollow: String(context?.mode || "oracle") === "dialogue"
+      ? '只返回 JSON：{"reply":"自然的对话回应","mode":"dialogue","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。'
+      : '只返回 JSON：{"reply":"18到45字、回应具体内容的一句签语","mode":"oracle","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。',
     travel: '只返回 JSON：{"summary":"120字内旅行感悟摘要","title":"简短名称"}'
   };
   const memory = await memoryContext(env);

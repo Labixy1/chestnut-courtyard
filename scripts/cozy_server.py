@@ -238,7 +238,8 @@ def write_json_atomic(path: Path, value):
 
 def sync_local_state(payload: dict):
     allowed = {
-        "cozy_blackboard_answers", "cozy_blackboard_directions", "cozy_orchard_seeds", "cozy_orchard_topics", "cozy_notice_requests",
+        "cozy_blackboard_answers", "cozy_blackboard_directions", "cozy_orchard_seeds", "cozy_orchard_topics",
+        "cozy_orchard_garden", "cozy_orchard_backpack", "cozy_orchard_growth_events", "cozy_notice_requests",
         "cozy_trips", "cozy_trip_reflections", "cozy_heart_entries",
         "cozy_hollow_buried_media", "cozy_memory_events", "cozy_global_butler_history",
         "cozy_toolbox_local_items", "cozy_notice_links", "cozy_notice_chest",
@@ -877,11 +878,13 @@ def room_reply(room: str, message: str, context: dict) -> dict:
     formats = {
         "orchard": '只返回 JSON：{"reply":"一段80-160字的田野签语，先点出问题真正指向，再给具体回答；有先知般的画面和余味，但不预言命运、不空泛玄学","seed_summary":"一句可长期跟进的成长主题","key_insight":"一句可复用判断","next_step":"一个3天内可完成的小实验","knowledge_topic":{"match_id":"能归入上下文现有专题时必须填该id，否则留空","title":"稳定、可继续扩展的专题名，如AI编程助手，不要只用单个产品名","category":"优先复用现有分类，确实不同才新建","entities":["本次涉及的产品或概念"],"summary":"融合旧专题和本次新知识后的最新综合摘要","knowledge_points":["本次新增或修正的具体知识点"]}}',
         "heart_hollow": (
-            '只返回 JSON：{"reply":"一句签语","mode":"oracle"}。'
+            '只返回 JSON：{"reply":"一句签语","mode":"oracle","growth_signal":{"should_grow":true或false,"title":"不包含原话和私密细节的成长主题，最多20字","hint":"这段经历正在形成的判断或变化，最多60字","nourishment":1到3}}。'
             '签语必须只有一句、18-45字，像塔罗牌上的句子一样有画面与余味，但不预言命运；必须回应主人刚才说的具体内容，不空泛安慰、不说教、不硬套树的隐喻。'
+            '只有内容具体、包含真实经历或形成了可持续成长线索时 should_grow 才为 true；短促情绪、试音和重复句必须为 false。成长信号不得复述树洞原话、人物、公司、地点或其他私密细节。'
             if heart_mode == "oracle" else
-            '只返回 JSON：{"reply":"自然的对话回应","mode":"dialogue"}。'
+            '只返回 JSON：{"reply":"自然的对话回应","mode":"dialogue","growth_signal":{"should_grow":true或false,"title":"不包含原话和私密细节的成长主题，最多20字","hint":"这段经历正在形成的判断或变化，最多60字","nourishment":1到3}}。'
             '用60-160字回应主人话里的一个具体细节，可以提供判断或陪伴梳理，最多问一个真正有用的问题；不急着安慰，不硬套树的隐喻。'
+            '只有内容具体、包含真实经历或形成了可持续成长线索时 should_grow 才为 true；短促情绪、试音和重复句必须为 false。成长信号不得复述树洞原话、人物、公司、地点或其他私密细节。'
         ),
         "blackboard": '只返回 JSON：{"score":"完成度判断，例如72/100，并用一句话说明评分依据","diagnosis":["逐点指出原答案已经覆盖和遗漏的内容"],"polished_answer":"保留原意但结构更清楚的润色答案","standard_points":["4到7条可独立理解的标准答案要点；结合主人的相关记忆与具体例子，但不能编造经历"],"suggestions":["针对这份答案的具体修改建议，不写泛话"],"thinking_directions":["下一轮应该追问或验证的思考方向"],"next_question":"一个下一步练习"}',
         "travel": '只返回 JSON：{"summary":"忠于原话的旅行感悟摘要，120字内","title":"简短名称"}',

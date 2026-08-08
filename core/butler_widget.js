@@ -3,7 +3,7 @@
   const RUNTIME=window.CozyRuntime||{mode:'dev',readOnly:false,apiBase:location.protocol==='file:'?'http://127.0.0.1:8766':''};
   const API_ORIGIN=RUNTIME.apiBase;
   const HISTORY_KEY=RUNTIME.mode==='preview'?'cozy_preview_butler_history':'cozy_global_butler_history';
-  const STATE_KEYS=['cozy_blackboard_answers','cozy_blackboard_directions','cozy_orchard_seeds','cozy_orchard_topics','cozy_notice_requests','cozy_trips','cozy_trip_reflections','cozy_heart_entries','cozy_hollow_buried_media','cozy_memory_events','cozy_global_butler_history','cozy_toolbox_local_items','cozy_notice_links','cozy_notice_chest','cozy_butler_watch_topics','cozy_butler_local_sources','cozy_photo_albums'];
+  const STATE_KEYS=['cozy_blackboard_answers','cozy_blackboard_directions','cozy_orchard_seeds','cozy_orchard_topics','cozy_orchard_garden','cozy_orchard_backpack','cozy_orchard_growth_events','cozy_notice_requests','cozy_trips','cozy_trip_reflections','cozy_heart_entries','cozy_hollow_buried_media','cozy_memory_events','cozy_global_butler_history','cozy_toolbox_local_items','cozy_notice_links','cozy_notice_chest','cozy_butler_watch_topics','cozy_butler_local_sources','cozy_photo_albums'];
   let busy=false;
   let activeDictation=null;
   function esc(v){return String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}

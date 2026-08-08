@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<meta name="theme-color" content="#75604a" />
+<meta name="theme-color" content="#55653d" />
 <link rel="manifest" href="../manifest.webmanifest" />
-<title>智慧果园</title>
+<title>成长田</title>
 <script src="../core/runtime-config.js"></script>
 <script src="../core/runtime.js"></script>
 <script src="../core/data.js"></script>
@@ -16,265 +16,183 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
-  body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",serif;overflow:hidden;color:#fff4d8;
-     background:#314323}
-  .orchard-stage{position:relative;width:100vw;height:100vh;overflow:hidden;isolation:isolate}
-  .orchard-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-3}
-  .orchard-stage:before{content:"";position:absolute;inset:0;background:
-     linear-gradient(180deg,rgba(30,42,20,.04),rgba(30,42,20,.2) 58%,rgba(30,42,20,.38));z-index:-2}
-  .orchard-stage:after{content:"";position:absolute;inset:0;background:
-     radial-gradient(circle at 50% 44%,rgba(255,238,178,0) 0 42%,rgba(28,33,18,.28) 100%);z-index:-1}
-  .back{position:fixed;left:18px;top:16px;z-index:3;color:#fff5d8;text-decoration:none;font-size:14px;
-     background:rgba(45,31,16,.46);border:1px solid rgba(255,246,214,.24);padding:7px 13px;
-     border-radius:999px;backdrop-filter:blur(6px);box-shadow:0 8px 20px rgba(24,18,10,.18)}
-  .caption{position:absolute;left:22px;bottom:20px;max-width:420px;color:#fff8e8;
-     background:rgba(45,31,16,.34);border:1px solid rgba(255,246,214,.2);
-     padding:14px 16px;box-shadow:0 12px 28px rgba(24,18,10,.2);backdrop-filter:blur(6px)}
-  .caption h1{font-size:18px;margin-bottom:4px}
-  .caption p{font-size:13px;line-height:1.6;color:rgba(255,248,232,.9)}
-  .seed-btn{position:fixed;right:22px;bottom:22px;z-index:3;border:1px solid rgba(255,246,214,.26);
-     border-radius:999px;background:rgba(45,31,16,.48);color:#fff5d8;padding:11px 18px;
-     font:inherit;cursor:pointer;backdrop-filter:blur(6px);box-shadow:0 10px 24px rgba(24,18,10,.2)}
-  .seed-panel{position:fixed;right:22px;bottom:76px;width:min(420px,calc(100vw - 44px));z-index:4;
-     background:rgba(255,250,238,.9);color:#4d3828;border-radius:24px;padding:18px;
-     box-shadow:0 24px 70px rgba(28,18,8,.28);display:none;max-height:min(78vh,720px);overflow:auto}
-  .seed-panel.show{display:block}
-  .seed-panel h2{font-size:17px;margin-bottom:8px}
-  .seed-panel p{font-size:13px;line-height:1.65;color:#6c5942;margin-bottom:10px}
-  .seed-input-wrap{position:relative}
-  .seed-panel textarea{width:100%;min-height:110px;border:1px solid #dec4a7;border-radius:16px;
-     padding:12px 54px 12px 12px;font:inherit;resize:vertical;background:#fffdf8;color:#4d3828;outline:none}
-  .seed-panel textarea:focus{border-color:#a5ad73;box-shadow:0 0 0 3px rgba(127,139,84,.12)}
-  .seed-mic{position:absolute;right:11px;bottom:12px;width:34px;height:34px;display:grid;place-items:center;
-     margin:0!important;padding:0!important;border:1px solid rgba(101,112,65,.2)!important;border-radius:50%!important;
-     background:rgba(127,139,84,.1)!important;color:#687442!important;transition:.18s ease}
-  .seed-mic:hover{background:rgba(127,139,84,.18)!important}
-  .seed-mic.active{background:#7f8b54!important;color:#fff!important;box-shadow:0 0 0 5px rgba(127,139,84,.14)}
-  .seed-mic:disabled{opacity:.45;cursor:default}
-  .seed-mic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
-  .seed-voice-status{min-height:17px;padding:4px 3px 0;font-size:10px;line-height:1.4;color:#88775e}
-  .seed-panel button{border:0;border-radius:999px;background:#7f8b54;color:#fff8e8;padding:9px 15px;margin-top:10px;cursor:pointer}
-  .growth-actions{display:flex;gap:8px;flex-wrap:wrap}.growth-actions button{flex:1}.growth-actions button:disabled{opacity:.5;cursor:default}
-  .growth-actions .soft{background:#c7a96e;color:#fffdf4}
-  .orchard-reply{display:none;margin-top:12px;border-radius:18px;background:rgba(255,255,255,.68);
-     border:1px solid rgba(126,98,58,.12);padding:12px 14px;color:#5a4630}
-  .orchard-reply.show{display:block}
-  .orchard-reply h3{font-size:14px;margin-bottom:6px;color:#5b6b36}
-  .orchard-reply p{margin:5px 0}
-  .crystals{display:grid;gap:8px;margin-top:12px;max-height:220px;overflow:auto}
-  .crystal{font-size:12px;border-radius:14px;background:#f2e8ca;color:#5f5734;padding:9px 10px;display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center}
-  .crystal small{display:block;color:#8b7b58;margin-top:3px}.crystal-actions{display:flex;gap:5px}.crystal-actions button{margin:0;padding:5px 8px;background:#fffaf0;color:#6a7448;border:1px solid rgba(95,87,52,.12);font-size:10px}.crystal.resolved{opacity:.72;background:#e2e5c9}
-  .knowledge-library{margin-top:15px;padding-top:13px;border-top:1px solid rgba(94,75,47,.14)}
-  .knowledge-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}.knowledge-head h3{font-size:14px;color:#5b6b36}.knowledge-head span{font-size:10px;color:#8b7b58}
-  .knowledge-category{margin-top:10px;font-size:10px;color:#8c744e}.knowledge-topic{border-bottom:1px solid rgba(94,75,47,.1)}
-  .knowledge-topic summary{list-style:none;display:flex;align-items:center;gap:8px;padding:9px 1px;cursor:pointer}.knowledge-topic summary::-webkit-details-marker{display:none}
-  .knowledge-topic summary strong{min-width:0;flex:1;font-size:12px;color:#55452f}.knowledge-topic summary small{font-size:9px;color:#9a896d}.knowledge-topic summary:after{content:"+";color:#8a9561}.knowledge-topic[open] summary:after{content:"−"}
-  .knowledge-body{padding:0 2px 10px}.knowledge-body>p{font-size:11px;line-height:1.65;color:#6c5942;margin:0 0 7px}
-  .knowledge-entities{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:7px}.knowledge-entities span{font-size:9px;padding:3px 6px;border-radius:999px;background:#eee1be;color:#776541}
-  .knowledge-entry{padding:7px 0;border-top:1px dashed rgba(94,75,47,.11)}.knowledge-entry b{display:block;font-size:10px;color:#5d6c39;margin-bottom:3px}.knowledge-entry p{font-size:10px;line-height:1.55;color:#76634a;margin:0}
+  button,textarea{font:inherit}
+  button{color:inherit}
+  body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;overflow:hidden;color:#fff8e9;background:#314323}
+  .orchard-stage{position:relative;width:100vw;height:100vh;min-height:620px;overflow:hidden;isolation:isolate}
+  .orchard-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-4}
+  .orchard-stage:before{content:"";position:absolute;inset:0;z-index:-3;background:linear-gradient(180deg,rgba(24,35,17,.06),rgba(23,31,14,.18) 52%,rgba(20,26,13,.5))}
+  .orchard-stage:after{content:"";position:absolute;inset:0;z-index:-2;background:radial-gradient(circle at 50% 42%,transparent 0 44%,rgba(20,25,12,.25) 100%)}
+  .back{position:fixed;left:18px;top:16px;z-index:8;color:#fff6dc;text-decoration:none;font-size:13px;background:rgba(43,35,22,.43);border:1px solid rgba(255,247,220,.2);padding:8px 13px;border-radius:999px;backdrop-filter:blur(8px);box-shadow:0 8px 20px rgba(20,16,10,.18)}
+  .caption{position:absolute;left:22px;bottom:18px;z-index:3;width:min(380px,calc(100vw - 44px));text-shadow:0 2px 10px rgba(20,23,12,.55)}
+  .caption h1{font-family:"STKaiti","KaiTi",serif;font-size:24px;font-weight:600;letter-spacing:0}
+  .caption p{max-width:350px;margin-top:4px;font-size:12px;line-height:1.65;color:rgba(255,249,231,.86)}
+  .field-tools{position:fixed;right:20px;top:18px;z-index:8;display:flex;gap:9px}
+  .icon-control{position:relative;width:42px;height:42px;border:1px solid rgba(255,247,220,.2);border-radius:50%;display:grid;place-items:center;background:rgba(43,35,22,.43);color:#fff6dc;cursor:pointer;backdrop-filter:blur(8px);box-shadow:0 8px 20px rgba(20,16,10,.18);transition:.18s ease}
+  .icon-control:hover{background:rgba(61,53,34,.62);transform:translateY(-1px)}
+  .icon-control svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .icon-control .count{position:absolute;right:-3px;top:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:9px;display:grid;place-items:center;background:#d9ae55;color:#4b3518;border:2px solid rgba(255,250,232,.9);font-size:9px;font-weight:700}
+  .garden{position:absolute;left:50%;bottom:13%;z-index:2;width:min(820px,76vw);transform:translateX(-50%);display:grid;grid-template-columns:repeat(3,minmax(150px,1fr));gap:clamp(10px,1.8vw,24px) clamp(14px,2.6vw,34px);perspective:900px}
+  .plot{position:relative;height:150px;border:0;background:transparent;cursor:pointer;color:#fff8e9;outline:none;filter:drop-shadow(0 10px 11px rgba(24,20,12,.3))}
+  .plot:focus-visible .soil{outline:2px solid #fff4c7;outline-offset:5px}
+  .soil{position:absolute;left:5%;right:5%;bottom:2px;height:64px;border:1px solid rgba(246,211,151,.16);border-radius:50%;background:radial-gradient(ellipse at 50% 30%,#725036 0 16%,#513723 50%,#332418 78%);box-shadow:inset 0 8px 12px rgba(19,12,7,.28),0 3px 0 rgba(255,232,184,.09);transform:rotateX(54deg);transition:.2s ease}
+  .plot:hover .soil{filter:brightness(1.12)}
+  .plot.empty .soil:after{content:"+";position:absolute;inset:0;display:grid;place-items:center;color:rgba(255,237,196,.72);font:30px/1 Georgia,serif;transform:rotateX(-54deg) translateY(-3px)}
+  .plot-copy{position:absolute;left:8%;right:8%;bottom:-24px;text-align:center;text-shadow:0 2px 8px rgba(24,18,10,.7)}
+  .plot-copy strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;font-weight:600}
+  .plot-copy small{display:block;margin-top:2px;color:rgba(255,246,222,.72);font-size:9px}
+  .plant{--leaf:#668a4c;--leaf2:#8ba765;position:absolute;left:50%;bottom:42px;width:94px;height:102px;transform:translateX(-50%);transform-origin:50% 100%;transition:transform .28s ease,filter .28s ease}
+  .stem{position:absolute;left:46px;bottom:3px;width:4px;height:63px;border-radius:4px;background:linear-gradient(90deg,#415e30,#759252)}
+  .leaf{position:absolute;width:34px;height:18px;border-radius:100% 0 100% 0;background:linear-gradient(135deg,var(--leaf2),var(--leaf));box-shadow:inset 2px 1px 0 rgba(255,255,255,.12)}
+  .leaf.l1{left:15px;bottom:25px;transform:rotate(16deg)}.leaf.l2{right:12px;bottom:39px;transform:scaleX(-1) rotate(12deg)}.leaf.l3{left:20px;bottom:55px;transform:rotate(24deg)}.leaf.l4{right:18px;bottom:66px;transform:scaleX(-1) rotate(22deg)}
+  .bud{position:absolute;left:33px;top:8px;width:30px;height:30px;border-radius:52% 48% 55% 45%;background:#d9b565;box-shadow:inset -5px -5px 0 rgba(119,73,36,.13);transform:scale(.25);opacity:0;transition:.25s ease}
+  .fruit{position:absolute;left:32px;top:9px;width:32px;height:34px;border-radius:47% 53% 52% 48%;background:#b45f4b;box-shadow:inset -6px -5px 0 rgba(92,40,30,.16),inset 4px 4px 0 rgba(255,230,177,.12);transform:scale(.2);opacity:0;transition:.25s ease}
+  .plant.buried{opacity:0}.plant.sprout{transform:translateX(-50%) scale(.47);transform-origin:50% 100%}.plant.leafy{transform:translateX(-50%) scale(.76)}.plant.bloom .bud{opacity:1;transform:scale(1)}.plant.fruiting .fruit{opacity:1;transform:scale(1)}.plant.fruiting .bud{opacity:0}
+  .plant.type-fern{--leaf:#497b58;--leaf2:#8eb77e}.plant.type-flower{--leaf:#64805a;--leaf2:#9aae74}.plant.type-flower .bud{background:#e4a985}.plant.type-vine{--leaf:#527b49;--leaf2:#82a758}.plant.type-crystal{--leaf:#587a71;--leaf2:#8bad8c}.plant.type-crystal .bud,.plant.type-crystal .fruit{border-radius:10% 50% 42% 48%;background:#9dc4ba;transform:rotate(45deg) scale(.2)}.plant.type-crystal.bloom .bud,.plant.type-crystal.fruiting .fruit{transform:rotate(45deg) scale(1)}.plant.type-golden{--leaf:#7c8846;--leaf2:#b0aa60}.plant.type-golden .fruit{background:#d6a64e}
+  .plot.resting .plant{filter:saturate(.78);transform:translateX(-50%) scale(.58)}
+  .plot.watering .plant{animation:drink .8s ease}.plot.watering:after{content:"";position:absolute;left:50%;top:34px;width:8px;height:12px;border-radius:60% 40% 55% 45%;background:#b9e1ea;box-shadow:-15px 12px 0 #b9e1ea,14px 18px 0 #b9e1ea;animation:drops .75s ease forwards}
+  .plot.harvesting .plant{animation:harvest .75s ease forwards}.plot.harvesting .soil:before,.plot.harvesting .soil:after{content:"";position:absolute;left:50%;top:50%;width:3px;height:52px;background:#fff2b8;box-shadow:0 0 14px #ffe598;transform-origin:50% 100%;animation:ray .7s ease forwards}.plot.harvesting .soil:after{transform:rotate(72deg)}
+  @keyframes drink{0%,100%{transform:translateX(-50%) rotate(0)}35%{transform:translateX(-50%) rotate(-3deg)}70%{transform:translateX(-50%) rotate(3deg)}}
+  @keyframes drops{0%{opacity:0;transform:translate(26px,-16px)}45%{opacity:1}100%{opacity:0;transform:translate(-6px,42px)}}
+  @keyframes harvest{0%{opacity:1;transform:translateX(-50%) scale(1)}55%{opacity:1;transform:translateX(-50%) scale(1.18)}100%{opacity:0;transform:translateX(-50%) scale(.3)}}
+  @keyframes ray{0%{opacity:0;transform:translate(-50%,-50%) scaleY(.2)}50%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scaleY(1.7)}}
+  .drawer{position:fixed;right:18px;top:70px;bottom:18px;z-index:12;width:min(390px,calc(100vw - 36px));display:none;grid-template-rows:auto 1fr;background:rgba(255,251,241,.96);color:#4c3a29;border:1px solid rgba(89,67,43,.14);border-radius:16px;box-shadow:0 24px 70px rgba(26,19,11,.3);overflow:hidden;backdrop-filter:blur(14px)}
+  .drawer.show{display:grid}
+  .drawer-head{display:flex;align-items:center;gap:10px;padding:15px 16px;background:#f1e4ca;border-bottom:1px solid rgba(90,68,43,.1)}
+  .drawer-head h2{flex:1;font-family:"STKaiti","KaiTi",serif;font-size:19px}.drawer-head small{font-size:10px;color:#8f7a61}
+  .close{width:32px;height:32px;border:0;border-radius:50%;background:rgba(255,255,255,.65);color:#6c5844;font-size:20px;cursor:pointer}
+  .drawer-body{padding:15px 16px;overflow:auto}
+  .empty-note{padding:26px 10px;text-align:center;color:#907d66;font-size:12px;line-height:1.7}
+  .harvest-card{padding:12px 2px;border-bottom:1px solid rgba(91,68,42,.11)}.harvest-card:first-child{padding-top:2px}
+  .harvest-card h3{font-size:13px;color:#52633c}.harvest-card p{margin-top:5px;font-size:11px;line-height:1.65;color:#6d5b47}.harvest-card small{display:block;margin-top:7px;font-size:9px;color:#a08d75}
+  .source-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.source-tags span{padding:3px 6px;border-radius:999px;background:#ede4cf;color:#78654d;font-size:8px}
+  .seed-panel{position:fixed;right:18px;top:70px;bottom:18px;z-index:13;width:min(430px,calc(100vw - 36px));display:none;grid-template-rows:auto 1fr;background:rgba(255,251,241,.97);color:#4d3928;border:1px solid rgba(89,67,43,.14);border-radius:16px;box-shadow:0 24px 70px rgba(26,19,11,.3);overflow:hidden;backdrop-filter:blur(14px)}
+  .seed-panel.show{display:grid}.seed-scroll{padding:15px 16px 28px;overflow:auto}
+  .seed-panel h2{font-family:"STKaiti","KaiTi",serif;font-size:19px}.seed-panel .intro{font-size:12px;line-height:1.65;color:#7a684f;margin-bottom:10px}
+  .seed-input-wrap{position:relative}.seed-panel textarea{width:100%;min-height:104px;border:1px solid #dac6a9;border-radius:12px;padding:11px 50px 11px 11px;resize:vertical;background:#fffdf8;color:#4d3828;outline:none}.seed-panel textarea:focus{border-color:#8b9a68;box-shadow:0 0 0 3px rgba(127,139,84,.12)}
+  .seed-mic{position:absolute;right:9px;bottom:10px;width:34px;height:34px;border:0;border-radius:50%;display:grid;place-items:center;background:rgba(108,125,73,.11);color:#697c4c;cursor:pointer}.seed-mic.active{background:#718255;color:#fff;box-shadow:0 0 0 4px rgba(113,130,85,.13)}.seed-mic:disabled{opacity:.4}.seed-mic svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .seed-voice-status{min-height:17px;padding:4px 2px 0;font-size:10px;color:#8a765d}
+  .primary{width:100%;height:40px;margin-top:9px;border:0;border-radius:10px;background:#718255;color:#fffaf0;cursor:pointer}.primary:disabled{opacity:.45}
+  .orchard-reply{display:none;margin-top:12px;padding:12px 13px;border-left:3px solid #b99953;background:#f5ecd9;color:#5d4934}.orchard-reply.show{display:block}.orchard-reply h3{font-size:13px;color:#5c6c3e;margin-bottom:6px}.orchard-reply p{margin-top:5px;font-size:11px;line-height:1.7}
+  .plot-detail{margin-top:13px;padding-top:13px;border-top:1px solid rgba(91,68,42,.12)}.plot-detail h3{font-size:14px}.plot-detail p{margin-top:5px;color:#745f48;font-size:11px;line-height:1.65}.plot-actions{display:flex;gap:7px;margin-top:10px}.plot-actions button{height:34px;flex:1;border:1px solid rgba(93,74,49,.15);border-radius:9px;background:#eee4cd;color:#5f513c;cursor:pointer}.plot-actions button.emphasis{background:#8b7049;color:#fff;border-color:transparent}.plot-actions button:disabled{opacity:.38;cursor:default}
+  .knowledge-library{margin-top:17px;padding-top:14px;border-top:1px solid rgba(94,75,47,.13)}.knowledge-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}.knowledge-head h3{font-size:13px;color:#5b6b36}.knowledge-head span{font-size:9px;color:#8b7b58}
+  .knowledge-category{margin-top:10px;font-size:9px;color:#8c744e}.knowledge-topic{border-bottom:1px solid rgba(94,75,47,.1)}.knowledge-topic summary{list-style:none;display:flex;align-items:center;gap:8px;padding:9px 1px;cursor:pointer}.knowledge-topic summary::-webkit-details-marker{display:none}.knowledge-topic summary strong{min-width:0;flex:1;font-size:11px;color:#55452f}.knowledge-topic summary small{font-size:8px;color:#9a896d}.knowledge-topic summary:after{content:"+";color:#8a9561}.knowledge-topic[open] summary:after{content:"−"}.knowledge-body{padding:0 2px 10px}.knowledge-body>p{font-size:10px;line-height:1.65;color:#6c5942;margin-bottom:7px}.knowledge-entities{display:flex;flex-wrap:wrap;gap:5px}.knowledge-entities span{font-size:8px;padding:3px 6px;border-radius:999px;background:#eee1be;color:#776541}.knowledge-entry{padding:7px 0;border-top:1px dashed rgba(94,75,47,.11)}.knowledge-entry b{display:block;font-size:9px;color:#5d6c39}.knowledge-entry p{font-size:9px;line-height:1.55;color:#76634a;margin-top:3px}
+  .toast{position:fixed;left:50%;bottom:34px;z-index:30;max-width:min(420px,calc(100vw - 36px));padding:9px 14px;border-radius:999px;background:rgba(36,31,20,.82);color:#fff9e8;font-size:11px;box-shadow:0 10px 30px rgba(18,14,8,.24);opacity:0;transform:translate(-50%,8px);pointer-events:none;transition:.22s ease}.toast.show{opacity:1;transform:translate(-50%,0)}
+  .reveal{position:fixed;inset:0;z-index:28;display:none;place-items:center;background:rgba(28,24,16,.42);backdrop-filter:blur(5px)}.reveal.show{display:grid}.reveal-card{width:min(330px,calc(100vw - 40px));padding:26px 24px;text-align:center;background:#fff9eb;color:#493927;border:1px solid rgba(114,82,45,.14);border-radius:16px;box-shadow:0 24px 80px rgba(24,18,10,.34);animation:revealIn .5s ease}.reveal-mark{width:58px;height:58px;margin:0 auto 14px;border-radius:50%;display:grid;place-items:center;background:#e9d7aa;color:#78603a}.reveal-mark svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.reveal-card h2{font-family:"STKaiti","KaiTi",serif;font-size:21px}.reveal-card p{margin-top:7px;font-size:11px;line-height:1.7;color:#78654d}.reveal-card button{margin-top:16px;border:0;border-radius:9px;background:#746246;color:#fff;padding:9px 18px;cursor:pointer}@keyframes revealIn{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
+  @media(max-width:760px){.orchard-stage{min-height:560px}.garden{bottom:18%;width:92vw;grid-template-columns:repeat(2,minmax(120px,1fr));gap:12px 12px}.plot{height:112px}.soil{height:52px}.plant{bottom:34px;transform:translateX(-50%) scale(.78)}.plant.sprout{transform:translateX(-50%) scale(.38)}.plant.leafy{transform:translateX(-50%) scale(.58)}.plot-copy{bottom:-18px}.plot-copy strong{font-size:10px}.plot-copy small{display:none}.caption{bottom:14px}.caption h1{font-size:20px}.caption p{max-width:260px;font-size:10px}.field-tools{right:12px;top:12px}.icon-control{width:39px;height:39px}.drawer,.seed-panel{left:8px;right:8px;top:62px;bottom:8px;width:auto;border-radius:14px}}
 </style>
 </head>
 <body>
 <main class="orchard-stage">
   <img class="orchard-bg" id="orchard-bg" src="../assets/plants/orchard_summer.jpg" alt="" />
   <a class="back" href="../index.html">← 回小院</a>
-  <section class="caption">
-    <h1>智慧果园</h1>
-    <p id="season-line">一块田一块田，慢慢种想法。今天只挑一小块地，把一个模糊念头放进去。</p>
-  </section>
-  <button class="seed-btn" onclick="toggleSeedPanel()">成长田</button>
-  <section class="seed-panel" id="seed-panel">
-    <h2>成长田</h2>
-    <p>把今天的困惑放进土里，先听一声回响，再让答案慢慢长成自己的方向。</p>
+  <nav class="field-tools" aria-label="成长田工具">
+    <button class="icon-control" type="button" onclick="openSeedPanel()" aria-label="放入一个新念头" title="放入一个新念头"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"></path></svg></button>
+    <button class="icon-control" type="button" onclick="toggleBackpack()" aria-label="打开背包" title="收成背包"><svg viewBox="0 0 24 24"><path d="M8 8V6a4 4 0 0 1 8 0v2"></path><rect x="4" y="8" width="16" height="13" rx="3"></rect><path d="M8 12h8M9 16h6"></path></svg><span class="count" id="backpack-count" hidden>0</span></button>
+  </nav>
+  <section class="garden" id="garden" aria-label="六块成长田地"></section>
+  <section class="caption"><h1>成长田</h1><p id="season-line">有些变化发生在土里。你不必知道最后会长成什么。</p></section>
+</main>
+
+<aside class="seed-panel" id="seed-panel" aria-label="与成长田聊聊">
+  <header class="drawer-head"><h2 id="seed-panel-title">放入一个念头</h2><small id="selected-plot-label"></small><button class="close" type="button" onclick="closeSeedPanel()" aria-label="关闭">×</button></header>
+  <div class="seed-scroll">
+    <p class="intro">可以是一个困惑、一段刚学会的东西，也可以是一次正在改变你的经历。</p>
     <div class="seed-input-wrap">
-      <textarea id="seed-input" placeholder="比如：我最近想往 AI 产品走，但不知道该补技术还是补作品集……"></textarea>
-      <button class="seed-mic" id="seed-mic" type="button" aria-label="语音输入" title="语音输入" aria-pressed="false" onclick="toggleOrchardVoice()">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line><line x1="8" x2="16" y1="22" y2="22"></line></svg>
-      </button>
+      <textarea id="seed-input" placeholder="今天有什么事情，值得让它在这里继续生长？"></textarea>
+      <button class="seed-mic" id="seed-mic" type="button" aria-label="语音输入" title="语音输入" aria-pressed="false" onclick="toggleOrchardVoice()"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" x2="12" y1="19" y2="22"></line><line x1="8" x2="16" y1="22" y2="22"></line></svg></button>
     </div>
     <div class="seed-voice-status" id="seed-voice-status" aria-live="polite"></div>
-    <div class="growth-actions">
-      <button id="orchard-plant" onclick="plantSeed()">问田播种</button>
-    </div>
+    <button class="primary" id="orchard-plant" type="button" onclick="plantSeed()">和田聊聊</button>
     <div class="orchard-reply" id="orchard-reply"></div>
-    <div class="crystals" id="crystals"></div>
-    <section class="knowledge-library">
-      <div class="knowledge-head"><h3>成长知识专题</h3><span id="knowledge-count"></span></div>
-      <div id="knowledge-topics"></div>
-    </section>
-  </section>
-</main>
-<script>
-  function localCalendarDate(){const d=new Date(),pad=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
-  const seasonMap = [
-    {name:'冬', file:'orchard_winter.jpg', line:'冬天把想法盖进雪里，先保温，不急着发芽。'},
-    {name:'冬', file:'orchard_winter.jpg', line:'冬天把想法盖进雪里，先保温，不急着发芽。'},
-    {name:'春', file:'orchard_spring.jpg', line:'春天适合播种，把小念头一格一格放进土里。'},
-    {name:'春', file:'orchard_spring.jpg', line:'春天适合播种，把小念头一格一格放进土里。'},
-    {name:'春', file:'orchard_spring.jpg', line:'春天适合播种，把小念头一格一格放进土里。'},
-    {name:'夏', file:'orchard_summer.jpg', line:'夏天光照很足，适合把正在长大的计划多浇一点水。'},
-    {name:'夏', file:'orchard_summer.jpg', line:'夏天光照很足，适合把正在长大的计划多浇一点水。'},
-    {name:'夏', file:'orchard_summer.jpg', line:'夏天光照很足，适合把正在长大的计划多浇一点水。'},
-    {name:'秋', file:'orchard_autumn.jpg', line:'秋天适合收成，也适合把经验晒干、收进仓库。'},
-    {name:'秋', file:'orchard_autumn.jpg', line:'秋天适合收成，也适合把经验晒干、收进仓库。'},
-    {name:'秋', file:'orchard_autumn.jpg', line:'秋天适合收成，也适合把经验晒干、收进仓库。'},
-    {name:'冬', file:'orchard_winter.jpg', line:'冬天把想法盖进雪里，先保温，不急着发芽。'}
-  ];
-  const season = seasonMap[new Date().getMonth()];
-  document.getElementById('orchard-bg').src = '../assets/plants/' + season.file;
-  document.querySelector('.caption h1').textContent = season.name + '日田园';
-  document.getElementById('season-line').textContent = season.line;
+    <section class="plot-detail" id="plot-detail" hidden></section>
+    <section class="knowledge-library"><div class="knowledge-head"><h3>知识专题</h3><span id="knowledge-count"></span></div><div id="knowledge-topics"></div></section>
+  </div>
+</aside>
 
-  function getSeeds(){
-    return JSON.parse(localStorage.getItem('cozy_orchard_seeds') || '[]');
-  }
-  function getKnowledgeTopics(){
-    try{const value=JSON.parse(localStorage.getItem('cozy_orchard_topics')||'[]');return Array.isArray(value)?value:[];}catch(error){return [];}
-  }
-  function renderKnowledgeTopics(){
-    const topics=getKnowledgeTopics().sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));
-    document.getElementById('knowledge-count').textContent=topics.length?topics.length+' 个专题':'';
-    if(!topics.length){document.getElementById('knowledge-topics').innerHTML='<div class="empty">还没有知识专题</div>';return;}
-    const groups={};topics.forEach(topic=>{const category=topic.category||'其他';(groups[category]||(groups[category]=[])).push(topic);});
-    document.getElementById('knowledge-topics').innerHTML=Object.entries(groups).map(([category,items])=>'<section><div class="knowledge-category">'+escapeOrchard(category)+'</div>'+items.map(topic=>{
-      const entries=Array.isArray(topic.entries)?topic.entries:[];
-      const entities=(topic.entities||[]).slice(0,8).map(value=>'<span>'+escapeOrchard(value)+'</span>').join('');
-      const history=entries.slice(0,6).map(entry=>'<article class="knowledge-entry"><b>'+escapeOrchard(entry.question||'一次更新')+'</b><p>'+escapeOrchard(entry.answer||entry.insight||'')+'</p></article>').join('');
-      return '<details class="knowledge-topic"><summary><strong>'+escapeOrchard(topic.title||'未命名专题')+'</strong><small>'+entries.length+' 次更新</small></summary><div class="knowledge-body"><p>'+escapeOrchard(topic.summary||'')+'</p>'+(entities?'<div class="knowledge-entities">'+entities+'</div>':'')+history+'</div></details>';
-    }).join('')+'</section>').join('');
-  }
-  function renderCrystals(){
-    const seeds = getSeeds();
-    document.getElementById('crystals').innerHTML = seeds.length
-      ? seeds.slice(0,20).map((seed,index)=>'<article class="crystal '+(seed.status==='resolved'?'resolved':'')+'"><div>'+escapeOrchard(seed.text)+'<small>'+(seed.status==='resolved'?'已收成':'生长中')+' · '+escapeOrchard(seed.date||'')+'</small></div><div class="crystal-actions">'+(seed.status==='resolved'?'':'<button onclick="continueSeed(\''+escapeOrchard(seed.id||String(index))+'\')">继续聊</button><button onclick="resolveSeed(\''+escapeOrchard(seed.id||String(index))+'\')">收成</button>')+'<button onclick="removeSeed(\''+escapeOrchard(seed.id||String(index))+'\')">移除</button></div></article>').join('')
-      : '<article class="crystal">还没有种子</article>';
-  }
-  function toggleSeedPanel(){
-    document.getElementById('seed-panel').classList.toggle('show');
-    renderCrystals();
-    renderKnowledgeTopics();
-  }
-  let orchardVoice = null;
-  function setOrchardVoiceState(state,message){
-    const active=['starting','listening','stopping'].includes(state);
-    const mic=document.getElementById('seed-mic');
-    mic.classList.toggle('active',active);
-    mic.setAttribute('aria-pressed',String(active));
-    mic.setAttribute('aria-label',active?'停止语音输入':'语音输入');
-    mic.title=active?'停止语音输入':'语音输入';
-    document.getElementById('seed-voice-status').textContent=message||'';
-    document.getElementById('orchard-plant').disabled=active||orchardBusy;
-    if(state==='idle'&&document.getElementById('seed-input').value.trim())document.getElementById('seed-input').focus();
-  }
-  function toggleOrchardVoice(){
-    if(!window.CozyButler?.createDictation){setOrchardVoiceState('error','语音组件正在准备，请稍后再试');return;}
-    if(!orchardVoice)orchardVoice=CozyButler.createDictation({
-      input:document.getElementById('seed-input'),
-      onState:setOrchardVoiceState
+<aside class="drawer" id="backpack" aria-label="收成背包">
+  <header class="drawer-head"><h2>收成背包</h2><small id="backpack-summary"></small><button class="close" type="button" onclick="toggleBackpack(false)" aria-label="关闭">×</button></header>
+  <div class="drawer-body" id="backpack-list"></div>
+</aside>
+
+<div class="reveal" id="harvest-reveal" role="dialog" aria-modal="true"><section class="reveal-card"><div class="reveal-mark"><svg viewBox="0 0 24 24"><path d="m12 3 2.4 5.2L20 10l-4 4 .9 5.8L12 17l-4.9 2.8L8 14l-4-4 5.6-1.8Z"></path></svg></div><h2 id="reveal-title"></h2><p id="reveal-copy"></p><button type="button" onclick="closeReveal()">收进背包</button></section></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+  const GARDEN_KEY='cozy_orchard_garden',BACKPACK_KEY='cozy_orchard_backpack',EVENTS_KEY='cozy_orchard_growth_events';
+  const STAGES=['buried','sprout','leafy','bloom','fruiting'];
+  const STAGE_LABELS={buried:'土里有动静',sprout:'刚刚探头',leafy:'正在舒展',bloom:'悄悄开花',fruiting:'可以收成',resting:'重新蓄力'};
+  const SOURCE_LABELS={orchard:'成长田',blackboard:'黑板',heart_hollow:'树洞',life:'生活'};
+  const PLANT_TYPES=['fern','flower','vine','crystal','golden'];
+  const HARVEST_KINDS=['一枚果实','一束花','一粒种荚','一块结晶','一个方法','一段经验'];
+  let activePlotId='',orchardBusy=false,orchardVoice=null,toastTimer=0,stateSyncSeen=false;
+
+  function readJson(key,fallback){try{const value=JSON.parse(localStorage.getItem(key)||'null');return value==null?fallback:value;}catch(error){return fallback;}}
+  function writeJson(key,value){if(window.CozyRuntime?.readOnly)return;localStorage.setItem(key,JSON.stringify(value));window.CozyButler?.persistLocal([key]);}
+  function localCalendarDate(){const d=new Date(),pad=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+  function escapeOrchard(value){return String(value||'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));}
+  function hashText(value){let h=2166136261;for(const char of String(value||'')){h^=char.charCodeAt(0);h=Math.imul(h,16777619);}return Math.abs(h>>>0);}
+  function cleanTitle(value,fallback='尚未显露'){const text=String(value||'').replace(/[\r\n]+/g,' ').replace(/^(成长主题|主题)[:：]\s*/,'').trim();return (text||fallback).slice(0,28);}
+  function stageFor(growth,resting){if(resting)return'resting';if(growth>=10)return'fruiting';if(growth>=7)return'bloom';if(growth>=4)return'leafy';if(growth>=2)return'sprout';return'buried';}
+  function getGarden(){const value=readJson(GARDEN_KEY,[]);return Array.isArray(value)?value:[];}
+  function getBackpack(){const value=readJson(BACKPACK_KEY,[]);return Array.isArray(value)?value:[];}
+  function getGrowthEvents(){const value=readJson(EVENTS_KEY,[]);return Array.isArray(value)?value:[];}
+  function getSeeds(){const value=readJson('cozy_orchard_seeds',[]);return Array.isArray(value)?value:[];}
+  function getKnowledgeTopics(){const value=readJson('cozy_orchard_topics',[]);return Array.isArray(value)?value:[];}
+  function blankPlot(index){return{id:'plot_'+(index+1),slot:index,seedId:'',title:'',hint:'',plantType:'',growth:0,stage:'buried',sources:[],eventIds:[],careCount:0,cycle:0,lastNourishedAt:'',harvestReady:false};}
+  function ensureGarden(persist=true){
+    let garden=getGarden();
+    if(!garden.length)garden=Array.from({length:6},(_,index)=>blankPlot(index));
+    while(garden.length<6)garden.push(blankPlot(garden.length));
+    garden=garden.slice(0,6).map((plot,index)=>Object.assign(blankPlot(index),plot,{id:'plot_'+(index+1),slot:index}));
+    const occupied=new Set(garden.map(plot=>plot.seedId).filter(Boolean));
+    getSeeds().filter(seed=>seed.status!=='resolved'&&!occupied.has(seed.id)).slice(0,garden.filter(plot=>!plot.seedId).length).forEach(seed=>{
+      const plot=garden.find(item=>!item.seedId);if(!plot)return;
+      plot.seedId=seed.id||'legacy_'+Date.now();plot.title=cleanTitle(seed.text,'一枚旧种子');plot.hint=seed.insight||seed.reply||'这件事还在慢慢形成自己的方向。';plot.plantType=PLANT_TYPES[hashText(plot.title)%PLANT_TYPES.length];plot.growth=3;plot.stage=stageFor(plot.growth);plot.sources=['orchard'];plot.lastNourishedAt=seed.updatedAt||seed.date||new Date().toISOString();
     });
-    orchardVoice.toggle();
+    if(persist)writeJson(GARDEN_KEY,garden);return garden;
   }
-  let orchardBusy = false;
-  let orchardEditingSeedId = '';
-  function mergeKnowledgeTopic(text,result){
-    const payload=result.knowledge_topic&&typeof result.knowledge_topic==='object'?result.knowledge_topic:{};
-    const topics=getKnowledgeTopics();
-    const entities=Array.isArray(payload.entities)?payload.entities.map(value=>String(value).trim()).filter(Boolean):[];
-    const normalize=value=>String(value||'').toLowerCase().replace(/[\s·・:：/\-]+/g,'');
-    let topic=topics.find(item=>payload.match_id&&String(item.id)===String(payload.match_id));
-    if(!topic&&payload.title)topic=topics.find(item=>normalize(item.title)===normalize(payload.title));
-    if(!topic&&entities.length)topic=topics.find(item=>entities.filter(entity=>(item.entities||[]).some(old=>normalize(old)===normalize(entity))).length>=Math.min(2,entities.length));
-    if(!topic){topic={id:'topic_'+Date.now(),title:payload.title||result.seed_summary||'成长探索',category:payload.category||'成长与方向',entities:[],summary:'',entries:[],createdAt:new Date().toISOString()};topics.unshift(topic);}
-    topic.title=payload.title||topic.title;
-    topic.category=payload.category||topic.category||'其他';
-    topic.entities=Array.from(new Set([...(topic.entities||[]),...entities])).slice(0,20);
-    topic.summary=payload.summary||topic.summary||result.key_insight||result.reply;
-    topic.updatedAt=new Date().toISOString();
-    topic.entries=Array.isArray(topic.entries)?topic.entries:[];
-    const entry={id:'knowledge_'+Date.now(),question:text,answer:result.reply,insight:result.key_insight||'',nextStep:result.next_step||'',knowledgePoints:Array.isArray(payload.knowledge_points)?payload.knowledge_points.slice(0,8):[],date:localCalendarDate()};
-    const duplicate=topic.entries.find(item=>normalize(item.question)===normalize(text));
-    if(duplicate)Object.assign(duplicate,entry,{id:duplicate.id});else topic.entries.unshift(entry);
-    topic.entries=topic.entries.slice(0,30);
-    localStorage.setItem('cozy_orchard_topics',JSON.stringify(topics.slice(0,60)));
-    window.CozyButler?.persistLocal(['cozy_orchard_topics']);
-    renderKnowledgeTopics();
-    return topic;
+  function importBlackboardEvents(){
+    const events=getGrowthEvents(),known=new Set(events.map(event=>event.id));let changed=false;
+    readJson('cozy_blackboard_answers',[]).forEach((answer,index)=>{const id='blackboard_'+hashText([answer.date,answer.title,answer.answer,index].join('|'));if(known.has(id))return;events.unshift({id,source:'blackboard',sourceDate:answer.date||localCalendarDate(),title:cleanTitle(answer.title,'一次产品思考'),hint:'这次作答留下的判断，正在和其他经验长到一起。',nourishment:2,createdAt:new Date().toISOString(),consumed:false});known.add(id);changed=true;});
+    if(changed)writeJson(EVENTS_KEY,events.slice(0,240));
   }
-  function persistSeed(text,result,topic){
-    const input = document.getElementById('seed-input');
-    const seeds = getSeeds();
-    const existing=orchardEditingSeedId&&seeds.find(seed=>String(seed.id)===String(orchardEditingSeedId));
-    const record={
-      id:existing?.id||'seed_'+Date.now(),text:result.seed_summary||text,original:text,reply:result.reply,
-      insight:result.key_insight||'',nextStep:result.next_step||'',date:existing?.date||localCalendarDate(),
-      status:'growing',topicId:topic?.id||existing?.topicId||'',updatedAt:new Date().toISOString()
-    };
-    if(existing)Object.assign(existing,record);else seeds.unshift(record);
-    localStorage.setItem('cozy_orchard_seeds', JSON.stringify(seeds.slice(0,50)));
-    window.CozyButler?.persistLocal(['cozy_orchard_seeds']);
-    if(window.CozyMemory){
-      CozyMemory.add({
-        source:'orchard',
-        type:'growth_seed',
-        layer:'long',
-        weight:3,
-        content:'成长主题：'+(result.seed_summary||text)+'\n关键判断：'+(result.key_insight||result.reply)+'\n下一步：'+(result.next_step||''),
-        summary:'果园成长种子：'+String(result.seed_summary||text).slice(0,54)
-      });
-      CozyMemory.add({
-        source:'orchard',type:'knowledge_interest',layer:'short',weight:2,
-        content:'最近关注专题：'+(topic?.title||result.seed_summary||'成长探索')+'；本次提问：'+text,
-        summary:'成长田关注：'+(topic?.title||result.seed_summary||'成长探索')+'（'+(topic?.category||'未分类')+'）'
-      });
-    }
-    input.value = '';
-    orchardEditingSeedId='';
-    renderCrystals();
+  function titleTokens(value){return new Set(String(value||'').toLowerCase().replace(/[，。！？、：；,.!?;:()（）]/g,' ').split(/\s+/).flatMap(part=>part.length>4?[part,...Array.from({length:part.length-1},(_,i)=>part.slice(i,i+2))]:[part]).filter(part=>part.length>1));}
+  function relatedPlot(garden,event){const incoming=titleTokens(event.title);let best=null,score=0;garden.filter(plot=>plot.seedId).forEach(plot=>{const tokens=titleTokens(plot.title);let current=0;incoming.forEach(token=>{if(tokens.has(token))current+=1;});if(current>score){score=current;best=plot;}});return score>0?best:null;}
+  function applyGrowthEvents(includeExternal=true){
+    if(includeExternal)importBlackboardEvents();const garden=ensureGarden(includeExternal),events=getGrowthEvents();let gardenChanged=false,eventChanged=false;
+    events.filter(event=>!event.consumed&&event.title).sort((a,b)=>String(a.createdAt||'').localeCompare(String(b.createdAt||''))).forEach(event=>{
+      let plot=(event.preferredPlotId&&garden.find(item=>item.id===event.preferredPlotId))||relatedPlot(garden,event)||garden.find(item=>!item.seedId);
+      if(!plot)return;
+      if(!plot.seedId){plot.seedId='event_'+event.id;plot.title=cleanTitle(event.title);plot.hint=String(event.hint||'这段经历会在这里继续形成新的判断。').slice(0,90);plot.plantType=PLANT_TYPES[hashText(plot.title+event.id)%PLANT_TYPES.length];plot.growth=0;plot.sources=[];plot.eventIds=[];}
+      plot.growth+=Math.max(1,Math.min(3,Number(event.nourishment)||1));plot.stage=stageFor(plot.growth);plot.harvestReady=plot.stage==='fruiting';plot.sources=Array.from(new Set([...(plot.sources||[]),event.source||'life']));plot.eventIds=Array.from(new Set([...(plot.eventIds||[]),event.id])).slice(-24);plot.lastNourishedAt=event.createdAt||new Date().toISOString();event.consumed=true;event.plotId=plot.id;event.consumedAt=new Date().toISOString();gardenChanged=true;eventChanged=true;
+    });
+    if(gardenChanged)writeJson(GARDEN_KEY,garden);if(eventChanged)writeJson(EVENTS_KEY,events);return garden;
   }
-  async function plantSeed(){
-    if(orchardBusy||orchardVoice?.isActive())return;
-    const input = document.getElementById('seed-input');
-    const text = input.value.trim();
-    const box = document.getElementById('orchard-reply');
-    if(!text){
-      box.className = 'orchard-reply show';
-      box.innerHTML = '<h3>阿栗在田边</h3><p>先说出此刻最想弄清楚的一件事，不需要整理好再开口。</p>';
-      return;
-    }
-    orchardBusy=true;
-    document.getElementById('orchard-plant').disabled=true;
-    box.className = 'orchard-reply show';
-    box.innerHTML = '<h3>种子正在入土</h3><p>阿栗正在辨认这件事真正指向哪里……</p>';
-    try{
-      const compactTopics=getKnowledgeTopics().slice(0,20).map(topic=>({id:topic.id,title:topic.title,category:topic.category,entities:topic.entities||[],summary:topic.summary||'',recent_questions:(topic.entries||[]).slice(0,3).map(entry=>entry.question)}));
-      const data = window.CozyButler ? await CozyButler.api('/api/room',{room:'orchard',message:text,context:{intent:'answer_plant_and_update_topic',recent_seeds:getSeeds().slice(0,8),knowledge_topics:compactTopics}}) : null;
-      const fallback=buildOrchardResult(text);
-      const result=data?.result?.reply?{...fallback,...data.result}:fallback;
-      const topic=mergeKnowledgeTopic(text,result);persistSeed(text,result,topic);
-      box.innerHTML = '<h3>田野签语</h3><p>'+escapeOrchard(result.reply)+'</p>'+(result.key_insight?'<p><strong>留下的判断：</strong>'+escapeOrchard(result.key_insight)+'</p>':'')+(result.next_step?'<p><strong>下一步：</strong>'+escapeOrchard(result.next_step)+'</p>':'')+'<p><strong>知识专题：</strong>'+escapeOrchard(topic.title)+'</p>';
-    }catch(error){
-      const result=buildOrchardResult(text);const topic=mergeKnowledgeTopic(text,result);persistSeed(text,result,topic);
-      box.innerHTML='<h3>田野签语</h3><p>'+escapeOrchard(result.reply)+'</p><p><strong>下一步：</strong>'+escapeOrchard(result.next_step)+'</p>';
-    }finally{
-      orchardBusy=false;
-      document.getElementById('orchard-plant').disabled=false;
-    }
-  }
-  function buildOrchardResult(text){
-    const t = text.length > 60 ? text.slice(0,60)+'...' : text;
-    return {reply:'你现在缺的不是一个永久正确的答案，而是一条能产生新证据的路。把“'+t+'”缩小到一次真实尝试，方向会在行动留下的反馈里显形。',seed_summary:t,key_insight:'先用行动获得证据，再决定是否长期投入。',next_step:'设计一个 3 天内能完成的小实验，并记下结果。',knowledge_topic:{title:'成长探索',category:'成长与方向',entities:[],summary:'通过小实验把模糊困惑转化为可验证的成长方向。',knowledge_points:['先获得真实反馈，再决定长期投入。']}};
-  }
-  function escapeOrchard(str){
-    return String(str || '').replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-  }
-  function seedById(id){const seeds=getSeeds();return {seeds,seed:seeds.find((item,index)=>String(item.id||index)===String(id))};}
-  function continueSeed(id){const found=seedById(id);if(!found.seed)return;orchardEditingSeedId=String(found.seed.id||id);document.getElementById('seed-input').value=found.seed.original||found.seed.text;document.getElementById('orchard-reply').classList.remove('show');document.getElementById('seed-input').focus();}
-  function resolveSeed(id){const found=seedById(id);if(!found.seed)return;found.seed.status='resolved';found.seed.resolvedAt=localCalendarDate();found.seed.updatedAt=new Date().toISOString();localStorage.setItem('cozy_orchard_seeds',JSON.stringify(found.seeds));window.CozyButler?.persistLocal(['cozy_orchard_seeds']);if(window.CozyMemory)CozyMemory.add({source:'orchard',type:'growth_harvest',layer:'long',weight:3,content:found.seed.text,summary:'果园收成：'+found.seed.text.slice(0,60)});renderCrystals();}
-  function removeSeed(id){const found=seedById(id);if(!found.seed)return;localStorage.setItem('cozy_orchard_seeds',JSON.stringify(found.seeds.filter(item=>item!==found.seed)));window.CozyButler?.persistLocal(['cozy_orchard_seeds']);renderCrystals();}
-  window.addEventListener('cozy:state-synced',()=>{renderCrystals();renderKnowledgeTopics();});
+  function seasonSetup(){const map=[['冬','orchard_winter.jpg','冬天也在生长，只是变化藏得更深。'],['冬','orchard_winter.jpg','冬天也在生长，只是变化藏得更深。'],['春','orchard_spring.jpg','把念头放进土里，不必急着替它命名。'],['春','orchard_spring.jpg','把念头放进土里，不必急着替它命名。'],['春','orchard_spring.jpg','把念头放进土里，不必急着替它命名。'],['夏','orchard_summer.jpg','有些变化发生在土里。你不必知道最后会长成什么。'],['夏','orchard_summer.jpg','有些变化发生在土里。你不必知道最后会长成什么。'],['夏','orchard_summer.jpg','有些变化发生在土里。你不必知道最后会长成什么。'],['秋','orchard_autumn.jpg','成熟的东西会自己显形，收下它，再继续往前。'],['秋','orchard_autumn.jpg','成熟的东西会自己显形，收下它，再继续往前。'],['秋','orchard_autumn.jpg','成熟的东西会自己显形，收下它，再继续往前。'],['冬','orchard_winter.jpg','冬天也在生长，只是变化藏得更深。']][new Date().getMonth()];document.getElementById('orchard-bg').src='../assets/plants/'+map[1];document.getElementById('season-line').textContent=map[2];}
+  function plantMarkup(plot){if(!plot.seedId)return'';const stage=plot.stage==='resting'?'leafy':plot.stage;return'<span class="plant '+escapeOrchard(stage)+' type-'+escapeOrchard(plot.plantType||'fern')+'"><i class="stem"></i><i class="leaf l1"></i><i class="leaf l2"></i><i class="leaf l3"></i><i class="leaf l4"></i><i class="bud"></i><i class="fruit"></i></span>';}
+  function renderGarden(includeExternal=true){const garden=applyGrowthEvents(includeExternal);document.getElementById('garden').innerHTML=garden.map((plot,index)=>'<button class="plot '+(!plot.seedId?'empty ':'')+(plot.stage==='resting'?'resting':'')+'" type="button" data-plot="'+escapeOrchard(plot.id)+'" onclick="selectPlot(\''+escapeOrchard(plot.id)+'\')" aria-label="'+escapeOrchard(plot.seedId?(plot.title+'，'+STAGE_LABELS[plot.stage]):('第'+(index+1)+'块空地，点击放入念头'))+'"><span class="soil"></span>'+plantMarkup(plot)+'<span class="plot-copy"><strong>'+escapeOrchard(plot.seedId?plot.title:'一块空地')+'</strong><small>'+escapeOrchard(plot.seedId?(STAGE_LABELS[plot.stage]||'正在生长'):'会长出什么呢')+'</small></span></button>').join('');renderBackpackCount();}
+  function selectPlot(id){activePlotId=id;const plot=getGarden().find(item=>item.id===id);if(!plot)return;if(!plot.seedId){openSeedPanel(id);return;}openSeedPanel(id);renderPlotDetail(plot);}
+  function openSeedPanel(plotId=''){toggleBackpack(false);if(plotId)activePlotId=plotId;if(!activePlotId){const garden=getGarden();activePlotId=(garden.find(plot=>!plot.seedId)||garden[0]||{}).id||'plot_1';}const plot=getGarden().find(item=>item.id===activePlotId);document.getElementById('seed-panel').classList.add('show');document.getElementById('seed-panel-title').textContent=plot?.seedId?'继续照看':'放入一个念头';document.getElementById('selected-plot-label').textContent=plot?'第 '+(plot.slot+1)+' 块地':'';document.getElementById('plot-detail').hidden=!plot?.seedId;if(plot?.seedId)renderPlotDetail(plot);renderKnowledgeTopics();}
+  function closeSeedPanel(){if(orchardVoice?.isActive())orchardVoice.stop();document.getElementById('seed-panel').classList.remove('show');}
+  function renderPlotDetail(plot){const detail=document.getElementById('plot-detail');detail.hidden=false;detail.innerHTML='<h3>'+escapeOrchard(plot.title)+'</h3><p>'+escapeOrchard(plot.hint||'它还没有急着给出答案。')+'</p><div class="source-tags">'+(plot.sources||[]).map(source=>'<span>'+escapeOrchard(SOURCE_LABELS[source]||'一次经历')+'</span>').join('')+'</div><div class="plot-actions"><button type="button" onclick="waterPlot(\''+escapeOrchard(plot.id)+'\')">浇一点水</button><button type="button" class="emphasis" onclick="harvestPlot(\''+escapeOrchard(plot.id)+'\')" '+(plot.harvestReady?'':'disabled')+'>摘下收成</button></div>';}
+  function showToast(message){const toast=document.getElementById('toast');toast.textContent=message;toast.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),2200);}
+  function waterPlot(id){const garden=getGarden(),plot=garden.find(item=>item.id===id);if(!plot||!plot.seedId)return;const element=document.querySelector('[data-plot="'+CSS.escape(id)+'"]');element?.classList.add('watering');setTimeout(()=>element?.classList.remove('watering'),850);plot.careCount=(plot.careCount||0)+1;const before=plot.stage;const shouldGrow=(hashText(plot.id+'|'+plot.careCount+'|'+plot.cycle)%3)!==0;if(shouldGrow)plot.growth+=1;plot.stage=stageFor(plot.growth);plot.harvestReady=plot.stage==='fruiting';plot.lastNourishedAt=new Date().toISOString();writeJson(GARDEN_KEY,garden);setTimeout(()=>{renderGarden();const current=getGarden().find(item=>item.id===id);if(current)renderPlotDetail(current);},900);showToast(before===plot.stage?'水已经渗进土里，表面暂时没有变化。':'它好像有了一点新的变化。');}
+  function harvestPlot(id){const garden=getGarden(),plot=garden.find(item=>item.id===id);if(!plot||!plot.harvestReady)return;const element=document.querySelector('[data-plot="'+CSS.escape(id)+'"]');element?.classList.add('harvesting');const kind=HARVEST_KINDS[hashText(plot.title+'|'+plot.cycle)%HARVEST_KINDS.length];const harvest={id:'harvest_'+Date.now(),title:plot.title,kind,insight:plot.hint||'这段成长已经留下了可以带走的东西。',sources:plot.sources||[],date:localCalendarDate(),cycle:(plot.cycle||0)+1,plantType:plot.plantType};const backpack=getBackpack();backpack.unshift(harvest);writeJson(BACKPACK_KEY,backpack.slice(0,120));plot.cycle=(plot.cycle||0)+1;plot.growth=1;plot.stage='resting';plot.harvestReady=false;plot.careCount=0;plot.lastNourishedAt=new Date().toISOString();writeJson(GARDEN_KEY,garden);if(window.CozyMemory)CozyMemory.add({source:'orchard',type:'growth_harvest',layer:'long',weight:3,content:'成长主题：'+plot.title+'；收成：'+kind+'；沉淀：'+harvest.insight,summary:'成长田收成：'+plot.title});setTimeout(()=>{renderGarden();renderPlotDetail(plot);document.getElementById('reveal-title').textContent=kind;document.getElementById('reveal-copy').textContent='“'+plot.title+'”没有结束，它只是把这一次的变化交给了你。';document.getElementById('harvest-reveal').classList.add('show');},720);}
+  function closeReveal(){document.getElementById('harvest-reveal').classList.remove('show');toggleBackpack(true);}
+  function renderBackpackCount(){const count=getBackpack().length,badge=document.getElementById('backpack-count');badge.textContent=count;badge.hidden=!count;}
+  function toggleBackpack(force){const drawer=document.getElementById('backpack'),show=typeof force==='boolean'?force:!drawer.classList.contains('show');if(show)closeSeedPanel();drawer.classList.toggle('show',show);if(show)renderBackpack();}
+  function renderBackpack(){const items=getBackpack();document.getElementById('backpack-summary').textContent=items.length?items.length+' 份收成':'';document.getElementById('backpack-list').innerHTML=items.length?items.map(item=>'<article class="harvest-card"><h3>'+escapeOrchard(item.kind)+' · '+escapeOrchard(item.title)+'</h3><p>'+escapeOrchard(item.insight)+'</p><div class="source-tags">'+(item.sources||[]).map(source=>'<span>'+escapeOrchard(SOURCE_LABELS[source]||'一次经历')+'</span>').join('')+'</div><small>'+escapeOrchard(item.date)+' · 第 '+escapeOrchard(item.cycle||1)+' 次收成</small></article>').join(''):'<div class="empty-note">背包还是空的。<br>成熟的东西会在田里自己显形。</div>';renderBackpackCount();}
+  function setOrchardVoiceState(state,message){const active=['starting','listening','stopping'].includes(state),mic=document.getElementById('seed-mic');mic.classList.toggle('active',active);mic.setAttribute('aria-pressed',String(active));mic.setAttribute('aria-label',active?'停止语音输入':'语音输入');document.getElementById('seed-voice-status').textContent=message||'';document.getElementById('orchard-plant').disabled=active||orchardBusy;}
+  function toggleOrchardVoice(){if(!window.CozyButler?.createDictation){setOrchardVoiceState('error','语音组件正在准备，请稍后再试');return;}if(!orchardVoice)orchardVoice=CozyButler.createDictation({input:document.getElementById('seed-input'),onState:setOrchardVoiceState});orchardVoice.toggle();}
+  function mergeKnowledgeTopic(text,result){const payload=result.knowledge_topic&&typeof result.knowledge_topic==='object'?result.knowledge_topic:{},topics=getKnowledgeTopics(),entities=Array.isArray(payload.entities)?payload.entities.map(value=>String(value).trim()).filter(Boolean):[],normalize=value=>String(value||'').toLowerCase().replace(/[\s·・:：/\-]+/g,'');let topic=topics.find(item=>payload.match_id&&String(item.id)===String(payload.match_id));if(!topic&&payload.title)topic=topics.find(item=>normalize(item.title)===normalize(payload.title));if(!topic&&entities.length)topic=topics.find(item=>entities.some(entity=>(item.entities||[]).some(old=>normalize(old)===normalize(entity))));if(!topic){topic={id:'topic_'+Date.now(),title:payload.title||result.seed_summary||'成长探索',category:payload.category||'成长与方向',entities:[],summary:'',entries:[],createdAt:new Date().toISOString()};topics.unshift(topic);}topic.title=payload.title||topic.title;topic.category=payload.category||topic.category||'其他';topic.entities=Array.from(new Set([...(topic.entities||[]),...entities])).slice(0,20);topic.summary=payload.summary||topic.summary||result.key_insight||result.reply;topic.updatedAt=new Date().toISOString();topic.entries=Array.isArray(topic.entries)?topic.entries:[];topic.entries.unshift({id:'knowledge_'+Date.now(),question:text,answer:result.reply,insight:result.key_insight||'',nextStep:result.next_step||'',date:localCalendarDate()});topic.entries=topic.entries.slice(0,30);writeJson('cozy_orchard_topics',topics.slice(0,60));renderKnowledgeTopics();return topic;}
+  function nourishFromOrchard(text,result,topic){const seeds=getSeeds(),record={id:'seed_'+Date.now(),text:result.seed_summary||text,original:text,reply:result.reply,insight:result.key_insight||'',nextStep:result.next_step||'',date:localCalendarDate(),status:'growing',topicId:topic?.id||'',updatedAt:new Date().toISOString()};seeds.unshift(record);writeJson('cozy_orchard_seeds',seeds.slice(0,50));const events=getGrowthEvents();events.unshift({id:'orchard_'+record.id,source:'orchard',sourceDate:record.date,title:cleanTitle(result.seed_summary||text,'一个正在生长的问题'),hint:String(result.key_insight||result.reply||'这件事正在慢慢形成方向。').slice(0,90),nourishment:3,createdAt:new Date().toISOString(),consumed:false,preferredPlotId:activePlotId});writeJson(EVENTS_KEY,events.slice(0,240));if(window.CozyMemory){CozyMemory.add({source:'orchard',type:'growth_seed',layer:'long',weight:3,content:'成长主题：'+record.text+'\n关键判断：'+(record.insight||record.reply)+'\n下一步：'+record.nextStep,summary:'成长田关注：'+record.text.slice(0,54)});}document.getElementById('seed-input').value='';renderGarden();const plot=getGarden().find(item=>item.id===activePlotId);if(plot?.seedId){document.getElementById('seed-panel-title').textContent='继续照看';renderPlotDetail(plot);}}
+  async function plantSeed(){if(orchardBusy||orchardVoice?.isActive())return;const input=document.getElementById('seed-input'),text=input.value.trim(),box=document.getElementById('orchard-reply');if(!text){box.className='orchard-reply show';box.innerHTML='<h3>田边还空着</h3><p>先放下一件此刻真正想弄明白的事。</p>';return;}orchardBusy=true;document.getElementById('orchard-plant').disabled=true;box.className='orchard-reply show';box.innerHTML='<h3>阿栗正在辨认</h3><p>先把问题讲清楚，再看看它会落进哪块土里。</p>';try{const compactTopics=getKnowledgeTopics().slice(0,16).map(topic=>({id:topic.id,title:topic.title,category:topic.category,entities:topic.entities||[],summary:topic.summary||''}));const data=window.CozyButler?await CozyButler.api('/api/room',{room:'orchard',message:text,context:{intent:'answer_and_nourish_garden',active_plot:activePlotId,recent_plots:getGarden().filter(plot=>plot.seedId).map(plot=>({id:plot.id,title:plot.title,hint:plot.hint,sources:plot.sources})),knowledge_topics:compactTopics}}):null;const result=data?.result?.reply?data.result:buildOrchardResult(text),topic=mergeKnowledgeTopic(text,result);nourishFromOrchard(text,result,topic);box.innerHTML='<h3>田野回响</h3><p>'+escapeOrchard(result.reply)+'</p>'+(result.key_insight?'<p><strong>留下的判断：</strong>'+escapeOrchard(result.key_insight)+'</p>':'')+(result.next_step?'<p><strong>接下来可以试：</strong>'+escapeOrchard(result.next_step)+'</p>':'');}catch(error){const result=buildOrchardResult(text),topic=mergeKnowledgeTopic(text,result);nourishFromOrchard(text,result,topic);box.innerHTML='<h3>田野回响</h3><p>'+escapeOrchard(result.reply)+'</p><p><strong>接下来可以试：</strong>'+escapeOrchard(result.next_step)+'</p>';}finally{orchardBusy=false;document.getElementById('orchard-plant').disabled=false;}}
+  function buildOrchardResult(text){const topic=cleanTitle(text.length>38?text.slice(0,38)+'…':text);return{reply:'现在不必替这件事找到永久答案。先做一次能产生真实反馈的小尝试，方向会从证据里慢慢显出来。',seed_summary:topic,key_insight:'先用一个小实验获得证据，再决定是否长期投入。',next_step:'在三天内做一次最小尝试，并记下它改变了什么判断。',knowledge_topic:{title:'成长探索',category:'成长与方向',entities:[],summary:'用小实验把模糊困惑变成可以继续验证的方向。',knowledge_points:['先获得真实反馈，再决定长期投入。']}};}
+  function renderKnowledgeTopics(){const topics=getKnowledgeTopics().sort((a,b)=>String(b.updatedAt||'').localeCompare(String(a.updatedAt||'')));document.getElementById('knowledge-count').textContent=topics.length?topics.length+' 个专题':'';if(!topics.length){document.getElementById('knowledge-topics').innerHTML='<div class="empty-note">这里会慢慢长出可持续更新的知识专题。</div>';return;}const groups={};topics.forEach(topic=>{const category=topic.category||'其他';(groups[category]||(groups[category]=[])).push(topic);});document.getElementById('knowledge-topics').innerHTML=Object.entries(groups).map(([category,items])=>'<section><div class="knowledge-category">'+escapeOrchard(category)+'</div>'+items.map(topic=>{const entries=Array.isArray(topic.entries)?topic.entries:[],entities=(topic.entities||[]).slice(0,8).map(value=>'<span>'+escapeOrchard(value)+'</span>').join(''),history=entries.slice(0,4).map(entry=>'<article class="knowledge-entry"><b>'+escapeOrchard(entry.question||'一次更新')+'</b><p>'+escapeOrchard(entry.answer||entry.insight||'')+'</p></article>').join('');return'<details class="knowledge-topic"><summary><strong>'+escapeOrchard(topic.title||'未命名专题')+'</strong><small>'+entries.length+' 次更新</small></summary><div class="knowledge-body"><p>'+escapeOrchard(topic.summary||'')+'</p>'+(entities?'<div class="knowledge-entities">'+entities+'</div>':'')+history+'</div></details>';}).join('')+'</section>').join('');}
+  window.addEventListener('cozy:state-synced',()=>{stateSyncSeen=true;renderGarden(true);renderKnowledgeTopics();renderBackpackCount();});
   window.addEventListener('beforeunload',()=>{if(orchardVoice?.isActive())orchardVoice.stop();});
-  renderCrystals();
-  renderKnowledgeTopics();
+  seasonSetup();renderGarden(false);renderKnowledgeTopics();renderBackpackCount();setTimeout(()=>{if(!stateSyncSeen)renderGarden(true);},1600);
 </script>
 </body>
 </html>
