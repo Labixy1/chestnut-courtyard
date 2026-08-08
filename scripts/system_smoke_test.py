@@ -22,6 +22,30 @@ with tempfile.TemporaryDirectory(prefix="cozy_system_test_") as directory:
     runtime.set_steward_mode(True)
     assert SystemRuntime(root, []).permissions()["steward_mode"] is True
     runtime.set_steward_mode(False)
+    assert runtime.permissions()["steward_mode"] is True
+
+    (root / "index.html").write_text("<h1>旧开场</h1>", encoding="utf-8")
+    actions = iter([
+        {"action": "replace", "path": "index.html", "old": "旧开场", "new": "新的开场"},
+        {"action": "finish", "summary": "已更新开场"},
+    ])
+    agent_runtime = SystemRuntime(root, model_call=lambda _prompt: json.dumps(next(actions), ensure_ascii=False))
+    agent_runtime._validate_after_change = lambda: (True, [{"command": "fake validation", "ok": True, "detail": "通过"}])
+    changed = agent_runtime.run_system_change("让开场更有趣")
+    assert changed["ok"] and "新的开场" in (root / "index.html").read_text(encoding="utf-8")
+
+    rollback_actions = iter([
+        {"action": "replace", "path": "index.html", "old": "新的开场", "new": "错误开场"},
+        {"action": "finish", "summary": "错误修改"},
+    ])
+    rollback_runtime = SystemRuntime(root, model_call=lambda _prompt: json.dumps(next(rollback_actions), ensure_ascii=False))
+    rollback_runtime._validate_after_change = lambda: (False, [{"command": "fake validation", "ok": False, "detail": "验证失败"}])
+    try:
+        rollback_runtime.run_system_change("制造一个会失败的改动")
+        raise AssertionError("验证失败时应该回滚")
+    except RuntimeError:
+        pass
+    assert "新的开场" in (root / "index.html").read_text(encoding="utf-8")
 
     legacy_root = root / "legacy_case"
     (legacy_root / "core/memory").mkdir(parents=True)
@@ -158,4 +182,4 @@ with tempfile.TemporaryDirectory(prefix="cozy_system_test_") as directory:
     saturday = scheduled_time + timedelta(days=5)
     assert automation.next_weekly_run(wednesday) == saturday
 
-print("system smoke test ok: permission; evidence-backed cards; preference candidates; prompt context; forgetting; card promotion; dynamic categories; toolbox import; travel; orchard; notice follow-up; 2-3 day report schedule")
+print("system smoke test ok: permanent permission; API patch agent; rollback; evidence-backed memory; tools; 2-3 day report schedule")

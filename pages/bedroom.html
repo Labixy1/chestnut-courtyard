@@ -16,13 +16,14 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:"PingFang SC","Hiragino Sans GB",serif;min-height:100vh;overflow:hidden;
-     background:linear-gradient(180deg,#f0dcc0,#e6c9a6);display:flex;align-items:center;justify-content:center}
+     background:#d7b48f;display:flex;align-items:center;justify-content:center}
   .back{position:fixed;left:18px;top:16px;color:#6b4b2e;text-decoration:none;font-size:14px;z-index:10;
      background:rgba(255,255,255,.6);padding:6px 12px;border-radius:20px}
   /* 房间 */
-  .room{position:relative;width:100vw;height:100vh;
+  .room{position:relative;width:100vw;height:100vh;opacity:0;transition:opacity .18s ease;
      background:linear-gradient(180deg,#e9cfa8 0%,#e9cfa8 58%,#c99a68 58%,#bd8d5b 100%);
      border-radius:0;box-shadow:none;overflow:hidden}
+  body.room-ready .room{opacity:1}
   /* 若有生成图铺底 */
   .room-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;transition:opacity .45s ease}
   #bg-night{opacity:0}
@@ -66,30 +67,34 @@
   .plush:before{left:2px} .plush:after{right:2px}
   .plush .face{position:absolute;top:16px;left:0;right:0;text-align:center;font-size:11px;color:#3c2b1c}
   .caption{position:absolute;left:0;right:0;bottom:10px;text-align:center;color:#6b4b2e;font-size:13px;z-index:9;opacity:.8}
-  .light-zone,.memory-shelf{position:absolute;z-index:6;border:0;background:transparent}
+  .light-zone,.memory-shelf,.orchard-door{position:absolute;z-index:6;border:0;background:transparent}
   .light-zone{cursor:pointer}
   .memory-shelf{cursor:default}
-  .light-zone:focus-visible,.memory-shelf:focus-visible{outline:2px solid rgba(255,246,214,.75);outline-offset:4px}
+  .light-zone:focus-visible,.memory-shelf:focus-visible,.orchard-door:focus-visible{outline:2px solid rgba(255,246,214,.75);outline-offset:4px}
   .light-zone:after{content:attr(data-on);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
      padding:6px 12px;border-radius:999px;background:rgba(48,34,18,.56);color:#fff8e8;font-size:13px;
      white-space:nowrap;opacity:0;transition:opacity .15s ease,transform .15s ease;box-shadow:0 8px 18px rgba(28,18,8,.2);
      backdrop-filter:blur(5px)}
   .room.lights-off .light-zone:after{content:attr(data-off)}
   .light-zone:hover:after{opacity:1;transform:translate(-50%,-50%) scale(1.04)}
-  .light-bedside{left:2.7%;top:57.5%;width:10%;height:16%}
-  .light-wall{left:38%;top:48%;width:4.4%;height:7%}
-  .light-desk{left:52.6%;top:51.2%;width:5.2%;height:10%}
-  .memory-shelf{left:50%;top:20%;width:32%;height:42%}
+  .light-bedside{left:3.2%;top:64.5%;width:9.2%;height:16%}
+  .light-wall{left:37%;top:52.5%;width:5%;height:9%}
+  .light-desk{left:53.2%;top:55.5%;width:5%;height:12%}
+  .memory-shelf{left:52%;top:17%;width:33%;height:68%}
+  .orchard-door{left:43%;top:29%;width:9%;height:44%;cursor:pointer}
+  .orchard-door:after{content:"成长田";position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);padding:7px 11px;border-radius:999px;background:rgba(74,50,29,.66);border:1px solid rgba(255,244,211,.32);color:#fff7df;font-size:12px;white-space:nowrap;box-shadow:0 7px 18px rgba(38,22,10,.22);backdrop-filter:blur(5px);opacity:.92}
+  .orchard-door:hover:after{background:rgba(91,62,34,.8)}
 </style>
 </head>
 <body>
 <a class="back" href="../index.html">← 回小院</a>
 <div class="room" id="room">
-  <img class="room-bg" id="bg-day" src="../assets/interior/bedroom_day.png" alt="" onerror="this.remove()" />
-  <img class="room-bg" id="bg-night" src="../assets/interior/bedroom_night.png" alt="" onerror="this.remove()" />
+  <img class="room-bg" id="bg-day" src="../assets/interior/bedroom_day.webp" alt="" fetchpriority="high" decoding="async" />
+  <img class="room-bg" id="bg-night" src="../assets/interior/bedroom_night.webp" alt="" decoding="async" />
   <button class="light-zone light-bedside" aria-label="关灯" data-on="关灯" data-off="开灯" title="开关灯"></button>
   <button class="light-zone light-wall" aria-label="关灯" data-on="关灯" data-off="开灯" title="开关灯"></button>
   <button class="light-zone light-desk" aria-label="关灯" data-on="关灯" data-off="开灯" title="开关灯"></button>
+  <button class="orchard-door" id="orchard-door" aria-label="进入成长田" title="进入成长田"></button>
   <button class="memory-shelf" id="memory-shelf" aria-label="书墙"></button>
   <div class="window"></div>
   <div class="lamp-cord"></div>
@@ -114,8 +119,11 @@
   const lightZones = document.querySelectorAll('.light-zone');
   function enableGeneratedRoom(){
     if(bgDay && bgDay.naturalWidth) room.classList.add('has-bg');
+    document.body.classList.add('room-ready');
   }
   bgDay.addEventListener('load', enableGeneratedRoom);
+  bgDay.addEventListener('error',()=>{bgDay.src='../assets/interior/bedroom_day.png';if(bgDay.dataset.fallback){bgDay.remove();document.body.classList.add('room-ready');}else{bgDay.dataset.fallback='1';}});
+  bgNight.addEventListener('error',()=>{if(!bgNight.dataset.fallback){bgNight.dataset.fallback='1';bgNight.src='../assets/interior/bedroom_night.png';}else bgNight.remove();});
   if(bgDay.complete) enableGeneratedRoom();
 
   let on = true;
@@ -147,6 +155,8 @@
     }
     shelfTimer = setTimeout(()=>{ shelfClicks = 0; }, 1400);
   });
+  document.getElementById('orchard-door').addEventListener('click',()=>{location.href='orchard.html';});
+  setTimeout(()=>document.body.classList.add('room-ready'),1800);
   setLight(true);
 </script>
 </body>

@@ -137,9 +137,12 @@ def run_validation():
         check("run_weekly_report" in names, "周报执行工具未注册")
         results["curate-news"] = "pass: 周报结构、来源条目和执行入口有效"
 
-        check("Math.random()-.5).slice(0,10)" in source_index, "照片墙没有随机十张逻辑")
-        check("树洞记忆照不放在这里" in source_index, "照片墙没有封存媒体隔离说明")
-        results["curate-photos"] = "pass: 随机约十张、旅行兼容和树洞媒体隔离有效"
+        check("cozy_photo_albums" in source_index and "photo-album-grid" in source_index, "照片墙没有相册集合逻辑")
+        check("travelAlbums" in source_index and "photo-date-mark" in source_index, "照片墙没有旅行相册或时间标记")
+        check("moveAlbumPhoto" in source_index and "removeAlbumPhoto" in source_index, "照片墙缺少照片管理能力")
+        check("heart_hollow" not in source_index[source_index.find("function seedPhotoAlbums"):source_index.find("function savePhotoAlbums")],
+              "树洞封存影像不应进入照片墙相册")
+        results["curate-photos"] = "pass: 相册集合、旅行导入、时间标记、增删移动和树洞媒体隔离有效"
 
         seed = tools.execute("manage_growth_seed", {"action": "create", "text": "如何提升产品判断"})
         tools.execute("manage_growth_seed", {"action": "resolve", "id": seed["item"]["id"], "reflection": "先做小实验"})

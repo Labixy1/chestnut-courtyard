@@ -43,13 +43,34 @@ from instance_data import ensure_instance_data
 
 ROOT = Path(__file__).resolve().parents[1]
 ensure_instance_data(ROOT)
+
+
+def load_local_env(path: Path):
+    """Load an ignored project .env without overriding the launch environment."""
+    if not path.is_file():
+        return
+    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[7:].strip()
+        if "=" not in line:
+            continue
+        name, value = line.split("=", 1)
+        name = name.strip()
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name):
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        os.environ.setdefault(name, value)
+
+
+load_local_env(ROOT / ".env")
 LOCAL_STATE_PATH = ROOT / "core/local_state.json"
 MAX_BODY = 15 * 1024 * 1024
 MAX_PAGE = 3 * 1024 * 1024
-CODEX_CANDIDATES = [
-    shutil.which("codex"),
-    "/Applications/ChatGPT.app/Contents/Resources/codex",
-]
 VOICE_APP = ROOT / "core/runtime/CozyEstateVoice.app"
 VOICE_BINARY = VOICE_APP / "Contents/MacOS/CozyEstateVoice"
 
@@ -217,11 +238,11 @@ def write_json_atomic(path: Path, value):
 
 def sync_local_state(payload: dict):
     allowed = {
-        "cozy_blackboard_answers", "cozy_orchard_seeds", "cozy_orchard_topics", "cozy_notice_requests",
+        "cozy_blackboard_answers", "cozy_blackboard_directions", "cozy_orchard_seeds", "cozy_orchard_topics", "cozy_notice_requests",
         "cozy_trips", "cozy_trip_reflections", "cozy_heart_entries",
         "cozy_hollow_buried_media", "cozy_memory_events", "cozy_global_butler_history",
         "cozy_toolbox_local_items", "cozy_notice_links", "cozy_notice_chest",
-        "cozy_butler_watch_topics", "cozy_butler_local_sources",
+        "cozy_butler_watch_topics", "cozy_butler_local_sources", "cozy_photo_albums",
     }
     current = read_json(LOCAL_STATE_PATH, {"version": 1, "updated_at": "", "values": {}})
     values = current.setdefault("values", {})
@@ -346,13 +367,18 @@ def get_daily_question():
     latest = reports[0] if reports else {}
     local = read_json(LOCAL_STATE_PATH, {"values": {}}).get("values", {})
     seeds = local.get("cozy_orchard_seeds", []) if isinstance(local.get("cozy_orchard_seeds"), list) else []
+    directions = local.get("cozy_blackboard_directions", []) if isinstance(local.get("cozy_blackboard_directions"), list) else []
+    prior_answers = local.get("cozy_blackboard_answers", []) if isinstance(local.get("cozy_blackboard_answers"), list) else []
     fallback = fallback_daily_question(today, latest, seeds)
-    prompt = f"""你是栗壳小院黑板的产品教练。基于本周真实资讯和果园成长线索，出一道有思考价值、可以列点回答的产品问答题。
+    prompt = f"""你是栗壳小院黑板的产品教练。基于近期真实资讯、果园成长线索、历史作答和主人偶尔想练的方向，出一道有思考价值、可以列点回答的产品问答题。
 只返回 JSON：{{"title":"10字内题名","question":"明确的开放问答题","types":["类型"],"materials":["最多2条具体资料"],"standard_points":["4到6条标准答案要点"]}}
-要求：题目不能是选择题；避免空泛；资料不够时不要编造事实；答案必须包含方法、具体动作、边界或验证标准。
+要求：题目不能是选择题；避免空泛；资料不够时不要编造事实；答案必须包含方法、具体动作、边界或验证标准。主人留言的方向只占选题权重的一部分，必须在基础理论、产品场景、时事判断、评测、原型、Agent、记忆与商业判断之间保持多样性，避免连续重复同类题。
 日期：{today}
 本周资讯：{json.dumps(latest, ensure_ascii=False)[:10000]}
-果园种子：{json.dumps(seeds[:5], ensure_ascii=False)[:3000]}"""
+果园种子：{json.dumps(seeds[:5], ensure_ascii=False)[:3000]}
+主人想练的方向：{json.dumps(directions[:8], ensure_ascii=False)[:2500]}
+最近作答：{json.dumps(prior_answers[:5], ensure_ascii=False)[:5000]}
+相关记忆：{json.dumps(MEMORY_STORE.prompt_context("黑板出题"), ensure_ascii=False)[:5000]}"""
     try:
         raw, provider = call_ai(prompt)
         generated = extract_json_object(raw)
@@ -396,8 +422,6 @@ def provider_name() -> str:
     online = MODEL_GATEWAY.text_provider()
     if online:
         return online
-    if next((path for path in CODEX_CANDIDATES if path and Path(path).exists()), None):
-        return "codex"
     return "none"
 
 
@@ -478,42 +502,11 @@ def call_openai(prompt: str) -> str:
     return text
 
 
-def call_codex(prompt: str) -> str:
-    binary = next((path for path in CODEX_CANDIDATES if path and Path(path).exists()), None)
-    if not binary:
-        raise RuntimeError("没有找到可用的 AI 运行器")
-    with tempfile.NamedTemporaryFile(prefix="cozy_reply_", suffix=".txt", delete=False) as tmp:
-        output_path = tmp.name
-    command = [
-        binary, "exec", "--ephemeral", "--ignore-rules", "--skip-git-repo-check",
-        "-s", "read-only", "-C", str(ROOT), "--output-last-message", output_path,
-        prompt,
-    ]
-    try:
-        completed = subprocess.run(
-            command, cwd=ROOT, capture_output=True, text=True, timeout=150,
-            stdin=subprocess.DEVNULL,
-        )
-        text = read_text(Path(output_path), 12000).strip()
-        if completed.returncode != 0 or not text:
-            detail = (completed.stderr or completed.stdout or "AI 启动失败").strip().splitlines()[-1]
-            raise RuntimeError(detail[:300])
-        return text
-    finally:
-        try:
-            Path(output_path).unlink()
-        except OSError:
-            pass
-
-
 def call_ai(prompt: str) -> tuple[str, str]:
     online = MODEL_GATEWAY.text_provider()
     if online:
         return MODEL_GATEWAY.call_text(prompt, online)
-    provider = provider_name()
-    if provider == "codex":
-        return call_codex(prompt), provider
-    raise RuntimeError("阿栗还没有连接 AI。请从 start.command 启动，或设置 OPENAI_API_KEY。")
+    raise RuntimeError("阿栗还没有连接你自己的文本模型 API。请配置 OpenAI、DeepSeek、GLM 或通义 API Key。")
 
 
 class ArticleParser(HTMLParser):
@@ -814,10 +807,10 @@ def parse_tool_from_url(url: str, instruction: str = ""):
     }
 
 
-SYSTEM_RUNTIME = SystemRuntime(ROOT, CODEX_CANDIDATES)
+SYSTEM_RUNTIME = SystemRuntime(ROOT, model_call=call_ai)
 MEMORY_STORE = MemoryStore(ROOT)
 MEMORY_DISTILLER = MemoryDistiller(ROOT, MEMORY_STORE, call_ai, SYSTEM_RUNTIME.audit)
-AUTOMATION = AutomationRunner(ROOT, MEMORY_STORE, MEMORY_DISTILLER)
+AUTOMATION = AutomationRunner(ROOT, MEMORY_STORE, MEMORY_DISTILLER, MEDIA_SERVICE)
 BUTLER_TOOLS = ButlerTools(ROOT, call_ai, parse_url_resilient, SYSTEM_RUNTIME, MEMORY_STORE, parse_tool_from_url, MEDIA_SERVICE)
 
 
@@ -890,7 +883,7 @@ def room_reply(room: str, message: str, context: dict) -> dict:
             '只返回 JSON：{"reply":"自然的对话回应","mode":"dialogue"}。'
             '用60-160字回应主人话里的一个具体细节，可以提供判断或陪伴梳理，最多问一个真正有用的问题；不急着安慰，不硬套树的隐喻。'
         ),
-        "blackboard": '只返回 JSON：{"polished_answer":"保留原意的润色答案","standard_points":["标准答案要点"],"suggestions":["具体修改建议"],"next_question":"一个下一步练习"}',
+        "blackboard": '只返回 JSON：{"score":"完成度判断，例如72/100，并用一句话说明评分依据","diagnosis":["逐点指出原答案已经覆盖和遗漏的内容"],"polished_answer":"保留原意但结构更清楚的润色答案","standard_points":["4到7条可独立理解的标准答案要点；结合主人的相关记忆与具体例子，但不能编造经历"],"suggestions":["针对这份答案的具体修改建议，不写泛话"],"thinking_directions":["下一轮应该追问或验证的思考方向"],"next_question":"一个下一步练习"}',
         "travel": '只返回 JSON：{"summary":"忠于原话的旅行感悟摘要，120字内","title":"简短名称"}',
     }
     prompt = f"""你在栗壳小院中处理一个房间内任务。

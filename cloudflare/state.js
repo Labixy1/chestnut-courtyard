@@ -234,6 +234,7 @@ export async function permissions(env) {
 
 export async function setStewardMode(env, enabled) {
   const current = await permissions(env);
+  if (current.steward_mode && !enabled) return current;
   const value = {
     ...current, steward_mode: Boolean(enabled), permanent: true,
     enabled_at: enabled ? (current.enabled_at || now()) : current.enabled_at,

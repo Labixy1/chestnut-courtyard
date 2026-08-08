@@ -30,9 +30,10 @@
   /* ---- 场景容器：保持 16:9 舞台并居中，贴合生成的游戏截图式全景 ---- */
   .stage-wrap{position:fixed;inset:0;display:flex;align-items:center;justify-content:center}
   .stage{
-    position:relative;width:100vw;height:100vh;overflow:hidden;
+    position:relative;width:100vw;height:100vh;overflow:hidden;opacity:0;transition:opacity .18s ease;
     border-radius:0;box-shadow:none;
   }
+  .stage.scene-ready{opacity:1}
   /* 可选：整幅生成图铺底，缺图则用 CSS 画的场景 */
   #estate-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:2;
      transition:opacity .35s ease}
@@ -186,7 +187,7 @@
      border-radius:16px;padding:14px 16px;box-shadow:0 10px 26px var(--shadow);
      border:1px solid #e6d6ba;font-size:13px;line-height:1.6}
   #butler .who{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:6px}
-  #butler .fox{width:34px;height:34px;border-radius:50%;background:url("assets/estate/butler_dog.png") center/cover no-repeat;
+  #butler .fox{width:34px;height:34px;border-radius:50%;background:url("assets/estate/butler_dog.webp") center/cover no-repeat;
      position:relative;flex:none;box-shadow:0 2px 8px var(--shadow);border:1px solid rgba(255,246,214,.65)}
   #butler .row{margin:4px 0;color:#6b5949}
   #butler .row b{color:var(--ink)}
@@ -326,7 +327,16 @@
   .source-link{border:1px solid rgba(184,112,128,.18);background:rgba(255,255,255,.45);color:#8b5360;
      border-radius:999px;padding:5px 9px;font-size:12px;text-decoration:none}
   .source-link:hover{background:rgba(255,255,255,.8)}
-  .report-actions{display:flex;gap:8px;align-items:center;flex:none}
+  .report-actions{display:flex;gap:7px;align-items:center;justify-content:flex-end;flex-wrap:wrap;flex:none}
+  .article-action{border:1px solid rgba(184,112,128,.18);background:rgba(255,255,255,.5);color:#8b5360;
+     border-radius:999px;padding:5px 9px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+  .article-action:hover{background:#fff;color:#7c4653}.article-action:disabled{opacity:.5;cursor:wait}
+  @media(max-width:680px){
+    .report-meta{align-items:flex-start;flex-direction:column;gap:9px}
+    .report-meta>span{line-height:1.5;overflow-wrap:anywhere}
+    .report-actions{width:100%;justify-content:flex-start;gap:6px}
+    .report-actions .source-link,.report-actions .article-action,.report-actions .readlater-btn{font-size:11px;padding:5px 8px}
+  }
   .hot-label{display:inline-block;font-size:12px;font-weight:700;color:#1d6fd8;margin-right:6px}
   .chest-picker{margin-top:10px;background:rgba(255,252,247,.86);border:1px solid rgba(151,102,67,.16);
      border-radius:14px;padding:10px;display:grid;grid-template-columns:minmax(140px,1fr) auto auto auto;gap:8px;align-items:center}
@@ -340,6 +350,10 @@
   .insight-box h3{background:none;padding:0;margin:0 0 8px;color:#794a55}
   .insight-box ul{padding-left:18px}
   .insight-box li{font-size:13px;line-height:1.75;margin:4px 0}
+  .advice-box{background:#fff8e8;border-color:rgba(189,139,61,.24)}
+  .advice-box h3{color:#73511d}.advice-box h3:before{background:#d2a84e}
+  .advice-box .advice-lead{font-size:13px;line-height:1.75;color:#745a31;margin:0 0 10px}
+  .advice-box li{color:#664e2b}
   .notice-dialogue{margin-top:18px;background:rgba(255,255,255,.72);border:1px solid rgba(184,112,128,.16);
      border-radius:22px;padding:15px 16px;box-shadow:0 10px 24px rgba(142,76,92,.08)}
   .notice-dialogue h3{font-size:16px;color:#794a55;margin-bottom:6px}
@@ -397,7 +411,7 @@
      border:1px solid rgba(184,112,128,.14);padding:10px 12px;color:#70424d;font-size:13px;line-height:1.6;align-items:flex-start;gap:8px}
   .butler-reply.show{display:block}
   .butler-reply.with-dog{display:flex}
-  .butler-reply .reply-dog{width:28px;height:28px;border-radius:50%;background:url("assets/estate/butler_dog.png") center/cover no-repeat;
+  .butler-reply .reply-dog{width:28px;height:28px;border-radius:50%;background:url("assets/estate/butler_dog.webp") center/cover no-repeat;
      border:1px solid rgba(255,246,214,.7);box-shadow:0 2px 8px rgba(90,74,58,.16);flex:none}
   .butler-reply .reply-text{flex:1;white-space:pre-line}
   .week-list,.category-grid{display:grid;gap:10px}
@@ -460,25 +474,21 @@
   .bb-history{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:14px}
   .bb-history .card{background:rgba(255,255,255,.66);border-color:rgba(143,94,25,.14);color:#4d3214}
   .bb-history .card p{color:rgba(83,54,22,.68)}
+  .bb-direction-box{margin-top:22px;padding-top:18px;border-top:1px solid rgba(143,94,25,.14)}
+  .bb-direction-box h4{font-size:14px;color:#6b4618;margin-bottom:7px}.bb-direction-box p{font-size:12px;line-height:1.65;margin:0 0 8px;color:rgba(83,54,22,.65)}
+  .bb-direction-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.bb-direction-row input{min-width:0;border:1px solid rgba(143,94,25,.2);border-radius:12px;background:rgba(255,255,255,.72);padding:10px 12px;font:13px inherit;color:#4d3214;outline:none}.bb-direction-row button{border:0;border-radius:12px;background:#b57c24;color:#fffaf0;padding:0 14px;font:12px inherit;cursor:pointer}.bb-direction-status{min-height:17px;margin-top:7px;font-size:11px;color:#876832}
   @media (max-width:720px){.blackboard-app{grid-template-columns:1fr}.bb-side{padding:18px}.bb-actions{display:flex;flex-wrap:wrap}.bb-main{padding:22px}.bb-comparison{grid-template-columns:1fr}}
   /* 照片预览 */
   .preview-photo{width:200px;height:240px;object-fit:cover;border:6px solid #fff;border-radius:6px;
      box-shadow:0 10px 26px var(--shadow);display:block;margin:0 auto 14px}
   .preview-note{text-align:center;font-size:15px}
   .preview-date{text-align:center;color:#8a7963;font-size:12px;margin-top:4px}
-  .photo-wall-board{position:absolute;right:28px;top:70px;width:min(390px,34vw);max-height:calc(100vh - 110px);overflow:auto;
-     background:rgba(255,250,240,.72);border:1px solid rgba(80,52,28,.15);border-radius:24px;padding:18px 18px;
-     box-shadow:0 22px 50px rgba(20,12,6,.18);backdrop-filter:blur(8px);color:#513927}
-  .photo-wall-board h2{font-size:18px;margin-bottom:8px}
-  .photo-memory{border-radius:16px;background:rgba(255,255,255,.62);border:1px solid rgba(80,52,28,.1);padding:12px;margin-top:10px}
-  .photo-memory h3{font-size:14px;margin-bottom:6px}
-  .photo-memory p{font-size:12px;line-height:1.6;color:#6b5949}
-  .photo-sample-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px}
-  .photo-sample-grid figure{margin:0;background:rgba(255,255,255,.62);border:1px solid rgba(80,52,28,.1);
-     border-radius:12px;padding:6px}
-  .photo-sample-grid img{position:static;width:100%;height:88px;object-fit:cover;border-radius:8px;display:block}
-  .photo-sample-grid figcaption{font-size:11px;line-height:1.4;color:#6b5949;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .photo-wall-actions{display:flex;align-items:center;gap:8px;margin-top:12px}.photo-wall-actions button{border:0;border-radius:999px;padding:8px 13px;background:#7d6754;color:#fff;font:inherit;font-size:12px;cursor:pointer}.photo-wall-status{font-size:11px;color:#806d5a}
+  .photo-wall-scene>.photo-wall-bg{filter:blur(12px) brightness(.7);transform:scale(1.035)}
+  .photo-library{position:absolute;inset:0;z-index:2;overflow:auto;padding:68px clamp(22px,5vw,74px) 42px;color:#fffaf2;background:rgba(28,25,25,.2)}
+  .photo-library-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin:0 0 22px}.photo-library-head h2{font-size:24px;margin:0 0 4px}.photo-library-head p{font-size:12px;color:rgba(255,250,242,.72);margin:0}.photo-library-actions{display:flex;gap:8px}.photo-library-actions button,.photo-album-toolbar button{border:1px solid rgba(255,255,255,.22);border-radius:9px;background:rgba(37,31,28,.46);color:#fffaf2;padding:8px 11px;font:12px inherit;cursor:pointer;backdrop-filter:blur(8px)}
+  .photo-album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}.photo-album-tile{position:relative;min-height:230px;border:0;padding:0;background:transparent;color:#fff;text-align:left;cursor:pointer}.photo-album-cover{position:relative;height:184px;border-radius:7px;overflow:hidden;background:rgba(255,255,255,.12);box-shadow:0 14px 34px rgba(0,0,0,.2)}.photo-album-cover img{position:static;width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s ease}.photo-album-tile:hover .photo-album-cover img{transform:scale(1.025)}.photo-album-title{display:block;font-size:14px;font-weight:650;margin-top:10px}.photo-album-meta{display:flex;justify-content:space-between;gap:8px;margin-top:4px;color:rgba(255,255,255,.62);font-size:10px}.photo-date-mark{color:#bfe4f5;background:rgba(100,174,210,.13);border-radius:999px;padding:2px 7px}.photo-album-add{height:184px;border:1px dashed rgba(255,255,255,.42);border-radius:7px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:38px;font-weight:200;color:rgba(255,255,255,.72)}
+  .photo-album-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px}.photo-album-toolbar h2{font-size:20px;margin:0 auto 0 0}.photo-album-toolbar .danger{color:#ffd4cd}.photo-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}.photo-detail-item{position:relative;margin:0;min-width:0}.photo-detail-item img{position:static;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:7px;display:block;background:rgba(255,255,255,.08)}.photo-detail-item figcaption{display:flex;align-items:center;gap:7px;margin-top:6px;font-size:11px;color:rgba(255,255,255,.72)}.photo-detail-controls{margin-left:auto;display:flex;gap:3px}.photo-detail-controls button{width:25px;height:25px;border:0;border-radius:6px;background:rgba(20,18,17,.48);color:#fff;cursor:pointer}.photo-wall-status{font-size:11px;color:#d6edf7;min-height:16px;margin-top:10px}
+  @media(max-width:620px){.photo-library{padding:62px 14px 30px}.photo-library-head{align-items:flex-start;flex-direction:column}.photo-album-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.photo-album-cover,.photo-album-add{height:132px}.photo-album-tile{min-height:178px}.photo-detail-grid{grid-template-columns:1fr 1fr}}
   .source-tag{display:inline-block;font-size:11px;border-radius:999px;padding:3px 8px;background:#ead7c2;color:#6b4b2e;margin-bottom:6px}
 </style>
 </head>
@@ -486,7 +496,8 @@
 <div class="stage-wrap">
   <div class="stage" id="stage">
     <!-- 若存在整幅生成图则铺底，否则用 CSS 场景 -->
-    <img id="estate-bg" src="assets/estate/panorama.png" alt="" onerror="this.remove()" />
+    <img id="estate-bg" alt="" fetchpriority="high" decoding="async" />
+    <script>(function(){var scenes={sunny:'assets/estate/panorama.webp',morning:'assets/estate/panorama_morning.webp',snow:'assets/estate/panorama_snow.webp',rain:'assets/estate/panorama_rain.webp',overcast:'assets/estate/panorama_overcast.webp',fog:'assets/estate/panorama_fog.webp'};var last=localStorage.getItem('cozy_estate_scene')||((new Date()).getHours()>=5&&(new Date()).getHours()<10?'morning':'sunny');document.getElementById('estate-bg').src=scenes[last]||scenes.sunny;})();</script>
 
     <div class="sky">
       <div class="cloud" style="width:70px;height:26px;left:18%;top:12%"></div>
@@ -508,12 +519,12 @@
       <div class="row"><b>今日一步 · </b><span id="b-tip">——</span></div>
       <div class="row"><b>黑板题型 · </b><span id="b-quiz">——</span></div>
     </div>
-    <div class="title">🏡 栗壳小院 · Lv.<span id="t-level">1</span> · 🔥<span id="t-streak">0</span></div>
+    <div class="title">栗壳小院</div>
 
     <!-- 公告板 -->
     <button class="spot noticeboard" data-pan-x="16" data-pan-y="55" data-pan-w="9" data-pan-h="26" onclick="openNotice()">
       <div class="art">
-        <div class="board">📜 阿栗周报<br>本周重点</div>
+        <div class="board">阿栗巡报<br>近期重点</div>
         <div class="board-legs"></div>
       </div>
       <span class="tag">公告板</span>
@@ -587,7 +598,7 @@
       <span class="tag">照片墙</span>
     </button>
 
-    <div id="wall" aria-label="外墙照片墙"></div>
+    <div id="wall" aria-hidden="true"></div>
   </div>
 </div>
 
@@ -625,21 +636,7 @@ let CORE = {};
 /* ---------- 外墙照片墙 ---------- */
 function renderWall(){
   const wall = document.getElementById('wall');
-  const photos = (CORE.estate_state && CORE.estate_state.wall_photos) || [];
   wall.innerHTML = '';
-  photos.slice(0,15).forEach(p=>{
-    const div = document.createElement('div');
-    div.className = 'wall-photo';
-    div.style.left = (p.position?.x ?? 50) + '%';
-    div.style.top = (p.position?.y ?? 50) + '%';
-    div.style.transform = 'rotate(' + (p.position?.rotate ?? 0) + 'deg)';
-    const img = document.createElement('img');
-    img.src = p.file; img.alt = p.note || '';
-    img.onerror = ()=>{ img.replaceWith(fallbackBox(p.type)); };
-    div.appendChild(img);
-    div.onclick = (e)=>{ e.preventDefault(); e.stopPropagation(); openPhoto(p); };
-    wall.appendChild(div);
-  });
 }
 function fallbackBox(type){
   const b = document.createElement('div');
@@ -648,9 +645,7 @@ function fallbackBox(type){
   return b;
 }
 function renderTitle(){
-  const s = CORE.estate_state || {};
-  document.getElementById('t-level').textContent = s.level || '1';
-  document.getElementById('t-streak').textContent = s.streak || 0;
+  document.title = '栗壳小院';
 }
 function renderButlerState(){
   const events = window.CozyMemory ? CozyMemory.merged() : [];
@@ -800,12 +795,12 @@ async function openBlackboard(){
   const history = generatedHistory.length ? generatedHistory : (bb.length ? bb : [today]);
   openOverlay(
     '<div class="blackboard-app">'+
-      '<aside class="bb-side"><h2>黑板 · 每日一题</h2><p>先答，再批改。阿栗会把你的答案改清楚，再和标准答案对照。</p>'+
+      '<aside class="bb-side"><h2>黑板 · 每日一题</h2><p>先答，再由 AI 根据题目、资料和你的记忆档案逐点批改。</p>'+
         '<div class="bb-actions">'+
           '<button id="bb-mode-question" class="active" onclick="showBlackboardMode(\'question\')">今日题目</button>'+
           '<button id="bb-mode-result" onclick="showBlackboardMode(\'result\')">批改结果</button>'+
           '<button id="bb-mode-history" onclick="showBlackboardMode(\'history\')">历史题目</button>'+
-        '</div></aside>'+
+        '</div><section class="bb-direction-box"><h4>以后想练什么</h4><p>这是出题参考，不会挤掉基础理论、场景判断、时事与评测等其他方向。</p><div class="bb-direction-row"><input id="bb-direction-input" placeholder="例如：多练 AI Agent 权限设计"><button onclick="saveBlackboardDirection()">记下</button></div><div class="bb-direction-status" id="bb-direction-status"></div></section></aside>'+
       '<main class="bb-main"><div id="bb-content"></div></main>'+
     '</div>',
     'blackboard-panel'
@@ -875,7 +870,10 @@ async function submitBbAnswer(){
     const result = data && data.result ? data.result : {};
     window.BB_STATE.review = {
       revised:result.polished_answer || buildBbReview(value,q).revised,
-      suggestions:Array.isArray(result.suggestions)&&result.suggestions.length?result.suggestions:buildBbReview(value,q).suggestions
+      suggestions:Array.isArray(result.suggestions)&&result.suggestions.length?result.suggestions:buildBbReview(value,q).suggestions,
+      thinking:Array.isArray(result.thinking_directions)?result.thinking_directions:[],
+      diagnosis:Array.isArray(result.diagnosis)?result.diagnosis:[],
+      score:result.score || ''
     };
     if(Array.isArray(result.standard_points)&&result.standard_points.length) q.standard=result.standard_points;
     window.BB_STATE.nextQuestion=result.next_question||'';
@@ -935,12 +933,28 @@ function renderBlackboardQuestion(q, answer){
 
 function renderBlackboardResult(q, answer, review){
   return '<section class="bb-question"><div class="eyebrow">批改结果</div><h3>'+escapeNotice(q.title)+' · 答案对照</h3>'+
+    (review.score?'<div class="bb-review-card"><h4>本次完成度</h4><p>'+escapeNotice(review.score)+'</p></div>':'')+
+    (review.diagnosis&&review.diagnosis.length?'<div class="bb-review-card"><h4>答案诊断</h4><ul>'+review.diagnosis.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>':'')+
     '<div class="bb-review-card"><h4>阿栗润色版</h4><p>'+escapeNotice(review.revised)+'</p></div>'+
     '<div class="bb-comparison"><div class="bb-review-card"><h4>你的原答案</h4><p>'+escapeNotice(answer)+'</p></div>'+
     '<div class="bb-review-card"><h4>标准答案</h4><ol class="bb-standard">'+q.standard.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ol></div></div>'+
     '<div class="bb-review-card"><h4>AI 修改建议</h4><ul>'+review.suggestions.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>'+
+    (review.thinking&&review.thinking.length?'<div class="bb-review-card"><h4>下一轮思考方向</h4><ul>'+review.thinking.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>':'')+
     (window.BB_STATE&&window.BB_STATE.nextQuestion?'<div class="bb-review-card"><h4>下一步练习</h4><p>'+escapeNotice(window.BB_STATE.nextQuestion)+'</p></div>':'')+
     '<button class="bb-submit" onclick="window.BB_STATE.answer=\'\';showBlackboardMode(\'question\')">重新答一次</button></section>';
+}
+
+function saveBlackboardDirection(){
+  const input=document.getElementById('bb-direction-input');
+  const status=document.getElementById('bb-direction-status');
+  const text=String(input&&input.value||'').trim();
+  if(!text){if(status)status.textContent='先写一个想练的方向。';return;}
+  const items=readNoticeList('cozy_blackboard_directions');
+  items.unshift({text,date:localCalendarDate(),weight:1});
+  localStorage.setItem('cozy_blackboard_directions',JSON.stringify(items.slice(0,30)));
+  window.CozyButler?.persistLocal(['cozy_blackboard_directions']);
+  window.CozyMemory?.add({source:'blackboard',type:'question_direction',layer:'short',weight:1,content:text,summary:'主人希望未来偶尔练习：'+text+'。这只是多样化出题的一项参考。'});
+  input.value='';if(status)status.textContent='阿栗记下了，会偶尔融进题库。';
 }
 
 function buildBbReview(answer, q){
@@ -957,63 +971,92 @@ function buildBbReview(answer, q){
 }
 
 function openPhotoWall(){
-  const photos = getPhotoWallSelection();
-  const grid = photos.length ? '<div class="photo-sample-grid">'+photos.map(p=>
-    '<figure><img src="'+escapeNotice(p.src)+'" alt=""><figcaption>'+escapeNotice(p.caption)+'</figcaption></figure>'
-  ).join('')+'</div>' : '<p style="font-size:13px;line-height:1.7">照片库还是空的。添加第一张照片后，阿栗会从照片库随机挑选约 10 张挂在这里。</p>';
-  openOverlay('<div class="photo-wall-scene"><img src="assets/photos/photo_wall.png" alt="照片墙" />'+
-    '<div class="photo-wall-board"><h2>照片墙</h2><p style="font-size:13px;line-height:1.7">这里像墙面相册，每次随机从照片库挑 10 张左右展示。旅行照片仍然在“出发旅行”里按地点整理；树洞记忆照不放在这里，会埋在树洞草堆里。</p>'+
-    '<div class="photo-wall-actions"><button onclick="document.getElementById(\'photo-wall-upload\').click()">添加照片</button><span class="photo-wall-status" id="photo-wall-status"></span><input id="photo-wall-upload" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden onchange="uploadPhotoWallFiles(this.files)"></div>'+
-    grid+
-    '</div></div>',
-    'scene-panel');
+  openOverlay('<div class="photo-wall-scene"><img class="photo-wall-bg" src="assets/photos/photo_wall.webp" onerror="this.src=\'assets/photos/photo_wall.png\'" alt="">'+
+    '<main class="photo-library" id="photo-library"></main></div>','scene-panel');
+  renderPhotoAlbums();
 }
 
-function getPhotoWallSelection(){
-  const statePhotos = ((CORE.estate_state && CORE.estate_state.wall_photos) || []).map(p=>({
-    src:p.file || '',
-    caption:p.note || p.date || '小院照片'
-  }));
+function seedPhotoAlbums(){
+  const saved=readNoticeList('cozy_photo_albums');
+  if(saved.length)return saved;
+  const personal=((CORE.estate_state&&CORE.estate_state.wall_photos)||[]).map(p=>({id:p.id||'photo_'+Math.random().toString(36).slice(2),src:p.file||'',caption:p.note||p.title||'随手拍',date:p.date||localCalendarDate()})).filter(p=>p.src);
   const allTrips = JSON.parse(localStorage.getItem('cozy_trips') || '[]').concat((CORE.estate_state&&CORE.estate_state.travel&&CORE.estate_state.travel.history)||[]);
-  const trips = allTrips.flatMap(t=>{
-    const files = (t.photos&&t.photos.length?t.photos:[t.file]).filter(Boolean);
-    return files.map(file=>({src:file,caption:t.place || '旅行照片'}));
-  });
-  const pool = statePhotos.concat(trips).filter(p=>p.src);
-  return pool.sort(()=>Math.random()-.5).slice(0,10);
+  const travelAlbums=allTrips.map((trip,index)=>({id:'travel_'+(trip.id||index),title:trip.place||'一次旅行',source:'travel',date:trip.date||localCalendarDate(),photos:(trip.photos&&trip.photos.length?trip.photos:[trip.file]).filter(Boolean).map((src,pIndex)=>({id:'travel_photo_'+index+'_'+pIndex,src,caption:trip.line||trip.place||'旅行照片',date:trip.date||localCalendarDate()}))})).filter(album=>album.photos.length);
+  const demo={id:'demo_courtyard',title:'小院试运行',source:'demo',date:'2026-08-08',photos:[
+    {id:'demo_1',src:'assets/estate/panorama_morning.webp',caption:'清晨场景测试',date:'2026-08-08'},
+    {id:'demo_2',src:'assets/estate/panorama_rain.webp',caption:'雨天场景测试',date:'2026-08-08'},
+    {id:'demo_3',src:'assets/plants/orchard_summer.jpg',caption:'夏日成长田',date:'2026-08-08'}
+  ]};
+  const albums=[];
+  if(personal.length)albums.push({id:'personal_'+Date.now(),title:'八月随手拍',source:'upload',date:personal[0].date,photos:personal});
+  albums.push(...travelAlbums,demo);
+  savePhotoAlbums(albums);
+  return albums;
+}
+
+function savePhotoAlbums(albums){
+  localStorage.setItem('cozy_photo_albums',JSON.stringify(albums.slice(0,60)));
+  window.CozyButler?.persistLocal(['cozy_photo_albums']);
+}
+
+function renderPhotoAlbums(){
+  const box=document.getElementById('photo-library');if(!box)return;
+  const albums=seedPhotoAlbums().slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
+  const tiles=albums.map(album=>{const cover=(album.photos||[])[0]||{};return '<button class="photo-album-tile" onclick="openPhotoAlbum(\''+escapeNotice(album.id)+'\')"><span class="photo-album-cover">'+(cover.src?'<img src="'+escapeNotice(cover.src)+'" alt="">':'')+'</span><span class="photo-album-title">'+escapeNotice(album.title)+'</span><span class="photo-album-meta"><span>'+((album.photos||[]).length)+' 张</span><span class="photo-date-mark">'+escapeNotice(photoDateLabel(album.date))+'</span></span></button>';}).join('');
+  box.innerHTML='<header class="photo-library-head"><div><h2>照片集</h2><p>上传与旅行带回的照片按集合整理，默认从最近的时间开始。</p></div></header><div class="photo-album-grid">'+tiles+'<button class="photo-album-tile" onclick="createPhotoAlbum()"><span class="photo-album-add">＋</span><span class="photo-album-title">新照片集</span><span class="photo-album-meta"><span>自己命名</span></span></button></div><div class="photo-wall-status" id="photo-wall-status"></div>';
+}
+
+function photoDateLabel(value){const parts=String(value||'').split('-');return parts.length>=3?Number(parts[1])+'月'+Number(parts[2])+'日':String(value||'未标日期');}
+
+function createPhotoAlbum(){
+  const title=String(prompt('给这组照片取个名字')||'').trim().slice(0,30);if(!title)return;
+  const album={id:'album_'+Date.now().toString(36),title,source:'upload',date:localCalendarDate(),photos:[]};
+  const albums=seedPhotoAlbums();albums.unshift(album);savePhotoAlbums(albums);openPhotoAlbum(album.id);setTimeout(()=>document.getElementById('photo-wall-upload')?.click(),80);
+}
+
+function openPhotoAlbum(id){
+  const box=document.getElementById('photo-library');const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===id);if(!box||!album)return;
+  const photos=(album.photos||[]).map((photo,index)=>'<figure class="photo-detail-item"><img src="'+escapeNotice(photo.src)+'" alt=""><figcaption><span>'+escapeNotice(photo.caption||'照片')+'</span><span class="photo-date-mark">'+escapeNotice(photoDateLabel(photo.date||album.date))+'</span><span class="photo-detail-controls"><button title="向前移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',-1)">←</button><button title="向后移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',1)">→</button><button title="删除照片" onclick="removeAlbumPhoto(\''+escapeNotice(id)+'\','+index+')">×</button></span></figcaption></figure>').join('');
+  box.innerHTML='<div class="photo-album-toolbar"><button onclick="renderPhotoAlbums()">← 照片集</button><h2>'+escapeNotice(album.title)+'</h2><button onclick="document.getElementById(\'photo-wall-upload\').click()">＋ 照片</button><button class="danger" onclick="deletePhotoAlbum(\''+escapeNotice(id)+'\')">删除整组</button></div><div class="photo-detail-grid">'+(photos||'<div class="photo-album-add" onclick="document.getElementById(\'photo-wall-upload\').click()">＋</div>')+'</div><div class="photo-wall-status" id="photo-wall-status"></div><input id="photo-wall-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onchange="uploadPhotoWallFiles(this.files,\''+escapeNotice(id)+'\')">';
 }
 
 function fileAsDataUrl(file){
   return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('图片读取失败'));reader.readAsDataURL(file);});
 }
 
-async function uploadPhotoWallFiles(files){
+async function uploadPhotoWallFiles(files,albumId){
   const status=document.getElementById('photo-wall-status');
   if(!files||!files.length)return;
   if(status)status.textContent='正在归档 '+files.length+' 张照片…';
   try{
+    const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===albumId);if(!album)throw new Error('没有找到这个照片集');
     for(const file of Array.from(files)){
       const dataUrl=await fileAsDataUrl(file);
       const data=await cozyApi('/api/media/upload',{kind:'photo_wall',name:file.name,title:file.name.replace(/\.[^.]+$/,''),data_url:dataUrl},120000);
       CORE.estate_state=data.estate_state;
+      const item=data.item||{};album.photos.push({id:item.id||'photo_'+Date.now().toString(36),src:item.file||'',caption:item.title||file.name.replace(/\.[^.]+$/,''),date:item.date||localCalendarDate()});
     }
-    openPhotoWall();
+    album.date=localCalendarDate();savePhotoAlbums(albums);openPhotoAlbum(albumId);
     const next=document.getElementById('photo-wall-status');if(next)next.textContent='照片已经钉上墙。';
   }catch(error){if(status)status.textContent='没有添加成功：'+error.message;}
 }
 
+function moveAlbumPhoto(albumId,index,step){const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===albumId);if(!album)return;const target=index+step;if(target<0||target>=album.photos.length)return;[album.photos[index],album.photos[target]]=[album.photos[target],album.photos[index]];savePhotoAlbums(albums);openPhotoAlbum(albumId);}
+function removeAlbumPhoto(albumId,index){if(!confirm('从这组照片里删除这一张吗？'))return;const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===albumId);if(!album)return;album.photos.splice(index,1);savePhotoAlbums(albums);openPhotoAlbum(albumId);}
+function deletePhotoAlbum(albumId){if(!confirm('删除整组照片吗？照片文件不会从其他旅行记录中删除。'))return;savePhotoAlbums(seedPhotoAlbums().filter(item=>item.id!==albumId));renderPhotoAlbums();}
+
 function openNotice(){
   openOverlay('<div class="notice-board-large">'+
-    '<div class="notice-board-heading"><h2>公告板 · 阿栗周报</h2><div class="notice-heading-actions"><button class="notice-refresh" id="notice-refresh" onclick="runWeeklyNow()" aria-label="立即更新周报" title="立即更新周报">↻</button><span class="butler-connection" id="butler-connection">正在连接阿栗</span></div></div><div class="week-title" id="notice-week-title"></div>'+
+    '<div class="notice-board-heading"><h2>公告板 · 阿栗资讯巡报</h2><div class="notice-heading-actions"><button class="notice-refresh" id="notice-refresh" onclick="runWeeklyNow()" aria-label="立即更新巡报" title="立即更新巡报">↻</button><span class="butler-connection" id="butler-connection">正在连接阿栗</span></div></div><div class="week-title" id="notice-week-title"></div>'+
     '<div class="notice-tabs">'+
-      '<button class="active" onclick="showNoticeView(\'current\',this)">本周</button>'+
-      '<button onclick="showNoticeView(\'weeks\',this)">按周查看</button>'+
+      '<button class="active" onclick="showNoticeView(\'current\',this)">最新巡报</button>'+
+      '<button onclick="showNoticeView(\'weeks\',this)">往期巡报</button>'+
       '<button onclick="showNoticeView(\'categories\',this)">按分类查看</button>'+
       '<button onclick="showNoticeView(\'inbox\',this)">待读篮</button>'+
     '</div>'+
     '<div id="notice-content"></div>'+
     '<section id="notice-composer" class="notice-dialogue"><h3>给阿栗留言</h3><div class="notice-task-list" id="notice-task-list" aria-live="polite"></div>'+
-    '<div class="notice-hints"><span>下周重点</span><span>总结口径</span><span>链接归类</span><span>工具箱补充</span><span>以后也看看这个来源</span></div>'+
+    '<div class="notice-hints"><span>下次重点</span><span>总结口径</span><span>链接归类</span><span>工具箱补充</span><span>以后也看看这个来源</span></div>'+
     '<textarea id="notice-request" placeholder="例如：这篇链接归到产品效率；以后也看看某某媒体；把 Claude Science 工具放进学术分类。"></textarea>'+
     '<div class="voice-note"><button class="send-note-btn" id="notice-send-btn" onclick="saveNoticeRequest()" aria-label="交给阿栗" title="发送给阿栗"><span></span></button><button class="parse-note-btn" id="notice-parse-btn" onclick="parseNoticeRequestLink()" aria-label="解析链接" title="抓取并解析链接"><span></span></button><button class="mic-note-btn" id="notice-mic-btn" onclick="startNoticeVoice()" aria-label="语音留言" title="语音留言" aria-pressed="false"><span></span></button></div>'+
     '<div class="butler-reply" id="butler-reply"></div></section>'+
@@ -1038,12 +1081,12 @@ function getWeekRange(offset=0){
 
 async function runWeeklyNow(){
   const button=document.getElementById('notice-refresh'),title=document.getElementById('notice-week-title');
-  if(button)button.disabled=true;if(title)title.textContent='阿栗正在重新巡逻信息源并筛选本周重点…';
+  if(button)button.disabled=true;if(title)title.textContent='阿栗正在重新巡逻信息源并筛选近期重点…';
   try{
     const data=await cozyApi('/api/weekly/run',{force:true},480000);
     CORE.notice_reports=data.reports||CORE.notice_reports;
     showNoticeView('current',document.querySelector('.notice-tabs button'));
-  }catch(error){if(title)title.textContent='本周周报获取失败：'+error.message;}
+  }catch(error){if(title)title.textContent='资讯巡报获取失败：'+error.message;}
   finally{if(button)button.disabled=false;}
 }
 
@@ -1110,6 +1153,10 @@ function activeNoticeReport(){
 }
 
 function noticeWeekLabel(report){
+  if(report && report.generated_at){
+    const generated=new Date(report.generated_at);
+    if(!Number.isNaN(generated.getTime()))return (generated.getMonth()+1)+'月'+generated.getDate()+'日 '+String(generated.getHours()).padStart(2,'0')+':'+String(generated.getMinutes()).padStart(2,'0')+' 更新';
+  }
   if(report && report.week_start && report.week_end){
     return formatIsoDate(report.week_start)+' - '+formatIsoDate(report.week_end);
   }
@@ -1161,16 +1208,42 @@ function reportCardHtml(item, category){
   const chestActive = isNoticeChestItem(payload);
   const sourceUrl = item.link || item.url || '';
   const link = sourceUrl ? '<a class="source-link" href="'+escapeNotice(sourceUrl)+'" target="_blank" rel="noopener">查看原文</a>' : '';
+  const linkActions = sourceUrl ? '<button class="article-action" data-url="'+escapeNotice(sourceUrl)+'" onclick="copyNoticeLink(this)">复制原链</button><button class="article-action tool-extract-btn" data-url="'+escapeNotice(sourceUrl)+'" data-title="'+escapeNotice(item.title)+'" onclick="extractToolFromNotice(this)">提取工具</button>' : '';
   const aiSummary = noticeAISummary(item);
   const originalSummary = item.summary ? '<p class="notice-original-summary">'+escapeNotice(item.summary)+'</p>' : '';
   return '<article class="report-card"><div class="notice-tag">'+escapeNotice(tag)+'</div><h4>'+escapeNotice(item.title)+'</h4>'+
     originalSummary+
     '<div class="notice-analysis"><div class="notice-analysis-block"><b>AI总结</b><p>'+escapeNotice(aiSummary)+'</p></div></div>'+
     '<div class="report-meta"><span>'+escapeNotice(item.published || '本周')+' · '+escapeNotice(item.media || '阿栗整理')+'</span>'+
-    '<div class="report-actions">'+link+
+    '<div class="report-actions">'+link+linkActions+
     '<button class="readlater-btn '+(laterActive ? 'is-active' : '')+'" data-category="'+escapeNotice(payload.category)+'" data-notice-tag="'+escapeNotice(tag)+'" data-title="'+escapeNotice(payload.title)+'" data-summary="'+escapeNotice(payload.summary)+'" data-ai-summary="'+escapeNotice(payload.ai_summary)+'" data-media="'+escapeNotice(payload.media)+'" data-published="'+escapeNotice(payload.published)+'" data-url="'+escapeNotice(payload.url)+'" onclick="toggleNoticeReadLater(this)">'+(laterActive ? '移出待读' : '加入待读')+'</button>'+
     '<button class="readlater-btn chest-btn '+(chestActive ? 'is-active' : '')+'" data-category="'+escapeNotice(payload.category)+'" data-notice-tag="'+escapeNotice(tag)+'" data-title="'+escapeNotice(payload.title)+'" data-summary="'+escapeNotice(payload.summary)+'" data-ai-summary="'+escapeNotice(payload.ai_summary)+'" data-media="'+escapeNotice(payload.media)+'" data-published="'+escapeNotice(payload.published)+'" data-url="'+escapeNotice(payload.url)+'" onclick="openChestPicker(this)">'+(chestActive ? '已入栗夹' : '收入栗夹')+'</button>'+
     '</div></div></article>';
+}
+
+async function copyNoticeLink(btn){
+  const url=btn&&btn.dataset.url||'';
+  if(!url)return;
+  try{
+    if(navigator.clipboard&&window.isSecureContext)await navigator.clipboard.writeText(url);
+    else{const input=document.createElement('textarea');input.value=url;input.style.position='fixed';input.style.opacity='0';document.body.appendChild(input);input.select();document.execCommand('copy');input.remove();}
+    const old=btn.textContent;btn.textContent='已复制';setTimeout(()=>{if(btn.isConnected)btn.textContent=old;},1400);
+  }catch(error){const status=document.getElementById('notice-status');if(status)status.textContent='复制失败，可以点“查看原文”后复制地址。';}
+}
+
+async function extractToolFromNotice(btn){
+  if(!btn||btn.disabled)return;
+  const url=btn.dataset.url||'',title=btn.dataset.title||'这篇资讯';
+  if(!url)return;
+  const old=btn.textContent;btn.disabled=true;btn.textContent='解析中';
+  const status=document.getElementById('notice-status');
+  if(status)status.textContent='阿栗正在读原文，识别其中可直接使用的工具、官网与关键能力。';
+  try{
+    const data=await cozyApi('/api/toolbox/import',{url,instruction:'从资讯《'+title+'》提取文中真正可使用的工具；确认官方使用地址、类别、用途、关键能力、适用场景和例子后加入工具箱。'},180000);
+    if(data.state)applyButlerServerState(data.state,false);
+    btn.textContent='已入工具箱';
+    if(status)status.textContent='已加入工具箱：'+((data.item&&data.item.title)||title);
+  }catch(error){btn.disabled=false;btn.textContent=old;if(status)status.textContent='工具提取失败：'+error.message;}
 }
 
 function quickCardHtml(text, index){
@@ -1332,8 +1405,31 @@ function weeklyReportBody(report){
     const items=(section.items||[]).filter(item=>!hotKeys.has(String(item.link||item.url||item.title||'').toLowerCase()));
     return '<section class="report-section"><h3>'+escapeNotice(section.name||'周报栏目')+'</h3>'+(items.length?items.map(item=>reportCardHtml(item,item.category||section.name)).join(''):'<p class="notice-empty-line">本栏重点已收录到上方热点速览。</p>')+'</section>';
   }).join('');
-  const insights = (report.insights||[]).length ? '<section class="insight-box"><h3>阿栗总结</h3><ul>'+report.insights.map(item=>'<li>'+escapeNotice(item)+'</li>').join('')+'</ul></section>' : '';
-  return '<div class="week-report-body">'+hotBlock+sections+insights+'</div>';
+  const insights = noticeInsightBlock(report);
+  const advice = noticeAdviceBlock(report);
+  return '<div class="week-report-body">'+hotBlock+sections+insights+advice+'</div>';
+}
+
+function noticeInsightBlock(report){
+  const items=report.insights||[];
+  return '<section class="insight-box"><h3>案例总结</h3><ul>'+(items.length?items.map(item=>'<li>'+escapeNotice(item)+'</li>').join(''):'<li>阿栗还在整理这批资讯之间的共同变化。</li>')+'</ul></section>';
+}
+
+function noticeAdvice(report){
+  if(Array.isArray(report.advice)&&report.advice.length)return report.advice;
+  const all=(report.hot_items||[]).concat(flattenReportItems(report));
+  const text=all.map(item=>[item.title,item.ai_summary,item.summary].join(' ')).join(' ');
+  const advice=[];
+  if(/GPT|Claude|Gemini|DeepSeek|Kimi|Qwen|模型|API/i.test(text))advice.push('把本期模型更新做成一张“任务质量、响应时间、单次成本、失败恢复”对照表。先拿你正在做的一个真实任务跑小样本，不要用发布分数直接替代产品选型。');
+  if(/Agent|MCP|workflow|工作流|智能体/i.test(text))advice.push('观察 Agent 能力时，把演示拆成可恢复的任务链：每一步用了什么工具、需要什么权限、失败后从哪里续跑、哪些动作必须确认。能回答这四件事，才接近可用产品。');
+  if(/图像|视频|语音|多模态|Seed|Realtime/i.test(text))advice.push('多模态能力应按“输入约束、生成等待、可编辑性、一致性、素材归属”评估。先选一个高频内容流程建立基准样例，记录返工次数，而不是只比较最好看的一次结果。');
+  advice.push('从本期挑一篇最重要的文章，写出它改变了哪项用户任务假设，再为这个假设设计一个可证伪的小实验。下一次黑板题会优先训练这种从资讯到产品判断的转换。');
+  return advice.slice(0,4);
+}
+
+function noticeAdviceBlock(report){
+  const items=noticeAdvice(report);
+  return '<section class="insight-box advice-box"><h3>阿栗的建议</h3><p class="advice-lead">不是再复述新闻，而是把本期变化转成你做 AI 产品时能验证的判断。</p><ul>'+items.map(item=>'<li>'+escapeNotice(item)+'</li>').join('')+'</ul></section>';
 }
 
 function showNoticeView(view, btn){
@@ -1343,7 +1439,7 @@ function showNoticeView(view, btn){
   const box = document.getElementById('notice-content');
   if(!title || !box) return;
   const report = activeNoticeReport();
-  title.textContent = '本周：' + noticeWeekLabel(report);
+  title.textContent = '最近更新：' + noticeWeekLabel(report);
   setNoticeComposerVisible(view === 'current');
   if(view === 'current'){
     const requests = JSON.parse(localStorage.getItem('cozy_notice_requests') || '[]');
@@ -1363,11 +1459,11 @@ function showNoticeView(view, btn){
       '<section class="report-section"><h3>产品相关动态</h3>'+
         (productItems.length ? productItems.map(item=>reportCardHtml(item, item.category)).join('') : emptyNoticeLine('阿栗本周没有抓到足够明确的产品相关动态。'))+
       '</section>'+foundBlock+
-      '<section class="insight-box"><h3>案例总结</h3><ul>'+((report.insights || []).map(x=>'<li>'+escapeNotice(x)+'</li>').join('') || '<li>阿栗这周还在巡逻，先把值得看的内容放进待读篮。</li>')+'</ul></section>';
+      noticeInsightBlock(report)+noticeAdviceBlock(report);
   }else if(view === 'weeks'){
     const reports = getNoticeReports();
-    const weeks = reports.map((r,index)=>'<details class="week-card" '+(index===0?'open':'')+'><summary><div class="week-summary-main"><div class="week-heading"><span class="week-range">'+noticeWeekLabel(r)+'</span><span class="week-focus">'+escapeNotice(r.focus_title || '本周重点')+'</span></div><div class="week-summary-meta">热点 '+((r.hot_items||[]).length || (r.quick||[]).length)+' 条 · 正文 '+flattenReportItems(r).length+' 条</div></div></summary>'+weeklyReportBody(r)+'</details>').join('');
-    box.innerHTML = '<div class="week-list">'+weeks+'</div>'+(reports.length===1?'<p class="notice-empty-line">目前只生成过这一周；以后每次周报都会继续保留在这里，不覆盖旧周。</p>':'');
+    const weeks = reports.map(r=>'<details class="week-card"><summary><div class="week-summary-main"><div class="week-heading"><span class="week-range">'+noticeWeekLabel(r)+'</span><span class="week-focus">'+escapeNotice(r.focus_title || '本期重点')+'</span></div><div class="week-summary-meta">热点 '+((r.hot_items||[]).length || (r.quick||[]).length)+' 条 · 正文 '+flattenReportItems(r).length+' 条</div></div></summary>'+weeklyReportBody(r)+'</details>').join('');
+    box.innerHTML = '<div class="week-list">'+weeks+'</div>'+(reports.length===1?'<p class="notice-empty-line">目前只保留了这一期；后续每次巡报都会继续追加，不覆盖旧内容。</p>':'');
   }else if(view === 'categories'){
     const all = flattenNoticeItems();
     const cats = {};
@@ -1378,7 +1474,7 @@ function showNoticeView(view, btn){
     const chestBlock = '<section class="report-section"><h3>栗夹归档</h3>'+
       (Object.keys(chestCats).length ? Object.keys(chestCats).sort().map((cat,index)=>'<details class="category-archive" '+(index===0?'open':'')+'><summary><span>'+escapeNotice(cat)+'</span><span class="category-archive-count">'+chestCats[cat].length+' 条</span></summary><div class="category-archive-list">'+chestCats[cat].map(item=>reportCardHtml(item, cat)).join('')+'</div></details>').join('') : '<p>还没有收入栗夹的重点资料。</p>')+
       '</section>';
-    box.innerHTML = chestBlock+'<section class="report-section"><h3>周报栏目</h3>'+Object.keys(cats).sort().map(cat=>'<details class="category-archive"><summary><span>'+escapeNotice(cat)+'</span><span class="category-archive-count">'+cats[cat].length+' 条</span></summary><div class="category-archive-list">'+cats[cat].map(item=>reportCardHtml(item, cat)).join('')+'</div></details>').join('')+'</section>';
+    box.innerHTML = chestBlock+'<section class="report-section"><h3>巡报栏目</h3>'+Object.keys(cats).sort().map(cat=>'<details class="category-archive"><summary><span>'+escapeNotice(cat)+'</span><span class="category-archive-count">'+cats[cat].length+' 条</span></summary><div class="category-archive-list">'+cats[cat].map(item=>reportCardHtml(item, cat)).join('')+'</div></details>').join('')+'</section>';
   }else{
     const links = JSON.parse(localStorage.getItem('cozy_notice_links') || '[]');
     const requests = JSON.parse(localStorage.getItem('cozy_notice_requests') || '[]');
@@ -2211,6 +2307,7 @@ function enablePanoramaMode(){
     spot.style.setProperty('--pan-h', spot.dataset.panH || 10);
   });
   stage.classList.add('has-panorama');
+  stage.classList.add('scene-ready');
 }
 
 function initPanorama(){
@@ -2219,22 +2316,23 @@ function initPanorama(){
   if(!stage || !img) return;
   img.addEventListener('load', enablePanoramaMode);
   img.addEventListener('error', ()=>{
-    stage.classList.remove('has-panorama');
-    img.remove();
+    const fallback=String(img.src||'').replace(/\.webp(?:\?.*)?$/,'.png');
+    if(!img.dataset.fallback&&fallback!==img.src){img.dataset.fallback='1';img.src=fallback;return;}
+    stage.classList.remove('has-panorama');stage.classList.add('scene-ready');img.remove();
   });
   if(img.complete){
     if(img.naturalWidth) enablePanoramaMode();
-    else img.remove();
+    else stage.classList.add('scene-ready');
   }
 }
 
 const ESTATE_SCENES = {
-  sunny:'assets/estate/panorama.png',
-  morning:'assets/estate/panorama_morning.png',
-  snow:'assets/estate/panorama_snow.png',
-  rain:'assets/estate/panorama_rain.png',
-  overcast:'assets/estate/panorama_overcast.png',
-  fog:'assets/estate/panorama_fog.png'
+  sunny:'assets/estate/panorama.webp',
+  morning:'assets/estate/panorama_morning.webp',
+  snow:'assets/estate/panorama_snow.webp',
+  rain:'assets/estate/panorama_rain.webp',
+  overcast:'assets/estate/panorama_overcast.webp',
+  fog:'assets/estate/panorama_fog.webp'
 };
 
 function localTimeScene(){
@@ -2256,6 +2354,7 @@ function applyEstateScene(scene, weatherData){
   if(!img || !stage) return;
   const weatherTitle = sceneWeatherTitle(weatherData);
   stage.dataset.scene = scene;
+  localStorage.setItem('cozy_estate_scene',scene);
   stage.dataset.weather = (weatherData && weatherData.current && weatherData.current.condition) || '晴天';
   if(weatherTitle){
     const title = document.querySelector('.title');

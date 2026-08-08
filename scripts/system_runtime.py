@@ -4,11 +4,11 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import threading
 import uuid
 from datetime import datetime
@@ -19,16 +19,17 @@ TEXT_SUFFIXES = {".html", ".css", ".js", ".py", ".json", ".txt", ".md", ".yaml",
 
 
 class SystemRuntime:
-    def __init__(self, root: Path, codex_candidates: list[str | None]):
-        self.root = root
-        self.codex_candidates = codex_candidates
+    def __init__(self, root: Path, codex_candidates=None, model_call=None):
+        self.root = Path(root).resolve()
+        self.codex_candidates = codex_candidates or []  # Kept for backward-compatible callers; never executed.
+        self.model_call = model_call
         self.lock = threading.RLock()
-        self.permission_path = root / "core/permissions.json"
-        self.tasks_path = root / "core/tasks.json"
-        self.audit_path = root / "core/audit_log.json"
-        self.snapshots_dir = root / "core/snapshots"
-        self.skills_dir = root / "core/private_skills"
-        self.bundled_skills_dir = root / "core/skills"
+        self.permission_path = self.root / "core/permissions.json"
+        self.tasks_path = self.root / "core/tasks.json"
+        self.audit_path = self.root / "core/audit_log.json"
+        self.snapshots_dir = self.root / "core/snapshots"
+        self.skills_dir = self.root / "core/private_skills"
+        self.bundled_skills_dir = self.root / "core/skills"
         self._ensure_files()
         self._recover_interrupted_tasks()
 
@@ -88,6 +89,11 @@ class SystemRuntime:
     def set_steward_mode(self, enabled: bool):
         with self.lock:
             state = self.permissions()
+            if state.get("steward_mode") and not enabled:
+                state.update({"permanent": True, "updated_at": self.now()})
+                self._write(self.permission_path, state)
+                self.audit("permission_change_ignored", {"reason": "steward_mode_is_permanent"})
+                return state
             state.update({
                 "steward_mode": bool(enabled),
                 "permanent": True,
@@ -155,9 +161,9 @@ class SystemRuntime:
             files = []
             skipped = []
             for path in self.root.rglob("*"):
-                if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
-                    continue
                 if self.snapshots_dir in path.parents or ".git" in path.parts:
+                    continue
+                if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
                     continue
                 relative = path.relative_to(self.root)
                 destination = target / relative
@@ -237,49 +243,201 @@ class SystemRuntime:
         self.audit("dynamic_skill_executed", {"skill": name, "arguments": arguments, "result": result})
         return result
 
-    def _codex_binary(self):
-        return next((str(path) for path in self.codex_candidates if path and Path(path).exists()), None)
+    def _safe_project_path(self, relative: str, must_exist=False):
+        relative = str(relative or "").strip().replace("\\", "/")
+        if not relative or relative.startswith("/") or relative.startswith(".") or ".." in Path(relative).parts:
+            raise ValueError("文件路径必须位于小院项目内")
+        path = (self.root / relative).resolve()
+        if self.root.resolve() not in path.parents:
+            raise ValueError("文件路径越过了小院项目边界")
+        if path.suffix.lower() not in TEXT_SUFFIXES:
+            raise ValueError("掌院代理只能修改文本代码与配置文件")
+        if any(part in {".git", "snapshots", "owner_data", "private_data"} for part in path.parts):
+            raise ValueError("这个目录不允许由掌院代理修改")
+        if must_exist and not path.is_file():
+            raise ValueError("没有找到文件：" + relative)
+        return path
+
+    @staticmethod
+    def _agent_json(raw):
+        raw = raw[0] if isinstance(raw, tuple) else raw
+        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", str(raw or "").strip(), flags=re.I)
+        try:
+            value = json.loads(cleaned)
+        except ValueError:
+            match = re.search(r"\{[\s\S]*\}", cleaned)
+            if not match:
+                raise ValueError("掌院模型没有返回可执行 JSON")
+            value = json.loads(match.group(0))
+        if not isinstance(value, dict):
+            raise ValueError("掌院模型返回格式不正确")
+        return value
+
+    def _agent_file_list(self, query=""):
+        query = str(query or "").lower().strip()
+        items = []
+        for path in self.root.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in TEXT_SUFFIXES:
+                continue
+            if any(part in {".git", "snapshots", "owner_data", "private_data", "__pycache__"} for part in path.parts):
+                continue
+            relative = str(path.relative_to(self.root))
+            if query and query not in relative.lower():
+                continue
+            items.append({"path": relative, "bytes": path.stat().st_size})
+        return items[:240]
+
+    def _agent_search(self, query, path_hint=""):
+        query = str(query or "").strip()
+        if not query:
+            raise ValueError("搜索词不能为空")
+        matches = []
+        for item in self._agent_file_list(path_hint):
+            path = self.root / item["path"]
+            try:
+                lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+            except OSError:
+                continue
+            for number, line in enumerate(lines, 1):
+                if query.lower() in line.lower():
+                    matches.append({"path": item["path"], "line": number, "text": line[:320]})
+                    if len(matches) >= 80:
+                        return matches
+        return matches
+
+    def _agent_read(self, relative, start=1, end=240):
+        path = self._safe_project_path(relative, must_exist=True)
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        start = max(int(start or 1), 1)
+        end = min(max(int(end or start + 239), start), start + 399, len(lines))
+        return {"path": str(path.relative_to(self.root)), "start": start, "end": end,
+                "content": "\n".join(f"{number:>5} {lines[number - 1]}" for number in range(start, end + 1))}
+
+    def _validate_after_change(self):
+        checks = []
+        commands = [
+            [sys.executable, "scripts/repository_readiness_test.py"],
+            [sys.executable, "scripts/system_smoke_test.py"],
+            [sys.executable, "scripts/skill_validation.py"],
+        ]
+        node = shutil.which("node")
+        bundled_node = Path.home() / ".cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node"
+        if not node and bundled_node.is_file():
+            node = str(bundled_node)
+        if node:
+            commands.insert(0, [node, "scripts/html_syntax_test.js"])
+        env = dict(os.environ)
+        env.setdefault("PYTHONPYCACHEPREFIX", "/tmp/cozy_pycache")
+        for command in commands:
+            completed = subprocess.run(command, cwd=self.root, capture_output=True, text=True, timeout=180, env=env)
+            detail = (completed.stdout or completed.stderr or "ok").strip()[-1200:]
+            checks.append({"command": " ".join(command[-2:]), "ok": completed.returncode == 0, "detail": detail})
+            if completed.returncode != 0:
+                return False, checks
+        return True, checks
 
     def run_system_change(self, instruction: str, mode: str = "modify", execution_context=None):
         self.require_steward()
         instruction = str(instruction or "").strip()
         if not instruction:
             raise ValueError("系统修改说明不能为空")
-        binary = self._codex_binary()
-        if not binary:
-            raise RuntimeError("没有找到可执行系统修改的 Codex")
+        if not self.model_call:
+            raise RuntimeError("没有配置可执行掌院修改的文本模型 API")
         task = self.task_start("掌院修改", "system_change", instruction)
         snapshot = self.create_snapshot(task["id"])
-        self.task_update(task["id"], "running", "正在修改并验证", snapshot_id=snapshot["id"])
-        with tempfile.NamedTemporaryFile(prefix="cozy_system_", suffix=".txt", delete=False) as tmp:
-            output_path = Path(tmp.name)
-        prompt = f"""你是栗壳小院的系统维护代理。主人已在密阁永久开启掌院权限。
-只处理下面明确任务，保留现有原生 HTML/CSS/JS 和 Python 标准库架构，遵守 AGENTS.md，不引入构建工具。
-修改前先阅读相关文件；完成后运行必要测试。不要删除用户数据，不要改 assets 图片，不要修改 core/snapshots。
-主人已确认的执行偏好（只影响未明确指定的细节，当前任务要求始终优先）：
-{json.dumps(execution_context or {}, ensure_ascii=False)[:6000]}
-任务：{instruction[:8000]}
-最后简短报告修改文件和验证结果。"""
-        command = [
-            binary, "exec", "--ephemeral", "--skip-git-repo-check", "-s", "workspace-write",
-            "-C", str(self.root), "--output-last-message", str(output_path), prompt,
-        ]
+        self.task_update(task["id"], "running", "正在读取相关文件", snapshot_id=snapshot["id"])
+        created = []
+        changed = []
+        transcript = []
+        summary = ""
+        system_rules = f"""你是栗壳小院内置的掌院代码代理，使用主人的文本模型 API 工作，不依赖 Codex。
+目标：{instruction[:8000]}
+主人相关偏好：{json.dumps(execution_context or {}, ensure_ascii=False)[:5000]}
+技术边界：原生 HTML/CSS/JS 与 Python 标准库；保留现有交互风格；不要安装依赖；不要碰图片、私人数据、快照和 Git。
+你每次只能返回一个 JSON 对象，并选择一个动作：
+1. {{"action":"list","query":"可选路径关键词"}}
+2. {{"action":"search","query":"精确搜索词","path_hint":"可选路径关键词"}}
+3. {{"action":"read","path":"项目相对路径","start":1,"end":240}}
+4. {{"action":"replace","path":"项目相对路径","old":"必须逐字匹配的原文","new":"替换后的完整文本"}}
+5. {{"action":"write","path":"仅用于新建文本文件的项目相对路径","content":"完整内容"}}
+6. {{"action":"finish","summary":"完成了什么"}}
+先搜索和读取再改。replace 的 old 必须来自 read 结果，范围尽量小且唯一。不得删除文件。完成必要改动后 finish。"""
         try:
-            completed = subprocess.run(command, cwd=self.root, capture_output=True, text=True, timeout=900, stdin=subprocess.DEVNULL)
-            report = output_path.read_text(encoding="utf-8", errors="replace").strip() if output_path.exists() else ""
-            if completed.returncode != 0:
-                detail = (completed.stderr or completed.stdout or report or "系统修改失败")[-1000:]
-                self.task_update(task["id"], "failed", detail, snapshot_id=snapshot["id"])
-                self.audit("system_change_failed", {"task_id": task["id"], "snapshot_id": snapshot["id"], "error": detail})
-                raise RuntimeError(detail)
-            self.task_update(task["id"], "completed", report or "系统修改已完成", snapshot_id=snapshot["id"])
+            for turn in range(24):
+                prompt = system_rules + "\n\n动作记录：\n" + json.dumps(transcript[-14:], ensure_ascii=False)[:30000]
+                action = self._agent_json(self.model_call(prompt))
+                name = str(action.get("action") or "").lower()
+                if name == "list":
+                    result = self._agent_file_list(action.get("query"))
+                elif name == "search":
+                    result = self._agent_search(action.get("query"), action.get("path_hint"))
+                elif name == "read":
+                    result = self._agent_read(action.get("path"), action.get("start"), action.get("end"))
+                elif name == "replace":
+                    path = self._safe_project_path(action.get("path"), must_exist=True)
+                    old = str(action.get("old") or "")
+                    new = str(action.get("new") or "")
+                    if not old or len(old) > 50000 or len(new) > 100000:
+                        raise ValueError("替换内容为空或过大")
+                    content = path.read_text(encoding="utf-8")
+                    count = content.count(old)
+                    if count != 1:
+                        result = {"ok": False, "error": f"old 必须唯一匹配，当前匹配 {count} 次"}
+                        transcript.append({"request": action, "result": result})
+                        continue
+                    path.write_text(content.replace(old, new, 1), encoding="utf-8")
+                    relative = str(path.relative_to(self.root))
+                    if relative not in changed:
+                        changed.append(relative)
+                    result = {"ok": True, "changed": relative}
+                    self.task_update(task["id"], "running", "正在修改 " + relative, snapshot_id=snapshot["id"])
+                elif name == "write":
+                    path = self._safe_project_path(action.get("path"))
+                    if path.exists():
+                        raise ValueError("write 只能新建文件；已有文件请使用 replace")
+                    content = str(action.get("content") or "")
+                    if not content or len(content) > 150000:
+                        raise ValueError("新文件内容为空或过大")
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_text(content, encoding="utf-8")
+                    relative = str(path.relative_to(self.root))
+                    created.append(relative)
+                    changed.append(relative)
+                    result = {"ok": True, "created": relative}
+                elif name == "finish":
+                    summary = str(action.get("summary") or "系统修改已完成")[:2000]
+                    break
+                else:
+                    result = {"ok": False, "error": "不认识的动作"}
+                transcript.append({"request": action, "result": result})
+            else:
+                raise RuntimeError("掌院代理超过最大操作轮数，已停止并回滚")
+            if not changed:
+                raise RuntimeError("掌院代理没有产生任何文件改动")
+            self.task_update(task["id"], "running", "正在自动验证并准备回滚保护", snapshot_id=snapshot["id"])
+            valid, checks = self._validate_after_change()
+            if not valid:
+                raise RuntimeError("自动验证失败：" + next(item["detail"] for item in checks if not item["ok"]))
+            report = summary + "\n修改：" + "、".join(changed) + "\n验证：" + "；".join(item["detail"] for item in checks)
+            self.task_update(task["id"], "completed", report[:2000], snapshot_id=snapshot["id"], changed_files=changed, checks=checks)
             self.audit("system_change_completed", {"task_id": task["id"], "snapshot_id": snapshot["id"], "instruction": instruction})
             return {"ok": True, "summary": "系统修改与验证已完成", "task_id": task["id"], "snapshot_id": snapshot["id"], "report": report[:5000]}
-        finally:
-            try:
-                output_path.unlink()
-            except OSError:
-                pass
+        except Exception as exc:
+            for relative in created:
+                try:
+                    (self.root / relative).unlink()
+                except OSError:
+                    pass
+            for relative in snapshot.get("files", []):
+                src = self.snapshots_dir / snapshot["id"] / relative
+                if src.is_file():
+                    dst = self.root / relative
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src, dst)
+            detail = str(exc)[:1200]
+            self.task_update(task["id"], "failed", detail, snapshot_id=snapshot["id"], rolled_back=True)
+            self.audit("system_change_failed", {"task_id": task["id"], "snapshot_id": snapshot["id"], "error": detail, "rolled_back": True})
+            raise
 
     def build_skill(self, name: str, purpose: str, example: str = ""):
         self.require_steward()

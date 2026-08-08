@@ -28,7 +28,7 @@
      box-shadow:none;isolation:isolate}
   .travel-stage:before{content:"";position:fixed;inset:0;background:
      linear-gradient(180deg,rgba(239,247,250,.2),rgba(68,87,96,.38)),
-     url("../assets/travel/travel_postcard.png") center/cover no-repeat;z-index:-2}
+     url("../assets/travel/travel_postcard.webp") center/cover no-repeat;z-index:-2}
   .travel-stage:after{content:"";position:fixed;inset:0;background:rgba(255,250,240,.14);z-index:-1}
   h1{font-size:18px;margin-bottom:6px;letter-spacing:2px}
   .lead{color:#6d7c85;font-size:13px;margin-bottom:24px}
@@ -148,7 +148,7 @@ function render(){
     const first = trips[0] || {};
     const photoFiles = trips.flatMap(t=>(t.photos&&t.photos.length?t.photos:[t.file]).filter(Boolean)).slice(0,3);
     const imgs = photoFiles.map(file=>'<img src="'+travelAsset(file)+'" alt="'+escapeTravel(place)+'">').join('');
-    const filler = Array.from({length:Math.max(0,3-photoFiles.length)},()=>'<img src="../assets/travel/travel_postcard.png" alt="">').join('');
+    const filler = Array.from({length:Math.max(0,3-photoFiles.length)},()=>'<img src="../assets/travel/travel_postcard.webp" alt="">').join('');
     const start = first.start || first.date || '';
     const end = first.end || '';
     const insight = trips.map(t=>reflections[t._key]).find(Boolean);

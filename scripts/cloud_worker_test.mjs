@@ -46,6 +46,46 @@ assert.equal(result.body.tool_results[0].ok, true);
 result = await payload(await request("/api/state"));
 assert.deepEqual(result.body.state.custom_categories, ["AI评测"]);
 
+const aiEnv = {
+  ...baseEnv,
+  AI: {run: async (_model, input) => {
+    const prompt = input.messages?.[0]?.content || "";
+    if (prompt.includes("产品黑板出题人")) return {response: JSON.stringify({
+      title: "评测边界", question: "如何为一个会调用工具的 Agent 构建评测集？", types: ["AI评测"],
+      materials: ["关注任务成功率与副作用"], standard_points: ["分层定义任务", "覆盖失败路径", "记录工具副作用", "设置回归集"]
+    })};
+    if (prompt.includes("产品黑板") && prompt.includes("standard_points")) return {response: JSON.stringify({
+      score: "78/100，方向正确", diagnosis: ["缺少失败路径"], polished_answer: "先分层，再覆盖副作用。",
+      standard_points: ["分层定义任务", "覆盖失败路径", "记录副作用", "建立回归集"], suggestions: ["补充越权样本"],
+      thinking_directions: ["如何衡量错误调用成本"], next_question: "设计一个越权用例"
+    })};
+    if (prompt.includes("资讯巡报")) {
+      const id = prompt.match(/\"id\":\"([^\"]+)/)?.[1] || "candidate-0";
+      const item = {source_id: id, category: "模型与技术", original_summary: "模型发布了新的能力更新。", ai_summary: "本次更新改变了模型能力边界，产品设计需要重新验证关键任务、成本和稳定性，并更新评测基线。"};
+      return {response: JSON.stringify({focus_title: "模型能力边界更新", hot_items: [item], sections: [], insights: ["旧评测基线需要重跑"], advice: ["先挑三个高频任务做前后对比，再决定是否迁移。"]})};
+    }
+    return {response: "测试回复"};
+  }}
+};
+
+result = await payload(await request("/api/blackboard/today", undefined, aiEnv));
+assert.equal(result.status, 200);
+assert.equal(result.body.question.type, "AI评测");
+assert.equal(result.body.question.standard_points.length, 4);
+result = await payload(await request("/api/room", {room: "blackboard", message: "我会先看任务成功率", context: {question: "如何构建评测集？"}}, aiEnv));
+assert.equal(result.body.result.standard_points.length, 4);
+
+const nativeFetch = globalThis.fetch;
+globalThis.fetch = async (url, options) => {
+  if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(`<?xml version="1.0"?><rss><channel><item><title>OpenAI 发布重要模型更新</title><link>https://news.example/model</link><pubDate>Fri, 08 Aug 2026 00:00:00 GMT</pubDate><description>模型能力与价格更新</description><source url="https://news.example">测试媒体</source></item></channel></rss>`, {status: 200});
+  return nativeFetch(url, options);
+};
+result = await payload(await request("/api/weekly/run", {force: true}, aiEnv));
+globalThis.fetch = nativeFetch;
+assert.equal(result.status, 200);
+assert.equal(result.body.report.hot_items.length, 1);
+assert.equal((await payload(await request("/api/data?key=notice_reports", undefined, aiEnv))).body.reports.length, 1);
+
 const blocked = await payload(await handleRequest(new Request("https://owner.example/api/status"), {
   COZY_STATE: new MemoryKV(), ALLOW_UNAUTHENTICATED: "false", OWNER_EMAIL: "owner@example.com",
   CF_ACCESS_TEAM_DOMAIN: "team.cloudflareaccess.com", CF_ACCESS_AUD: "aud"
@@ -74,4 +114,4 @@ assert.equal(result.body.access, "owner");
 const readOnly = await payload(await request("/api/local-state", {values: {x: 1}}, {...baseEnv, PUBLIC_READ_ONLY: "true"}));
 assert.equal(readOnly.status, 403);
 
-console.log("cloud worker test ok: auth boundary; KV data; local state; memory; tools-only assistant; read-only guard");
+console.log("cloud worker test ok: auth; KV; memory; blackboard AI; grading; scheduled report path; read-only guard");

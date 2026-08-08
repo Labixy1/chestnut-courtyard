@@ -101,17 +101,16 @@
       </div>
     </section></div></details>
     <details class="quiet-details" id="sealed-section"><summary>封存密库 <span id="sealed-summary-count"></span></summary><div class="details-content"><div class="memory-list" id="sealed-memory"></div></div></details>
-    <details class="quiet-details" id="memory-log-details"><summary>记忆日志与系统记录</summary><div class="details-content">
-      <section class="memory-section"><h2>证据来源</h2><div class="source-pills" id="source-pills"></div></section>
-      <section class="memory-section"><h2>操作卷宗</h2><div class="memory-list" id="task-list"></div></section>
-      <section class="memory-section"><div class="memory-toolbar"><h2>系统骨架</h2><span class="task-status" id="skill-health"></span></div><div class="source-pills" id="skill-list"></div></section>
+    <details class="quiet-details" id="memory-log-details"><summary>交互与更新日志</summary><div class="details-content">
+      <section class="memory-section"><h2>所有交互来源</h2><div class="source-pills" id="source-pills"></div></section>
+      <section class="memory-section"><h2>阿栗操作卷宗</h2><div class="memory-list" id="task-list"></div></section>
     </div></details>
     <details class="quiet-details" id="system-settings-details"><summary>系统设置</summary><div class="details-content"><section class="distill-control">
       <div class="distill-copy"><h2>AI 记忆整理</h2><p id="distill-status">正在读取整理状态……</p></div><button class="distill-button" id="distill-undo" onclick="undoDistillation()" style="display:none">撤销上次</button><button class="distill-button" id="distill-button" onclick="runDistillation()">立即整理</button>
     </section><section class="permission-room">
       <div class="permission-copy"><h2>掌院权限</h2><p>开启后，阿栗可以修改页面、系统逻辑、Prompt、Skill、密阁布局和记忆结构。每次修改仍会自动快照、验证并留下卷宗。</p><div class="permission-state" id="permission-state">正在读取权限……</div></div>
       <label class="permission-switch" title="掌院权限"><input id="steward-toggle" type="checkbox" onchange="toggleSteward(this.checked)"><span class="permission-slider"></span></label>
-    </section></div></details>
+    </section><section class="memory-section"><div class="memory-toolbar"><h2>系统骨架 · Skills</h2><span class="task-status" id="skill-health"></span></div><div class="source-pills" id="skill-list"></div></section></div></details>
     <div class="seal">入口：卧室书墙连续点击三下。</div>
   </section>
 </main>

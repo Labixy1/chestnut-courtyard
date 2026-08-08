@@ -16,6 +16,7 @@ from pathlib import Path
 
 DEFAULT_PROMPT = """你是栗壳小院的记忆编辑器。你的工作不是猜测主人，而是整理已有、可追溯的非封存记忆。
 只根据输入卡片工作：合并语义重复，指出明确冲突，在证据足够时建议晋升候选，并把已生效记忆写成自然、克制、准确的个人档案。
+每次都以旧档案为底稿：保留仍有证据支持的稳定信息，用新证据修正或补充，而不是整份重写得面目全非。
 不得增加输入中没有的新事实，不得把单次行为写成稳定人格，不得输出任何树洞、密阁或秘密内容。
 当前明确指令永远高于历史记忆。只输出一个 JSON 对象，不要使用 Markdown。"""
 
@@ -142,6 +143,7 @@ class MemoryDistiller:
     def _prompt(self, cards):
         categories = self._read(self.memory_store.paths["categories"], {"items": []}).get("items", [])
         policy = self._read(self.memory_store.paths["policy"], {})
+        previous_profile = self._read(self.memory_store.paths["profile"], {})
         safe_cards = [{
             key: item.get(key) for key in (
                 "id", "kind", "category_id", "title", "statement", "status", "confidence",
@@ -173,6 +175,11 @@ class MemoryDistiller:
             },
         }
         payload = {
+            "previous_profile": {
+                "summary": previous_profile.get("summary", ""),
+                "sections": previous_profile.get("sections", []),
+                "generated_at": previous_profile.get("generated_at", ""),
+            },
             "categories": [{"id": item.get("id"), "name": item.get("name")} for item in categories if item.get("status") == "active"],
             "thresholds": {
                 "preference": int(policy.get("preference_repeat_to_confirm", 2)),

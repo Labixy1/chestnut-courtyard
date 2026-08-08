@@ -4,7 +4,7 @@
 
 `Global Butler UI -> event ledger -> preference observation -> memory context assembly -> fast router or AI planner -> validated tool -> persistence -> verification/task/audit`
 
-明确命令优先走确定性快速路由，避免状态检查、周报刷新、链接解析、归档和待读等操作浪费一次模型规划。模糊或多步请求才交给本机 Codex / OpenAI Responses API，模型只产生工具计划，不能绕过工具宣称成功。
+明确命令优先走确定性快速路由，避免状态检查、巡报刷新、链接解析、归档和待读等操作浪费一次模型规划。模糊或多步请求交给主人配置的 OpenAI、DeepSeek、GLM 或 Qwen API，模型只产生工具计划，不能绕过工具宣称成功。
 
 ## 运行层
 
@@ -16,7 +16,7 @@
 - `scripts/system_runtime.py`：掌院权限、任务卷宗、快照、回滚、系统修改和动态 Skill。
 - `scripts/memory_store.py`：事件、工作记忆、偏好档案、短期、长期、封存、晋升、转层、忘记与 tombstone。
 - `scripts/memory_distiller.py`：非封存记忆的 AI 语义合并、冲突提案、自然档案重写、结构校验、差异记录和回滚。
-- `scripts/automation_runner.py`：每小时检查记忆保留期和本周周报。
+- `scripts/automation_runner.py`：每小时检查记忆保留期和资讯巡报计划。
 - `scripts/butler_weekly.py`：真实信息源抓取、去重、重要性排序、栏目组织和可选的批量 AI 精炼。
 - `scripts/model_gateway.py`：统一 DeepSeek、GLM、Qwen、OpenAI、Seedream 和 Seedance 协议，密钥只读环境变量。
 - `scripts/media_service.py`：图片落盘、Seedance 异步任务状态和生成文件持久化。
@@ -28,7 +28,7 @@
 
 ## 双运行时
 
-- 本地运行时是完整掌院环境：Python 服务、本机 Codex、文件快照、动态 Skill、语音和全部房间数据。
+- 本地运行时是完整掌院环境：Python 服务、主人文本模型 API、受约束代码代理、文件快照、动态 Skill、语音和全部房间数据。
 - 云端运行时是主人专用的轻量环境：Worker 静态资产 + KV + Workers AI / 外部模型 API。它不能直接修改本机系统文件。
 - `file://` 仍回退 `core/data.js`；HTTP/HTTPS 页面统一调用同源 `/api/*`。
 - GitHub 只保存程序、公开场景素材和空白种子。口令与模型密钥放 Cloudflare Secret，私人状态和非封存记忆放 KV；R2 启用后再承接日志和生成文件。
@@ -56,7 +56,7 @@ POST：
 - `/api/media/generate`：调用 Seedream、GPT Image 或 Seedance；视频返回可持续查询的任务。
 - `/api/media/task/refresh`：刷新 Seedance 状态，成功后保存视频。
 - `/api/events`：批量写入独立的 append-only 事件 ledger。
-- `/api/weekly/run`：立即生成或确认本周周报。
+- `/api/weekly/run`：立即生成一份资讯巡报。
 - `/api/state/sync` / `/api/local-state`：持久化内容状态和界面状态。
 - `/api/permissions`：开关掌院权限。
 - `/api/memory/event` / `/api/memory/sync` / `/api/memory/action`：写入、同步、转层和彻底忘记。
@@ -69,9 +69,9 @@ POST：
 
 1. 校验掌院权限。
 2. 创建项目文本快照。
-3. 调用 workspace-write Codex 实施明确任务。
-4. 运行必要验证。
-5. 写入任务卷宗和审计日志，保留快照 id 用于撤销。
+3. 由主人文本模型 API 在受限动作循环中搜索、读取并精确修改项目文本。
+4. 运行 HTML、系统、仓库与 Skill 验证；失败自动恢复快照。
+5. 写入任务卷宗和审计日志，保留快照 id 用于再次撤销。
 
 服务启动时会将上次进程留下的 `running` 任务标为已中断，避免卷宗永久显示进行中。
 
@@ -104,6 +104,6 @@ python3 scripts/run_skill.py generate_media --json '{"kind":"image","provider":"
 
 ## 自动运行
 
-`scripts/install_autostart.py` 安装 macOS LaunchAgent `com.cozy-estate.butler`，监听 `127.0.0.1:8766`。日志位于 `core/logs/`。自动任务幂等：已有本周周报时不覆盖，同一周手动刷新时按周 id 更新，历史周不受影响。记忆蒸馏每天 23:30 检查一次，或累计至少 4 张变化卡片后在后台运行；普通请求不等待蒸馏完成。
+`scripts/install_autostart.py` 安装 macOS LaunchAgent `com.cozy-estate.butler`，监听 `127.0.0.1:8766`。日志位于 `core/logs/`。巡报在周一、周三、周六 08:00 检查并追加，短时间内已有新巡报时跳过重复执行；往期内容不覆盖。记忆蒸馏每天 23:30 检查一次，或累计至少 4 张变化卡片后在后台运行；普通请求不等待蒸馏完成。
 
 云端蒸馏只读取普通事件与生效卡片，树洞等 sealed 事件使用独立键保存且不进入提示词；本地完整运行时仍保留更严格的证据校验、差异和回滚能力。

@@ -182,7 +182,7 @@ flowchart TD
     TOOLS --> MEDIA["图片与视频任务"]
     TOOLS --> SYSTEM["权限 / 快照 / 审计 / 回滚"]
     API --> MEMORY["MemoryStore 上下文与记忆"]
-    API --> MODELS["Codex / 文本模型 / 媒体模型"]
+    API --> MODELS["主人文本模型 API / 媒体模型 API"]
     AUTO["AutomationRunner"] --> REPORT["资讯抓取与周报"]
     AUTO --> MEMORY
     REPORT --> DATA
@@ -210,7 +210,7 @@ flowchart TD
 
 `scripts/model_gateway.py` 提供统一供应商协议：
 
-- 文本：本机 Codex、OpenAI、DeepSeek、GLM、Qwen。
+- 文本：OpenAI、DeepSeek、GLM、Qwen，由主人自行配置，产品运行不依赖 Codex。
 - 图片：Seedream、GPT Image。
 - 视频：Seedance，采用异步任务并持久化状态。
 

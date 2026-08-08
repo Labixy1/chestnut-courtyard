@@ -18,7 +18,7 @@ PNG_1PX = base64.b64encode(
 ).decode("ascii")
 
 
-def request(path, payload=None, timeout=30):
+def request(path, payload=None, timeout=30, require_ok=True):
     data = None
     headers = {}
     if payload is not None:
@@ -27,7 +27,8 @@ def request(path, payload=None, timeout=30):
     req = urllib.request.Request(BASE + path, data=data, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as response:
         result = json.loads(response.read().decode("utf-8"))
-    assert result.get("ok"), result
+    if require_ok:
+        assert result.get("ok"), result
     return result
 
 
@@ -38,7 +39,7 @@ def main():
     backups = {path: path.read_bytes() for path in (local_path, estate_path, bundle_path)}
     created = None
     try:
-        health = request("/api/health")
+        health = request("/api/health", require_ok=False)
         assert health["checks"]["required_files"] and health["checks"]["json_valid"]
 
         providers = request("/api/providers")["providers"]

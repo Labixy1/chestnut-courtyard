@@ -16,10 +16,11 @@ from pathlib import Path
 class AutomationRunner:
     REPORT_DAYS = (0, 2, 5)  # Monday, Wednesday, Saturday
     REPORT_HOUR = 8
-    def __init__(self, root: Path, memory_store, memory_distiller=None):
+    def __init__(self, root: Path, memory_store, memory_distiller=None, media_service=None):
         self.root = root
         self.memory_store = memory_store
         self.memory_distiller = memory_distiller
+        self.media_service = media_service
         self.path = root / "core/automation_state.json"
         self.stop_event = threading.Event()
         self.thread = None
@@ -54,8 +55,8 @@ class AutomationRunner:
             reports = json.loads((self.root / "core/notice_reports.json").read_text(encoding="utf-8")).get("reports", [])
         except (OSError, ValueError):
             return False
-        current = self.week_id()
-        return any(report.get("id") == current for report in reports)
+        today = date.today().isoformat()
+        return any(str(report.get("generated_at") or "").startswith(today) for report in reports)
 
     def _record(self, name, status, message=""):
         state = self._read()
@@ -109,17 +110,17 @@ class AutomationRunner:
 
     def run_weekly(self, force=False):
         if self._has_current_report() and not force:
-            self._record("weekly_report", "ready", "本周周报已存在")
+            self._record("weekly_report", "ready", "今天的资讯巡报已存在")
             return
-        self._record("weekly_report", "running", "阿栗正在巡逻本周资讯")
+        self._record("weekly_report", "running", "阿栗正在巡逻近期资讯")
         try:
             completed = subprocess.run(
                 [sys.executable, str(self.root / "scripts/butler_weekly.py")],
                 cwd=self.root, capture_output=True, text=True, timeout=360,
             )
             if completed.returncode != 0:
-                raise RuntimeError((completed.stderr or completed.stdout or "周报生成失败")[-800:])
-            self._record("weekly_report", "completed", "本周周报已生成")
+                raise RuntimeError((completed.stderr or completed.stdout or "资讯巡报生成失败")[-800:])
+            self._record("weekly_report", "completed", "新的资讯巡报已生成")
         except Exception as exc:
             self._record("weekly_report", "failed", str(exc))
 
@@ -207,6 +208,50 @@ class AutomationRunner:
             self.distillation_thread.start()
             return True
 
+    def generate_hollow_memory(self, now=None):
+        if not self.media_service:
+            return False
+        now = now or datetime.now().astimezone()
+        local_path = self.root / "core/local_state.json"
+        try:
+            local = json.loads(local_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return False
+        items = local.setdefault("values", {}).get("cozy_hollow_buried_media", [])
+        if not isinstance(items, list):
+            return False
+        due = next((item for item in items if item.get("status") == "queued_for_night" and
+                    (now.hour >= 22 or str(item.get("date") or "") < now.date().isoformat())), None)
+        if not due:
+            return False
+        due["status"] = "generating"
+        due["generation_started_at"] = self.now()
+        self._write_local_state(local_path, local)
+        try:
+            prompt = (
+                "一张安静、克制、非写实的私人记忆插画，暖暗色自然光，不出现文字，不出现可识别真人脸。"
+                "画面只表现这段记忆的核心场景和关系，不夸张悲伤，不使用树洞符号。"
+                "记忆标题：%s。内容线索：%s" % (str(due.get("title") or "")[:80], str(due.get("summary") or "")[:500])
+            )
+            task = self.media_service.generate_image({"kind": "image", "provider": "seedream", "prompt": prompt,
+                                                      "size": "2K", "output_format": "webp", "watermark": False})
+            output = (task.get("outputs") or [{}])[0]
+            due.update({"status": "ready", "file": output.get("file", ""), "task_id": task.get("id"),
+                        "generated_at": self.now()})
+            self._record("hollow_memory_media", "completed", "今天的树洞记忆影像已生成")
+        except Exception as exc:
+            due.update({"status": "queued_for_night", "last_error": str(exc)[:300], "last_attempt_at": self.now()})
+            self._record("hollow_memory_media", "failed", str(exc))
+        self._write_local_state(local_path, local)
+        return due.get("status") == "ready"
+
+    @staticmethod
+    def _write_local_state(path, value):
+        value["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
+        temp = path.with_suffix(".json.tmp")
+        temp.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        temp.replace(path)
+
     def tick(self, now=None):
         now = now or datetime.now().astimezone()
         state = self._read()
@@ -224,6 +269,13 @@ class AutomationRunner:
             self.resolve_notice_requests()
         if self.memory_distiller and self.memory_distiller.should_run(now):
             self.run_memory_distillation(force=False)
+        hollow_job = self._read().get("jobs", {}).get("hollow_memory_media", {})
+        try:
+            hollow_age = (now - datetime.fromisoformat(str(hollow_job.get("updated_at") or ""))).total_seconds()
+        except (TypeError, ValueError):
+            hollow_age = 3601
+        if hollow_age >= 3600:
+            self.generate_hollow_memory(now)
 
     def _loop(self):
         time.sleep(3)

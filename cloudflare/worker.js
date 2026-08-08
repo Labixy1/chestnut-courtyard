@@ -173,6 +173,108 @@ async function callText(env, prompt, maxTokens = 1600) {
   return {text: String(text), provider};
 }
 
+function extractJson(text) {
+  const cleaned = String(text || "").replace(/^```(?:json)?\s*|\s*```$/gi, "").trim();
+  try { return JSON.parse(cleaned); } catch (_error) {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("模型没有返回可用 JSON");
+    return JSON.parse(match[0]);
+  }
+}
+
+function dateInShanghai(offsetDays = 0) {
+  return new Date(Date.now() + offsetDays * 86400000).toLocaleDateString("en-CA", {timeZone: "Asia/Shanghai"});
+}
+
+async function cloudBlackboardQuestion(env) {
+  const date = dateInShanghai();
+  const cached = await readState(env, `blackboard:question:${date}`, null);
+  if (cached) return cached;
+  const [reports, local, memory] = await Promise.all([
+    readData(env, "notice_reports"), readData(env, "local_state"), memoryContext(env)
+  ]);
+  const directions = Array.isArray(local?.values?.cozy_blackboard_directions) ? local.values.cozy_blackboard_directions.slice(0, 8) : [];
+  const answers = Array.isArray(local?.values?.cozy_blackboard_answers) ? local.values.cozy_blackboard_answers.slice(0, 6) : [];
+  const prompt = `你是栗壳小院的产品黑板出题人。生成一道今天的开放问答题，训练 AI 产品经理的真实判断力。
+必须只返回 JSON：{"title":"10字内题名","question":"明确题目","types":["题型"],"materials":["最多2条具体资料"],"standard_points":["4到6条参考要点"]}。
+题型要在基础理论、产品场景、模型能力、评测、Agent、记忆系统、安全权限、原型与工作流、时事判断之间轮换。主人留言的方向只是参考，不能长期垄断出题。标准要点需要可操作、可举例，但不得编造主人经历。
+日期：${date}
+出题方向留言：${JSON.stringify(directions)}
+最近答案：${JSON.stringify(answers).slice(0, 5000)}
+近期巡报：${JSON.stringify((reports.reports || []).slice(0, 2)).slice(0, 9000)}
+相关记忆：${JSON.stringify(memory).slice(0, 5000)}`;
+  const result = await callText(env, prompt, 1400);
+  const parsed = extractJson(result.text);
+  if (!parsed.question || !Array.isArray(parsed.standard_points)) throw new Error("模型生成的题目结构不完整");
+  const question = {
+    id: `cloud-${date}`, date, title: String(parsed.title || "今天的产品判断").slice(0, 40),
+    type: String((parsed.types || ["产品场景"])[0] || "产品场景"),
+    types: (parsed.types || ["产品场景"]).slice(0, 4), question: String(parsed.question).slice(0, 2000),
+    materials: (parsed.materials || []).slice(0, 2).map(String),
+    standard: parsed.standard_points.slice(0, 7).map(String), standard_points: parsed.standard_points.slice(0, 7).map(String),
+    provider: result.provider
+  };
+  await writeState(env, `blackboard:question:${date}`, question, {expirationTtl: 60 * 60 * 24 * 45});
+  return question;
+}
+
+function rssText(value) {
+  return cleanHtml(String(value || "").replace(/<!\[CDATA\[|\]\]>/g, " "));
+}
+
+async function fetchNewsRss(query) {
+  const endpoint = `https://news.google.com/rss/search?${new URLSearchParams({q: query, hl: "zh-CN", gl: "CN", ceid: "CN:zh-Hans"})}`;
+  const response = await fetch(endpoint, {headers: {"user-agent": "ChestnutCourtyard/1.0"}});
+  if (!response.ok) throw new Error(`资讯源返回 HTTP ${response.status}`);
+  const xml = await response.text();
+  return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].slice(0, 18).map((match, index) => {
+    const body = match[1];
+    const field = tag => rssText(body.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"))?.[1]);
+    const sourceMatch = body.match(/<source[^>]*url=["']([^"']+)["'][^>]*>([\s\S]*?)<\/source>/i);
+    return {id: `${query.slice(0, 12)}-${index}`, title: field("title"), link: field("link"), published_at: field("pubDate"),
+      media: rssText(sourceMatch?.[2] || "Google News"), source_url: sourceMatch?.[1] || "", summary: field("description")};
+  }).filter(item => item.title && item.link);
+}
+
+async function runCloudReport(env, force = false) {
+  const reportsData = await readData(env, "notice_reports");
+  const latest = (reportsData.reports || [])[0];
+  if (!force && latest?.generated_at && Date.now() - Date.parse(latest.generated_at) < 46 * 60 * 60 * 1000) return latest;
+  const queries = [
+    '(OpenAI OR Anthropic OR Google Gemini OR Claude) AI when:3d',
+    '(DeepSeek OR Kimi OR 通义千问 OR 豆包 OR Seedance OR Seedream) when:3d',
+    '(AI 产品 原型 OR Agent 评测 OR 记忆系统 OR AI 工作流) when:7d'
+  ];
+  const settled = await Promise.allSettled(queries.map(fetchNewsRss));
+  const pool = settled.flatMap(item => item.status === "fulfilled" ? item.value : []).slice(0, 45);
+  if (!pool.length) throw new Error("近期资讯源没有返回可整理内容");
+  const prompt = `你是阿栗，负责为 AI 产品经理整理一次“资讯巡报”。从候选中只挑真正重要、具体、多样的 7 到 11 条，不要为了凑数收录普通软文。
+只返回 JSON：{"focus_title":"本期最重要变化","hot_items":[{"source_id":"候选id","category":"模型与技术","original_summary":"基于标题与已有摘要的忠实短摘要","ai_summary":"120到200字，说明具体变化、关键数字或能力、值得关注的结论"}],"sections":[{"name":"国内外动态","items":[同结构]},{"name":"产品相关动态","items":[同结构]}],"insights":["跨文章案例总结"],"advice":["给正在做AI产品的主人一个有深度且可执行的建议"]}。
+热点速览只放行业级重要发布；国内外动态兼顾 OpenAI、Anthropic、Google 与国内 DeepSeek、Kimi、通义、豆包；产品相关动态只放评测、记忆、Agent、原型、工作流等真正能提升产品能力的案例。分类只用模型与技术、产品与实践、行业动态、学术研究。不得编造候选中没有的价格、指标和事实。
+候选：${JSON.stringify(pool).slice(0, 30000)}`;
+  const result = await callText(env, prompt, 3600);
+  const curated = extractJson(result.text);
+  const byId = new Map(pool.map(item => [item.id, item]));
+  const hydrate = raw => {
+    const source = byId.get(String(raw?.source_id || ""));
+    if (!source) return null;
+    return {...source, category: String(raw.category || categoryForArticle(source.title)),
+      original_summary: String(raw.original_summary || source.summary || source.title).slice(0, 600),
+      summary: String(raw.original_summary || source.summary || source.title).slice(0, 600),
+      ai_summary: String(raw.ai_summary || "").slice(0, 1200)};
+  };
+  const hotItems = (curated.hot_items || []).map(hydrate).filter(Boolean).slice(0, 4);
+  const sections = (curated.sections || []).slice(0, 3).map(section => ({name: String(section.name || "动态"), items: (section.items || []).map(hydrate).filter(Boolean).slice(0, 5)})).filter(section => section.items.length);
+  if (!hotItems.length && !sections.length) throw new Error("模型没有选出可用资讯");
+  const report = {id: `report_${Date.now()}`, generated_at: now(), week_start: dateInShanghai(-6), week_end: dateInShanghai(),
+    focus_title: String(curated.focus_title || hotItems[0]?.title || "近期 AI 进展").slice(0, 120), hot_items: hotItems, sections,
+    insights: (curated.insights || []).slice(0, 5).map(String), advice: (curated.advice || []).slice(0, 5).map(String), provider: result.provider};
+  const next = {version: 1, updated_at: now(), reports: [report, ...(reportsData.reports || []).filter(item => item.id !== report.id)].slice(0, 30)};
+  await writeData(env, "notice_reports", next);
+  await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "completed", last_success: now(), message: "新的资讯巡报已生成"}}});
+  return report;
+}
+
 const taskKey = id => `generation:${id}`;
 async function saveGenerationTask(env, task) {
   task.updated_at = now();
@@ -413,13 +515,23 @@ async function roomReply(env, room, message, context) {
     blackboard: "这里是产品黑板。围绕题目逐点评改，区分主人答案、标准答案和具体改进建议。"
   };
   const guide = roomPrompts[room] || "根据当前房间和上下文直接回应。";
-  const result = await callText(env, `${guide}\n房间：${room}\n主人：${message.slice(0, 8000)}\n上下文：${JSON.stringify(context).slice(0, 6000)}`, 1400);
+  const formats = {
+    blackboard: '只返回 JSON：{"score":"分数与一句依据","diagnosis":["逐点诊断"],"polished_answer":"保留原意的优化答案","standard_points":["4到7条参考答案要点"],"suggestions":["针对原答案的具体建议"],"thinking_directions":["下一轮思考或验证方向"],"next_question":"下一步练习"}',
+    orchard: '只返回 JSON：{"reply":"直接而有余味的解答","seed_summary":"成长主题","key_insight":"可复用判断","next_step":"3天内的小实验","knowledge_topic":{"match_id":"","title":"可持续更新的专题名","category":"成长与方向","entities":[],"summary":"专题最新摘要","knowledge_points":[]}}',
+    heart_hollow: String(context?.mode || "oracle") === "dialogue" ? '只返回 JSON：{"reply":"自然的对话回应","mode":"dialogue"}' : '只返回 JSON：{"reply":"18到45字、回应具体内容的一句签语","mode":"oracle"}',
+    travel: '只返回 JSON：{"summary":"120字内旅行感悟摘要","title":"简短名称"}'
+  };
+  const memory = await memoryContext(env);
+  const result = await callText(env, `${guide}\n${formats[room] || "请直接回应。"}\n不得编造主人没有说过的经历。\n房间：${room}\n主人：${message.slice(0, 8000)}\n上下文：${JSON.stringify(context).slice(0, 7000)}\n相关非封存记忆：${JSON.stringify(memory).slice(0, 5000)}`, 1800);
+  let parsed;
+  try { parsed = extractJson(result.text); } catch (_error) { parsed = {reply: result.text}; }
+  const reply = String(parsed.reply || parsed.summary || result.text);
   await addMemoryEvents(env, {
-    source: room, type: "room_conversation", content: message, summary: result.text.slice(0, 300),
+    source: room, type: "room_conversation", content: message, summary: reply.slice(0, 300),
     layer: room === "travel" || room === "orchard" ? "long" : "short", weight: 2,
     sensitivity: room === "heart_hollow" ? "sealed" : "personal"
   });
-  return {reply: result.text, provider: result.provider};
+  return {reply, result: parsed, provider: result.provider};
 }
 
 async function runAssistantTask(env, taskId, message, context) {
@@ -503,7 +615,7 @@ async function distillMemory(env) {
   if (!events.length) throw new Error("还没有足够的非封存记忆可整理");
   const status = {status: "running", last_run: now(), provider: textProvider(env), recent_runs: []};
   await writeState(env, "memory:distillation", status);
-  const result = await callText(env, `请根据以下非封存行为，生成一份给私人AI助手使用的中文记忆档案。只保留稳定偏好、长期目标、关注领域、合作方式；不要写逐条流水，不要推断敏感身份。返回 JSON：{"summary":"...","sections":[{"title":"偏好与合作方式","text":"..."},{"title":"长期目标与成长方向","text":"..."},{"title":"知识关注","text":"..."}]}。\n行为：${JSON.stringify(events)}`, 1200);
+  const result = await callText(env, `请增量更新一份给私人AI助手使用的中文记忆档案。输入包含旧档案和新近非封存行为；保留仍有效的稳定偏好、长期目标、关注领域、合作方式，纠正冲突信息，不写逐条流水，不推断敏感身份。返回 JSON：{"summary":"...","sections":[{"title":"偏好与合作方式","text":"..."},{"title":"长期目标与成长方向","text":"..."},{"title":"知识关注","text":"..."}]}。\n旧档案：${JSON.stringify(memory.profile)}\n新近行为：${JSON.stringify(events)}`, 1400);
   const match = result.text.match(/\{[\s\S]*\}/);
   if (!match) throw new Error("模型没有返回可用的记忆档案");
   const parsed = JSON.parse(match[0]);
@@ -563,7 +675,7 @@ export async function handleRequest(request, env, ctx = {}) {
     ], health: {summary: "云端内置能力已连接"}}});
     if (request.method === "GET" && url.pathname === "/api/automation") return json({ok: true, automation: await readState(env, "automation:status", {last_check: "", jobs: {}})});
     if (request.method === "GET" && url.pathname === "/api/voice/status") return json({ok: true, active: false, ready: false, phase: "browser_only", transcript: ""});
-    if (request.method === "GET" && url.pathname === "/api/blackboard/today") return json({ok: true, question: {id: "cloud-starter", type: "产品场景", title: "今天的产品判断", question: "当用户反馈一个功能不好用时，你会如何判断应该修交互、补能力，还是调整预期？", materials: [], standard: ["复述真实任务与阻塞点", "区分频率、影响和替代路径", "用最小验证确认根因", "定义修改后的验收信号"]}});
+    if (request.method === "GET" && url.pathname === "/api/blackboard/today") return json({ok: true, question: await cloudBlackboardQuestion(env)});
     if (request.method === "GET" && url.pathname === "/api/media/tasks") return json({ok: true, task: await loadGenerationTask(env, url.searchParams.get("id"))});
     if (request.method === "GET" && url.pathname === "/api/media/file") {
       if (!env.COZY_MEDIA) return new Response("Media storage is not enabled", {status: 503});
@@ -610,7 +722,7 @@ export async function handleRequest(request, env, ctx = {}) {
       const state = await appendButlerItem(env, "toolbox", tool);
       return json({ok: true, summary: `已加入工具箱：${tool.title}`, item: tool, state});
     }
-    if (url.pathname === "/api/weekly/run") return json({ok: false, error: "主人版周报抓取将在下一阶段接入定时来源巡检"}, 501);
+    if (url.pathname === "/api/weekly/run") return json({ok: true, report: await runCloudReport(env, Boolean(input.force))});
     if (url.pathname === "/api/voice/start" || url.pathname === "/api/voice/stop") return json({ok: false, error: "云端使用浏览器语音识别，不启用本机语音服务"}, 501);
     if (url.pathname === "/api/media/generate") {
       const task = input.kind === "video" ? await createVideo(env, input) : await generateImage(env, input);
@@ -625,7 +737,14 @@ export async function handleRequest(request, env, ctx = {}) {
 
 export async function scheduled(_event, env, ctx) {
   const job = (async () => {
-    const status = {last_check: now(), jobs: {weather: {status: "cached_for_two_hours"}, memory: {status: "available"}}};
+    const status = {last_check: now(), jobs: {weather: {status: "cached_for_two_hours"}, memory: {status: "available"}, notice_report: {status: "running", message: "阿栗正在巡逻近期资讯"}}};
+    await writeState(env, "automation:status", status);
+    try {
+      const report = await runCloudReport(env, false);
+      status.jobs.notice_report = {status: "completed", last_success: now(), message: `巡报已准备：${report.focus_title}`};
+    } catch (error) {
+      status.jobs.notice_report = {status: "failed", last_error: now(), message: String(error.message || error).slice(0, 300)};
+    }
     await writeState(env, "automation:status", status);
   })();
   if (ctx?.waitUntil) ctx.waitUntil(job); else await job;
