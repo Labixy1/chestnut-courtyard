@@ -22,7 +22,7 @@
      background:rgba(255,255,255,.92);padding:9px 16px;border-radius:999px;
      border:1px solid rgba(61,76,85,.16);box-shadow:0 10px 24px rgba(50,70,82,.22);
      backdrop-filter:blur(8px);font-weight:600}
-  .travel-stage{position:relative;width:100vw;height:100vh;overflow:auto;border-radius:0;padding:28px 16px;
+  .travel-stage{position:relative;width:100vw;height:100vh;overflow:auto;border-radius:0;padding:28px 24px 54px;
      display:flex;flex-direction:column;align-items:center;
      background:linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,.18));
      box-shadow:none;isolation:isolate}
@@ -30,10 +30,14 @@
      linear-gradient(180deg,rgba(239,247,250,.2),rgba(68,87,96,.38)),
      url("../assets/travel/travel_postcard.webp") center/cover no-repeat;z-index:-2}
   .travel-stage:after{content:"";position:fixed;inset:0;background:rgba(255,250,240,.14);z-index:-1}
+  .travel-header{width:min(1080px,calc(100vw - 48px));text-align:center;margin-bottom:18px}
   h1{font-size:18px;margin-bottom:6px;letter-spacing:2px}
-  .lead{color:#6d7c85;font-size:13px;margin-bottom:24px}
+  .lead{color:#6d7c85;font-size:13px}
+  .travel-shell{width:min(1080px,calc(100vw - 48px));display:grid;gap:18px}
+  .travel-layout{display:grid;grid-template-columns:350px minmax(0,1fr);gap:22px;align-items:start}
+  .travel-records{min-width:0}.travel-records-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:10px;padding:0 2px}.travel-records-head h2{font-size:15px;color:#345767}.travel-records-head span{font-size:11px;color:#708894}
   /* 拍立得 */
-  .polaroids{display:flex;flex-wrap:wrap;gap:24px;justify-content:center;max-width:900px}
+  .polaroids{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,300px));gap:18px;justify-content:start;width:100%}
   .polaroid{background:#fff;padding:12px 12px 40px;border-radius:4px;box-shadow:0 12px 30px rgba(60,80,95,.28);
      width:220px;position:relative;transition:transform .2s}
   .polaroid:hover{transform:rotate(0deg) scale(1.03)!important}
@@ -46,8 +50,8 @@
      font-size:46px;background:linear-gradient(135deg,#cfe0e6,#b8ccd6);border-radius:2px}
   .polaroid .line{font-size:14px;margin-top:12px;text-align:center;color:#4a5a63;line-height:1.5}
   .polaroid .date{position:absolute;bottom:12px;left:0;right:0;text-align:center;font-size:11px;color:#9aa8b0}
-  .trip-card{width:300px;background:rgba(255,255,255,.9);border-radius:18px;padding:12px;
-     box-shadow:0 12px 30px rgba(60,80,95,.24)}
+  .trip-card{width:100%;height:100%;min-height:390px;background:rgba(255,255,255,.9);border-radius:14px;padding:12px;
+     box-shadow:0 12px 30px rgba(60,80,95,.24);display:flex;flex-direction:column;cursor:pointer;transition:transform .18s ease,box-shadow .18s ease}.trip-card:hover{transform:translateY(-2px);box-shadow:0 17px 38px rgba(60,80,95,.3)}.trip-card:focus-visible{outline:3px solid rgba(84,132,155,.38);outline-offset:3px}
   .trip-photos{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .trip-photos img{width:100%;height:92px;object-fit:cover;border-radius:10px;background:#e7eef1}
   .trip-photos img:first-child{grid-row:span 2;height:190px}
@@ -55,56 +59,58 @@
   .trip-card p{font-size:13px;line-height:1.55;color:#5f707a;margin:4px 2px}
   .trip-card .date{font-size:11px;color:#8a99a2;margin:8px 2px 0}
   .trip-status{display:inline-flex;margin:7px 2px 0;padding:3px 8px;border-radius:999px;background:#e8f1f4;color:#547789;font-size:11px}
-  .trip-actions{display:flex;gap:7px;flex-wrap:wrap;margin:10px 2px 2px}.trip-actions button{border:1px solid rgba(79,117,136,.18);border-radius:999px;background:#f4fafc;color:#4f7588;padding:6px 10px;font:inherit;font-size:11px;cursor:pointer}.trip-actions button.danger{color:#9b6558;background:#fff7f4}
-  .trip-form{display:grid;grid-template-columns:repeat(3,minmax(120px,1fr)) auto;gap:8px;width:min(860px,92vw);
-     background:rgba(255,255,255,.66);border:1px solid rgba(80,96,108,.12);border-radius:22px;padding:12px;margin:12px 0 20px;
+  .trip-actions{display:flex;gap:7px;flex-wrap:wrap;margin:auto 2px 2px;padding-top:12px}.trip-actions button{border:1px solid rgba(79,117,136,.18);border-radius:8px;background:#f4fafc;color:#4f7588;padding:7px 10px;font:inherit;font-size:11px;cursor:pointer}.trip-actions button.danger{color:#9b6558;background:#fff7f4}
+  .trip-editor{display:none;position:fixed;inset:0;z-index:80;align-items:center;justify-content:center;padding:20px;background:rgba(35,50,58,.48);backdrop-filter:blur(8px)}.trip-editor.show{display:flex}.trip-editor-card{width:min(620px,100%);max-height:min(760px,calc(100vh - 40px));overflow:auto;background:#f8fcfd;border-radius:14px;padding:18px;box-shadow:0 28px 80px rgba(31,49,58,.34)}.trip-editor-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.trip-editor-head h2{font-size:17px;color:#345767}.trip-editor-close{width:32px;height:32px;border:0;border-radius:50%;background:#e7f0f4;color:#55717e;font-size:20px;cursor:pointer}.trip-editor-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.trip-editor-fields input,.trip-editor-fields textarea{width:100%;border:1px solid #cbdbe2;border-radius:9px;padding:10px 11px;background:#fff;color:#3d4c55;font:inherit}.trip-editor-fields input:first-child,.trip-editor-fields textarea{grid-column:1/-1}.trip-editor-fields textarea{min-height:100px;resize:vertical;line-height:1.6}.trip-editor-photos{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:14px 0}.trip-editor-photo{position:relative;aspect-ratio:4/3;border-radius:9px;overflow:hidden;background:#dfe9ed}.trip-editor-photo img{width:100%;height:100%;object-fit:cover}.trip-editor-photo button{position:absolute;right:5px;top:5px;width:26px;height:26px;border:0;border-radius:50%;background:rgba(76,54,47,.78);color:#fff;cursor:pointer}.trip-editor-actions{display:flex;justify-content:flex-end;gap:8px}.trip-editor-actions button{height:38px;border:0;border-radius:8px;padding:0 14px;background:#6f9db3;color:#fff;font:inherit;cursor:pointer}.trip-editor-actions .secondary{background:#e6f0f4;color:#4f7181}
+  .trip-detail{display:none;position:fixed;inset:0;z-index:79;align-items:center;justify-content:center;padding:20px;background:rgba(35,50,58,.52);backdrop-filter:blur(9px)}.trip-detail.show{display:flex}.trip-detail-card{width:min(920px,100%);max-height:min(790px,calc(100vh - 40px));overflow:auto;background:#f7fbfc;border-radius:15px;padding:20px;box-shadow:0 30px 90px rgba(28,43,51,.4)}.trip-detail-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:15px}.trip-detail-head h2{font-size:20px;color:#345767}.trip-detail-head p{margin-top:4px;font-size:11px;color:#83949c}.trip-detail-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.trip-detail-gallery img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;background:#e2ecef}.trip-detail-copy{display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,.72fr);gap:16px;margin-top:16px}.trip-detail-section{padding:14px;border-radius:11px;background:#fff;border:1px solid rgba(86,124,143,.12)}.trip-detail-section h3{font-size:13px;color:#436979;margin-bottom:7px}.trip-detail-section p{font-size:13px;line-height:1.75;color:#5f7078;white-space:pre-wrap}.trip-detail-record{padding:9px 0;border-bottom:1px dashed rgba(86,124,143,.15)}.trip-detail-record:last-child{border-bottom:0}.trip-detail-record b{display:block;font-size:11px;color:#486b7a}.trip-detail-record span{display:block;margin-top:4px;font-size:12px;line-height:1.6;color:#667b85}
+  .trip-form{display:grid;grid-template-columns:minmax(180px,1.3fr) repeat(2,minmax(155px,1fr)) auto;gap:9px;width:100%;
+     background:rgba(255,255,255,.72);border:1px solid rgba(80,96,108,.12);border-radius:14px;padding:13px;margin:0;
      backdrop-filter:blur(8px)}
-  .trip-form input{border:1px solid #cfdce2;border-radius:14px;padding:10px 12px;font:inherit;background:#fff;color:#3d4c55}
-  .trip-form button{border:0;border-radius:14px;background:#55798c;color:#fff;padding:10px 14px;font:inherit;cursor:pointer}
-  .reflection-panel{width:min(860px,92vw);background:rgba(246,252,255,.68);border:1px solid rgba(107,154,179,.2);
-     border-radius:24px;padding:14px;margin:0 0 24px;box-shadow:0 14px 34px rgba(50,70,82,.16);
+  .trip-form input{min-width:0;border:1px solid #cfdce2;border-radius:9px;padding:10px 12px;font:inherit;background:#fff;color:#3d4c55}
+  .trip-form button{border:0;border-radius:9px;background:#55798c;color:#fff;padding:10px 15px;font:inherit;cursor:pointer;white-space:nowrap}
+  .reflection-panel{width:100%;background:rgba(246,252,255,.78);border:1px solid rgba(107,154,179,.2);
+     border-radius:14px;padding:15px;margin:0;box-shadow:0 14px 34px rgba(50,70,82,.16);
      backdrop-filter:blur(10px)}
-  .reflection-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px}
+  .reflection-head{display:block;margin-bottom:12px}
   .reflection-head h2{font-size:16px;color:#345767;font-weight:700}
-  .reflection-head span{font-size:12px;color:#78909a}
-  .reflection-grid{display:grid;grid-template-columns:220px 1fr auto;gap:10px;align-items:start}
+  .reflection-head span{display:block;margin-top:4px;font-size:11px;color:#78909a}
+  .reflection-grid{display:grid;grid-template-columns:1fr;gap:9px;align-items:start}
   .reflection-panel select,.reflection-panel textarea{border:1px solid rgba(107,154,179,.22);border-radius:16px;
      padding:10px 12px;background:rgba(255,255,255,.78);font:inherit;color:#3d4c55;outline:none}
   .reflection-panel textarea{min-height:82px;resize:vertical;line-height:1.65}
-  .reflection-actions{display:flex;flex-direction:column;gap:8px;align-items:stretch}
-  .mic-btn{width:48px;height:48px;border:1px solid rgba(81,151,190,.28);border-radius:50%;
+  .reflection-actions{display:grid;grid-template-columns:40px 1fr 1fr;gap:8px;align-items:center}
+  .mic-btn{width:40px;height:40px;border:1px solid rgba(81,151,190,.28);border-radius:50%;
      background:rgba(151,213,241,.5);color:#2d6c8a;cursor:pointer;display:grid;place-items:center;
      box-shadow:0 10px 22px rgba(75,140,174,.18);backdrop-filter:blur(8px)}
   .mic-btn:hover{background:rgba(151,213,241,.72)}
+  .mic-btn.active{background:#5d8fa7;color:#fff;box-shadow:0 0 0 5px rgba(93,143,167,.16)}
   .travel-mic-icon{position:relative;width:18px;height:24px;display:block}
   .travel-mic-icon:before{content:"";position:absolute;left:50%;top:0;width:9px;height:15px;border:2px solid currentColor;border-radius:7px;transform:translateX(-50%)}
   .travel-mic-icon:after{content:"";position:absolute;left:50%;top:11px;width:16px;height:9px;border:2px solid currentColor;border-top:0;border-radius:0 0 9px 9px;transform:translateX(-50%)}
   .travel-mic-stem{position:absolute;left:50%;top:19px;width:2px;height:5px;background:currentColor;transform:translateX(-50%)}
   .travel-mic-stem:after{content:"";position:absolute;left:50%;bottom:0;width:11px;height:2px;border-radius:2px;background:currentColor;transform:translate(-50%,2px)}
-  .reflection-actions button:not(.mic-btn){border:0;border-radius:999px;background:#6f9db3;color:#fff;
-     padding:8px 12px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
+  .reflection-actions button:not(.mic-btn){height:40px;border:0;border-radius:8px;background:#6f9db3;color:#fff;
+     padding:8px 10px;font:inherit;font-size:11px;cursor:pointer;white-space:nowrap}
   .reflection-ai{margin-top:10px;background:rgba(255,255,255,.62);border:1px solid rgba(107,154,179,.16);
      border-radius:16px;padding:10px 12px;color:#516975;font-size:13px;line-height:1.65}
   .trip-insight{margin:10px 2px 0;padding:9px 10px;border-radius:14px;background:rgba(231,246,252,.72);
      color:#4e7283;font-size:12px;line-height:1.55}
-  @media(max-width:760px){.trip-form,.reflection-grid{grid-template-columns:1fr}.reflection-actions{flex-direction:row;flex-wrap:wrap}.mic-btn{width:44px;height:44px}}
-  .travel-status{width:min(860px,92vw);min-height:18px;margin:-10px 0 16px;color:#496a79;font-size:12px;text-align:center}
+  @media(max-width:900px){.travel-layout{grid-template-columns:1fr}.reflection-panel{max-width:none}.polaroids{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.trip-form{grid-template-columns:1fr 1fr}.trip-form input:first-child{grid-column:1/-1}}
+  @media(max-width:560px){.travel-stage{padding:22px 14px 42px}.travel-header,.travel-shell{width:100%}.trip-form{grid-template-columns:1fr}.trip-form input:first-child{grid-column:auto}.polaroids{grid-template-columns:1fr}.trip-card{min-height:0}.reflection-actions{grid-template-columns:40px 1fr}.reflection-actions button:last-child{grid-column:1/-1}.travel-records-head{align-items:flex-start;flex-direction:column;gap:3px}.trip-editor-fields{grid-template-columns:1fr}.trip-editor-fields input:first-child,.trip-editor-fields textarea{grid-column:auto}.trip-editor-photos,.trip-detail-gallery{grid-template-columns:repeat(2,1fr)}.trip-detail-copy{grid-template-columns:1fr}}
+  .travel-status{width:100%;min-height:18px;margin:-9px 0 0;color:#496a79;font-size:12px;text-align:center}
 </style>
 </head>
 <body>
 <a class="back" href="../index.html">← 回家</a>
 <main class="travel-stage">
-<h1>🧳 旅行</h1>
-<p class="lead">每次出门，只带回一张拍立得和一句话。回来钉在小院外墙上。</p>
-
-<div class="trip-form">
+<header class="travel-header"><h1>🧳 旅行</h1><p class="lead">每次出门，只带回一张拍立得和一句话。回来钉在小院外墙上。</p></header>
+<div class="travel-shell"><div class="trip-form">
   <input id="trip-place" placeholder="去哪儿">
   <input id="trip-start" type="date" aria-label="出发日期">
   <input id="trip-end" type="date" aria-label="回家日期">
   <button onclick="saveTrip()">记录旅程</button>
 </div>
 <div class="travel-status" id="travel-status"></div>
-<section class="reflection-panel">
+<div class="travel-layout"><section class="reflection-panel">
   <div class="reflection-head">
     <h2>旅行感悟</h2>
     <span>选一段旅行，录一小段也可以</span>
@@ -120,8 +126,10 @@
   </div>
   <div class="reflection-ai" id="reflection-ai">先选择一段旅行，再写下或说出一点感悟。</div>
 </section>
-<div class="polaroids" id="polaroids"></div>
+<section class="travel-records"><div class="travel-records-head"><h2>旅行记录</h2><span>每个地点保留两三张代表照片</span></div><div class="polaroids" id="polaroids"></div></section></div></div>
 <input id="trip-photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple hidden onchange="uploadTripPhotos(this.files)">
+<div class="trip-editor" id="trip-editor" onclick="if(event.target===this)closeTripEditor()"><section class="trip-editor-card"><header class="trip-editor-head"><h2>编辑旅程</h2><button class="trip-editor-close" type="button" onclick="closeTripEditor()" aria-label="关闭编辑">×</button></header><div class="trip-editor-fields"><input id="edit-trip-place" placeholder="地点"><input id="edit-trip-start" type="date" aria-label="编辑出发日期"><input id="edit-trip-end" type="date" aria-label="编辑回家日期"><textarea id="edit-trip-summary" placeholder="这段旅行的描述"></textarea></div><div class="trip-editor-photos" id="edit-trip-photos"></div><div class="trip-editor-actions"><button class="secondary" type="button" onclick="pickTripPhotos(editingTripId)">添加照片</button><button type="button" onclick="saveTripEdits()">保存修改</button></div></section></div>
+<div class="trip-detail" id="trip-detail" onclick="if(event.target===this)closeTripDetail()"><section class="trip-detail-card" id="trip-detail-card"></section></div>
 </main>
 
 <script>
@@ -154,12 +162,12 @@ function render(){
     const insight = trips.map(t=>reflections[t._key]).find(Boolean);
     const status=tripStatus(first);
     const local=isLocalTrip(first.id);
-    return '<article class="trip-card"><div class="trip-photos">'+imgs+filler+'</div><h2>'+escapeTravel(place)+'</h2>'+
+    return '<article class="trip-card" tabindex="0" role="button" aria-label="查看 '+escapeTravel(place)+' 的旅行记录" onclick="openTripDetail(\''+escapeTravel(first.id)+'\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();openTripDetail(\''+escapeTravel(first.id)+'\')}"><div class="trip-photos">'+imgs+filler+'</div><h2>'+escapeTravel(place)+'</h2>'+
       '<p>'+escapeTravel(first.summary || first.line || '这趟旅行先记下地点和时间，之后挑两三张代表照片留在这里。')+'</p>'+
       '<div class="date">'+start+(end?(' → '+end):'')+' · '+trips.length+' 条记录</div>'+
       '<span class="trip-status">'+escapeTravel(status.label)+'</span>'+
       (insight ? '<div class="trip-insight"><b>旅行感悟 · </b>'+escapeTravel(insight.summary || insight.text)+'</div>' : '')+
-      '<div class="trip-actions"><button onclick="pickTripPhotos(\''+escapeTravel(first.id)+'\')">添加照片</button>'+(local&&status.key!=='completed'?'<button onclick="finishTrip(\''+escapeTravel(first.id)+'\')">记录回家</button>':'')+(local?'<button class="danger" onclick="removeTrip(\''+escapeTravel(first.id)+'\')">删除</button>':'')+'</div>'+
+      '<div class="trip-actions"><button onclick="event.stopPropagation();openTripEditor(\''+escapeTravel(first.id)+'\')">编辑旅程</button><button onclick="event.stopPropagation();pickTripPhotos(\''+escapeTravel(first.id)+'\')">添加照片</button>'+(local&&status.key!=='completed'?'<button onclick="event.stopPropagation();finishTrip(\''+escapeTravel(first.id)+'\')">记录回家</button>':'')+(local?'<button class="danger" onclick="event.stopPropagation();removeTrip(\''+escapeTravel(first.id)+'\')">删除</button>':'')+'</div>'+
       '</article>';
   }).join('');
 }
@@ -209,24 +217,24 @@ function loadTripReflection(){
   if(!select || !textarea || !ai) return;
   const data = getReflections()[select.value];
   textarea.value = data ? data.text : '';
+  ai.dataset.summary = data&&data.summary ? data.summary : '';
   ai.textContent = data ? (data.summary || '已保存感悟，可以继续用语音补充修改。') : '这段旅行还没有感悟。可以打字，也可以点麦克风说。';
 }
-function startReflectionVoice(){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let reflectionVoice=null;
+function setReflectionVoiceState(state,message){
   const textarea = document.getElementById('reflection-text');
   const ai = document.getElementById('reflection-ai');
-  if(!textarea || !ai) return;
-  if(!SR){ ai.textContent = '当前浏览器不支持语音识别，可以先打字修改。'; return; }
-  const rec = new SR();
-  rec.lang = 'zh-CN';
-  rec.interimResults = false;
-  ai.textContent = '麦克风打开了，说一段旅行感悟，阿栗会帮你接在后面。';
-  rec.onresult = ev=>{
-    textarea.value = (textarea.value ? textarea.value + '\n' : '') + ev.results[0][0].transcript;
-    summarizeReflection();
-  };
-  rec.onerror = ()=>{ ai.textContent = '没听清，可以再点一次麦克风，或直接打字。'; };
-  rec.start();
+  const button=document.querySelector('.mic-btn');
+  const active=['starting','listening','stopping'].includes(state);
+  button?.classList.toggle('active',active);button?.setAttribute('aria-pressed',String(active));button?.setAttribute('aria-label',active?'停止语音输入':'语音修改');
+  if(ai)ai.textContent=message||(state==='idle'&&textarea?.value.trim()?'语音已经实时写进输入框，保存时会自动总结。':'');
+}
+function startReflectionVoice(){
+  const textarea=document.getElementById('reflection-text');
+  if(!textarea)return;
+  if(!window.CozyButler?.createDictation){setReflectionVoiceState('error','语音组件正在准备，请稍后再试。');return;}
+  if(!reflectionVoice)reflectionVoice=CozyButler.createDictation({input:textarea,onState:setReflectionVoiceState,onTranscript:()=>queueReflectionSummary()});
+  reflectionVoice.toggle();
 }
 async function summarizeReflection(){
   const select = document.getElementById('reflection-trip');
@@ -253,13 +261,14 @@ function queueReflectionSummary(){
     if(text && text.value.trim() && ai) ai.textContent='写好了可以点“阿栗总结”，再按你的想法继续修改。';
   }, 650);
 }
-function saveReflection(){
+async function saveReflection(){
   const select = document.getElementById('reflection-trip');
   const textarea = document.getElementById('reflection-text');
   const ai = document.getElementById('reflection-ai');
   if(!select || !textarea || !ai) return;
   const text = textarea.value.trim();
   if(!select.value || !text){ ai.textContent = '先选择旅行，并写下一点感悟。'; return; }
+  await summarizeReflection();
   const summary = ai.dataset.summary || buildReflectionSummary(text, getSelectedTrip());
   const all = getReflections();
   all[select.value] = {text, summary, updatedAt:new Date().toISOString()};
@@ -291,6 +300,51 @@ function buildReflectionSummary(text, trip){
 }
 function escapeTravel(str){
   return String(str || '').replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+let editingTripId='';
+function ensureLocalTrip(id){
+  const trips=localTrips();let trip=trips.find(item=>String(item.id)===String(id));
+  if(trip)return {trips,trip};
+  const source=getAllTrips().find(item=>String(item.id)===String(id));
+  if(!source)return {trips,trip:null};
+  trip=JSON.parse(JSON.stringify(source));delete trip._key;trips.unshift(trip);return {trips,trip};
+}
+function tripPhotoFiles(trip){return (trip.photos&&trip.photos.length?trip.photos:[trip.file]).filter(Boolean);}
+function openTripDetail(id){
+  const selected=getAllTrips().find(item=>String(item.id)===String(id));if(!selected)return;
+  const trips=getAllTrips().filter(item=>item.place===selected.place).slice(0,12),reflections=getReflections();
+  const photos=trips.flatMap(trip=>tripPhotoFiles(trip)).slice(0,12);
+  const gallery=(photos.length?photos:['../assets/travel/travel_postcard.webp']).map(file=>'<img src="'+travelAsset(file)+'" alt="'+escapeTravel(selected.place||'旅行照片')+'">').join('');
+  const records=trips.map(trip=>'<div class="trip-detail-record"><b>'+escapeTravel((trip.start||trip.date||'未写日期')+(trip.end?' → '+trip.end:''))+'</b><span>'+escapeTravel(trip.summary||trip.line||'这次旅行还没有补充描述。')+'</span></div>').join('');
+  const insight=trips.map(trip=>reflections[trip._key]).find(Boolean);
+  document.getElementById('trip-detail-card').innerHTML='<header class="trip-detail-head"><div><h2>'+escapeTravel(selected.place||'一段旅行')+'</h2><p>'+trips.length+' 条旅行记录 · '+photos.length+' 张照片</p></div><button class="trip-editor-close" type="button" onclick="closeTripDetail()" aria-label="关闭旅行详情">×</button></header><div class="trip-detail-gallery">'+gallery+'</div><div class="trip-detail-copy"><section class="trip-detail-section"><h3>旅行记录</h3>'+records+'</section><section class="trip-detail-section"><h3>旅行感悟</h3><p>'+escapeTravel(insight?(insight.summary||insight.text):'这段旅行还没有留下感悟。')+'</p></section></div>';
+  document.getElementById('trip-detail').classList.add('show');
+}
+function closeTripDetail(){document.getElementById('trip-detail').classList.remove('show');}
+function openTripEditor(id){
+  const trip=getAllTrips().find(item=>String(item.id)===String(id));if(!trip)return;
+  editingTripId=String(id);document.getElementById('edit-trip-place').value=trip.place||'';document.getElementById('edit-trip-start').value=trip.start||trip.date||'';document.getElementById('edit-trip-end').value=trip.end||'';document.getElementById('edit-trip-summary').value=trip.summary||trip.line||'';renderEditTripPhotos(trip);document.getElementById('trip-editor').classList.add('show');
+}
+function closeTripEditor(){document.getElementById('trip-editor').classList.remove('show');editingTripId='';}
+function renderEditTripPhotos(trip){
+  const photos=tripPhotoFiles(trip);document.getElementById('edit-trip-photos').innerHTML=photos.length?photos.map((file,index)=>'<div class="trip-editor-photo"><img src="'+travelAsset(file)+'" alt="旅行照片"><button type="button" onclick="removeTripPhoto('+index+')" aria-label="删除照片">×</button></div>').join(''):'<p>还没有照片，可以先添加。</p>';
+}
+function removeTripPhoto(index){
+  const state=ensureLocalTrip(editingTripId);if(!state.trip)return;const photos=tripPhotoFiles(state.trip);photos.splice(index,1);state.trip.photos=photos;state.trip.file=photos[0]||'';state.trip.updatedAt=new Date().toISOString();localStorage.setItem('cozy_trips',JSON.stringify(state.trips));window.CozyButler?.persistLocal(['cozy_trips']);renderEditTripPhotos(state.trip);render();
+}
+async function summarizeTripDescription(text,trip){
+  const clean=String(text||'').trim();if(!clean)return '';
+  try{
+    const data=window.CozyButler?await CozyButler.api('/api/room',{room:'travel',message:clean,context:{intent:'summarize_trip_description',place:trip.place,start:trip.start||trip.date,end:trip.end,requirement:'忠于原文，把零散记录整理成80字以内的旅行描述，不添加感悟或虚构经历'}}):null;
+    return data&&data.result&&data.result.summary?data.result.summary:clean;
+  }catch(error){return clean.length>100?clean.slice(0,100)+'…':clean;}
+}
+async function saveTripEdits(){
+  const state=ensureLocalTrip(editingTripId);if(!state.trip)return;const place=document.getElementById('edit-trip-place').value.trim(),start=document.getElementById('edit-trip-start').value,end=document.getElementById('edit-trip-end').value,summary=document.getElementById('edit-trip-summary').value.trim();
+  if(!place){document.getElementById('travel-status').textContent='地点不能为空。';return;}if(start&&end&&end<start){document.getElementById('travel-status').textContent='回家日期不能早于出发日期。';return;}
+  document.getElementById('travel-status').textContent='阿栗正在整理旅行描述…';
+  const concise=await summarizeTripDescription(summary,Object.assign({},state.trip,{place,start,end}));
+  Object.assign(state.trip,{place,start,end,summary:concise,line:concise,rawDescription:summary,status:end&&end<=localCalendarDate()?'completed':(start&&start<=localCalendarDate()?'away':'planned'),updatedAt:new Date().toISOString()});localStorage.setItem('cozy_trips',JSON.stringify(state.trips));window.CozyButler?.persistLocal(['cozy_trips']);document.getElementById('travel-status').textContent='旅程内容已更新，描述已经自动整理。';closeTripEditor();render();
 }
 function saveTrip(){
   const place = document.getElementById('trip-place').value.trim();
@@ -328,12 +382,15 @@ function finishTrip(id){
 }
 function removeTrip(id){
   if(!confirm('确定删除这段旅程吗？已经上传的原图不会被物理删除。'))return;
+  const trip=localTrips().find(t=>String(t.id)===String(id));
   localStorage.setItem('cozy_trips',JSON.stringify(localTrips().filter(t=>String(t.id)!==String(id))));
+  if(trip){const reflections=getReflections();delete reflections[getTripKey(trip)];localStorage.setItem('cozy_trip_reflections',JSON.stringify(reflections));}
   window.CozyButler?.persistLocal(['cozy_trips']);
+  window.CozyButler?.persistLocal(['cozy_trip_reflections']);
   document.getElementById('travel-status').textContent='旅程记录已删除。';render();
 }
 let uploadTripId='';
-function pickTripPhotos(id){uploadTripId=String(id);const input=document.getElementById('trip-photo-input');input.value='';input.click();}
+function pickTripPhotos(id){const state=ensureLocalTrip(id);if(state.trip&&!isLocalTrip(id)){localStorage.setItem('cozy_trips',JSON.stringify(state.trips));window.CozyButler?.persistLocal(['cozy_trips']);}uploadTripId=String(id);const input=document.getElementById('trip-photo-input');input.value='';input.click();}
 function travelFileData(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=()=>reject(new Error('照片读取失败'));reader.readAsDataURL(file);});}
 async function uploadTripPhotos(files){
   const status=document.getElementById('travel-status');if(!files||!files.length||!uploadTripId)return;
@@ -345,10 +402,11 @@ async function uploadTripPhotos(files){
       if(values.cozy_trips)localStorage.setItem('cozy_trips',JSON.stringify(values.cozy_trips));
       CORE=data.estate_state||CORE;
     }
-    status.textContent='照片已经放进这段旅程。';render();
+    status.textContent='照片已经放进这段旅程。';render();if(editingTripId){const trip=getAllTrips().find(item=>String(item.id)===String(editingTripId));if(trip)renderEditTripPhotos(trip);}
   }catch(error){status.textContent='照片没有放进去：'+error.message;}
 }
 window.addEventListener('cozy:state-synced',render);
+window.addEventListener('beforeunload',()=>{if(reflectionVoice?.isActive())reflectionVoice.stop();});
 load();
 </script>
 </body>

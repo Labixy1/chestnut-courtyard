@@ -108,6 +108,26 @@ class ButlerTools:
         state[key].insert(0, item)
         state[key] = state[key][:limit]
 
+    @staticmethod
+    def _tool_key(item):
+        title = str(item.get("title") or item.get("name") or "").strip().lower()
+        url = str(item.get("url") or "").strip().lower().split("#")[0]
+        return "tool:" + title + "|" + url
+
+    def _upsert_toolbox(self, state, item, limit=100):
+        marker = self._tool_key(item)
+        state["toolbox"] = [old for old in state.get("toolbox", []) if self._tool_key(old) != marker]
+        saved = dict(item)
+        saved.setdefault("date", datetime.now().strftime("%Y-%m-%d"))
+        state["toolbox"].insert(0, saved)
+        state["toolbox"] = state["toolbox"][:limit]
+
+    def upsert_toolbox_item(self, item):
+        state = self.load_state()
+        self._upsert_toolbox(state, item)
+        self.save_state(state)
+        return state
+
     def merge_browser_context(self, context):
         mappings = {
             "chest": "chest", "read_later": "read_later", "watch_topics": "watch_topics",
@@ -118,7 +138,10 @@ class ButlerTools:
         for source_key, state_key in mappings.items():
             for item in context.get(source_key, []) if isinstance(context.get(source_key), list) else []:
                 if isinstance(item, dict):
-                    self._upsert(state, state_key, item)
+                    if state_key == "toolbox":
+                        self._upsert_toolbox(state, item)
+                    else:
+                        self._upsert(state, state_key, item)
                     changed = True
         if changed:
             self.save_state(state)
@@ -298,10 +321,12 @@ class ButlerTools:
                     "use_cases": [str(value)[:160] for value in (args.get("use_cases") or []) if str(value).strip()][:5],
                     "example": str(args.get("example") or "")[:500],
                     "url": str(args.get("url") or ""), "source_url": str(args.get("source_url") or ""),
+                    "price_url": str(args.get("price_url") or "")[:1000],
+                    "pricing": args.get("pricing") if isinstance(args.get("pricing"), dict) else {},
                     "source": "butler_agent"}
             if not item["title"]:
                 raise ValueError("工具名称不能为空")
-            self._upsert(state, "toolbox", item, 100)
+            self._upsert_toolbox(state, item)
             result = {"ok": True, "summary": "已把 %s 放进工具箱的“%s”分类" % (item["title"], item["category"]), "item": item}
         elif name == "add_tool_from_link":
             url = str(args.get("url") or "").strip()
@@ -310,7 +335,7 @@ class ButlerTools:
             if not self.parse_tool:
                 raise RuntimeError("工具链接解析能力没有启动")
             item = self.parse_tool(url, str(args.get("instruction") or ""))
-            self._upsert(state, "toolbox", item, 100)
+            self._upsert_toolbox(state, item)
             result = {"ok": True, "summary": "已解析并把 %s 放进工具箱的“%s”分类" % (item["title"], item["category"]), "item": item}
         elif name == "manage_toolbox_item":
             action = str(args.get("action") or "move").lower()
@@ -324,9 +349,11 @@ class ButlerTools:
                     item["category"] = str(args.get("category"))[:30]
                 if args.get("use_when"):
                     item["use_when"] = str(args.get("use_when"))[:500]
-                for key in ("purpose", "example", "url"):
+                for key in ("purpose", "example", "url", "price_url"):
                     if args.get(key):
                         item[key] = str(args.get(key))[:600]
+                if isinstance(args.get("pricing"), dict):
+                    item["pricing"] = args["pricing"]
                 for key in ("key_capabilities", "use_cases"):
                     if isinstance(args.get(key), list):
                         item[key] = [str(value)[:160] for value in args[key] if str(value).strip()][:6]

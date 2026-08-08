@@ -16,9 +16,9 @@ from model_gateway import ModelGateway
 class FakeGateway(ModelGateway):
     def __init__(self):
         super().__init__({
-            "OPENAI_API_KEY": "test", "ARK_API_KEY": "test", "DEEPSEEK_API_KEY": "test",
+            "OPENAI_API_KEY": "test", "ARK_API_KEY": "test", "DEEPSEEK_API_KEY": "test", "GEMINI_API_KEY": "test",
             "COZY_OPENAI_IMAGE_MODEL": "gpt-image-2", "COZY_SEEDREAM_MODEL": "seedream-test",
-            "COZY_SEEDANCE_MODEL": "seedance-test",
+            "COZY_SEEDANCE_MODEL": "seedance-test", "COZY_GEMINI_IMAGE_MODEL": "gemini-image-test",
         })
         self.calls = []
         self.video_checks = 0
@@ -31,6 +31,8 @@ class FakeGateway(ModelGateway):
             return {"choices": [{"message": {"content": "compatible"}}]}
         if path == "/images/generations":
             return {"model": body["model"], "data": [{"b64_json": base64.b64encode(b"fake-png").decode("ascii")}], "usage": {"generated_images": 1}}
+        if provider == "gemini" and path.endswith(":generateContent"):
+            return {"candidates": [{"content": {"parts": [{"inlineData": {"mimeType": "image/png", "data": base64.b64encode(b"fake-gemini-png").decode("ascii")}}]}}], "usageMetadata": {"totalTokenCount": 42}}
         if method == "POST" and path == "/contents/generations/tasks":
             return {"id": "remote-video-1"}
         if method == "GET" and path.endswith("remote-video-1"):
@@ -50,10 +52,15 @@ def main():
     assert seedream["model"] == "seedream-test"
     assert gateway.calls[-1]["path"] == "/images/generations"
     assert gateway.calls[-1]["body"]["watermark"] is False
+    assert "output_format" not in gateway.calls[-1]["body"]
 
     openai = gateway.generate_image("院子", "openai", size="1536x1024")
     assert openai["model"] == "gpt-image-2"
     assert gateway.calls[-1]["body"]["quality"] == "high"
+
+    gemini = gateway.generate_image("院子", "nano-banana")
+    assert gemini["model"] == "gemini-image-test" and gemini["data"][0]["b64_json"]
+    assert gateway.calls[-1]["provider"] == "gemini" and gateway.calls[-1]["path"].endswith(":generateContent")
 
     video = gateway.create_video("风吹过树叶", duration=5, ratio="16:9")
     assert video["remote_id"] == "remote-video-1"
@@ -73,7 +80,7 @@ def main():
         line = next((root / "core/ledger").glob("*.jsonl")).read_text(encoding="utf-8")
         assert saved["action"] == "open" and "private" not in line and json.loads(line)["detail"]["path"] == "/api/state"
 
-    print("model gateway test ok: text providers; Seedream; GPT Image; Seedance; persistence; ledger redaction")
+    print("model gateway test ok: text providers; Seedream; GPT Image; Nano Banana; Seedance; persistence; ledger redaction")
 
 
 if __name__ == "__main__":

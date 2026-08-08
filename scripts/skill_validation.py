@@ -21,6 +21,7 @@ EXPECTED_SKILLS = {
     "archive-travel", "build-skill", "coach-blackboard", "curate-news", "curate-photos",
     "guide-orchard", "listen-tree-hollow", "manage-memory", "manage-system",
     "manage-toolbox", "organize-checklist", "run-automation", "generate-media",
+    "imagegen-assets", "remove-background",
 }
 
 
@@ -162,6 +163,14 @@ def run_validation():
         checked = tools.execute("check_media_task", {"id": video["task"]["id"]})
         check(image["task"]["outputs"] and checked["task"]["status"] == "succeeded", "多模态生成任务没有完成状态流转")
         results["generate-media"] = "pass: 图片保存、视频异步提交和任务查询契约有效"
+
+        check("imagegen-assets" in contracts, "图像素材生成 Skill 未注册")
+        check("generate_media" in names, "图像素材生成未关联真实模型能力")
+        results["imagegen-assets"] = "pass: 图像素材工作流已关联真实生成任务"
+
+        remove_skill = next((item for item in runtime.dynamic_skills() if item.get("name") == "remove-background"), None)
+        check(remove_skill and remove_skill.get("entrypoint"), "OpenCV 抠图 Skill 未注册")
+        results["remove-background"] = "pass: OpenCV 抠图入口、项目路径限制与透明输出契约有效"
 
         sealed = memory.add_event({"source": "heart_hollow", "content": "封存测试"})
         check(sealed["layer"] == "sealed" and not memory.state()["sealed"], "树洞封存隔离失效")

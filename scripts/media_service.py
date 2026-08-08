@@ -106,7 +106,7 @@ class MediaService:
         folder.mkdir(parents=True, exist_ok=True)
         outputs = []
         for index, item in enumerate(data[:15]):
-            extension = self._extension(output_format)
+            extension = self._extension(output_format, str(item.get("mime_type") or ""))
             destination = folder / f"{task_id}-{index + 1}{extension}"
             if item.get("b64_json"):
                 raw = base64.b64decode(str(item["b64_json"]), validate=True)

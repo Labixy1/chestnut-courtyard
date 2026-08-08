@@ -338,6 +338,37 @@ def dedupe(items):
     return out
 
 
+def article_keys(item):
+    """Stable keys for cross-report dedupe despite tracking params or punctuation changes."""
+    keys = set()
+    raw_url = str(item.get("link") or item.get("url") or "").strip()
+    if raw_url:
+        try:
+            parsed = urllib.parse.urlsplit(raw_url)
+            query = urllib.parse.parse_qsl(parsed.query, keep_blank_values=True)
+            query = [(key, value) for key, value in query if not key.lower().startswith("utm_") and key.lower() not in {"from", "source", "ref", "spm"}]
+            stable = urllib.parse.urlunsplit((parsed.scheme.lower(), parsed.netloc.lower(), parsed.path.rstrip("/"), urllib.parse.urlencode(query), ""))
+            if stable:
+                keys.add("url:" + stable)
+        except ValueError:
+            keys.add("url:" + raw_url.rstrip("/"))
+    title = re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", str(item.get("title") or "").lower())
+    if len(title) >= 8:
+        keys.add("title:" + title)
+    return keys
+
+
+def historical_article_keys(reports):
+    keys = set()
+    for report in reports:
+        for item in report.get("hot_items", []):
+            keys.update(article_keys(item))
+        for section in report.get("sections", []):
+            for item in section.get("items", []):
+                keys.update(article_keys(item))
+    return keys
+
+
 def score_item(item, topics):
     text = (item.get("title", "") + " " + item.get("summary", "")).lower()
     score = item.get("priority", 1)
@@ -851,11 +882,14 @@ def main():
     config["watch_topics"] = list(dict.fromkeys(config.get("watch_topics", []) + [topic for topic in requested_topics if topic]))
     filter_source_items.global_excludes = config.get("exclude_keywords", [])
     sources = [s for s in config.get("sources", []) if s.get("enabled", True)]
+    previous_reports = load_json("notice_reports.json", {"reports": []}).get("reports", [])
+    previous_keys = historical_article_keys(previous_reports)
     items = []
     for source in sources:
         print("巡逻：" + source.get("name", source.get("id", "")))
         items.extend(fetch_source(source, no_network=args.no_network))
         time.sleep(0.2)
+    items = [item for item in items if not (article_keys(item) & previous_keys)]
     try:
         report = build_report(items, sources, config, args)
     except RuntimeError as exc:

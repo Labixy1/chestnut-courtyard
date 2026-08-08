@@ -36,10 +36,10 @@ node scripts/cloud_worker_test.mjs
 复制 `.env.example` 为被 Git 忽略的 `.env` 并填入至少一个文本模型密钥；本地服务启动时会自动读取，不要把真实密钥写进其他项目文件。支持：
 
 - 文本：OpenAI、DeepSeek、GLM、Qwen。
-- 图片：Seedream 和 GPT Image，默认模型名分别为 `doubao-seedream-5-0-pro-260628` 与 `gpt-image-2`。
-- 视频：Seedance，使用持久化异步任务，离开页面后仍可继续查询。
+- 图片：Seedream、GPT Image 和 Gemini Nano Banana，默认模型名分别为 `doubao-seedream-4-0-250828`、`gpt-image-2` 与 `gemini-2.5-flash-image`。
+- 视频：Seedance 2.0 mini，默认模型名为 `doubao-seedance-2-0-mini-260615`，使用持久化异步任务，离开页面后仍可继续查询。
 
-Seedream 与 Seedance 共用 `ARK_API_KEY`。实际账号开放的模型 ID 不同时，只需修改对应 `COZY_*_MODEL` 环境变量。
+Seedream 与 Seedance 共用 `ARK_API_KEY`；Nano Banana 使用单独的 `GEMINI_API_KEY`。实际账号开放的模型 ID 不同时，只需修改对应 `COZY_*_MODEL` 环境变量。
 
 ## 小院房间
 

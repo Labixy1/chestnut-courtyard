@@ -43,7 +43,7 @@ def main():
         assert health["checks"]["required_files"] and health["checks"]["json_valid"]
 
         providers = request("/api/providers")["providers"]
-        assert "seedream" in providers["image"] and "seedance" in providers["video"]
+        assert "seedream" in providers["image"] and "nano_banana" in providers["image"] and "seedance" in providers["video"]
         media_status = request("/api/media/tasks")
         assert "providers" in media_status and "counts" in media_status
 

@@ -91,18 +91,24 @@
      color:#fffdf3;background:transparent;transform:translate(-50%,-50%);text-shadow:0 1px 2px rgba(39,25,12,.95),0 0 9px rgba(255,238,190,.38);
   }
   .stage.has-panorama .spot:hover .tag:after{width:72%}
+  .stage.has-panorama .noticeboard .tag{top:calc(50% + 28px)}
+  .stage.has-panorama .oldtree .tag{top:calc(50% + 44px)}
+  .stage.has-panorama .stump .tag{top:calc(50% + 36px)}
+  .stage.has-panorama .luggage .tag{top:calc(50% + 42px)}
+  .stage.has-panorama .cottage .tag{top:calc(50% + 36px)}
   .stage.has-panorama .cottage .art{visibility:visible}
   .stage.has-panorama .cottage .house-roof,
   .stage.has-panorama .cottage .house-body{visibility:hidden}
   .stage.has-panorama #wall{left:68.8%;top:44%;right:auto;bottom:auto;width:10.5%;height:13%;
      transform:rotate(-2deg);z-index:7}
-  .stage.has-panorama #butler{left:18px;top:18px;width:auto;max-width:230px;min-height:0;
+  .stage.has-panorama #butler{left:18px;top:18px;width:auto;max-width:320px;min-height:0;
      display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(42,34,24,.34);
      color:#fff8e8;border-color:rgba(255,246,214,.22);border-radius:999px;
      box-shadow:0 8px 20px rgba(24,18,10,.18);backdrop-filter:blur(6px);font-size:12px;line-height:1.2}
   .stage.has-panorama #butler .who{margin:0;gap:7px}
   .stage.has-panorama #butler .fox{width:28px;height:28px}
-  .stage.has-panorama #butler .who span:last-child{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .stage.has-panorama #butler .butler-name{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .stage.has-panorama #butler .butler-weather{display:block;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-weight:400;color:rgba(255,248,232,.72);margin-top:2px}
   .stage.has-panorama #butler .row{display:none}
   .stage.has-panorama .title{color:#fff8e8;background:rgba(42,34,24,.42);border:1px solid rgba(255,246,214,.25);
      box-shadow:0 8px 22px rgba(24,18,10,.24);backdrop-filter:blur(8px)}
@@ -187,8 +193,9 @@
      border-radius:16px;padding:14px 16px;box-shadow:0 10px 26px var(--shadow);
      border:1px solid #e6d6ba;font-size:13px;line-height:1.6}
   #butler .who{display:flex;align-items:center;gap:8px;font-weight:600;margin-bottom:6px}
-  #butler .fox{width:34px;height:34px;border-radius:50%;background:url("assets/estate/butler_dog.webp") center/cover no-repeat;
-     position:relative;flex:none;box-shadow:0 2px 8px var(--shadow);border:1px solid rgba(255,246,214,.65)}
+  #butler .butler-copy{display:grid;min-width:0}.butler-weather{font-size:10px;font-weight:400;color:#8c7865;margin-top:2px}
+  #butler .fox{width:34px;height:34px;border-radius:50%;background:url("assets/estate/butler_dog.webp") center/116% no-repeat;
+     position:relative;flex:none;box-shadow:0 2px 8px var(--shadow);border:0}
   #butler .row{margin:4px 0;color:#6b5949}
   #butler .row b{color:var(--ink)}
 
@@ -239,9 +246,9 @@
   .toolbox-body{height:auto;min-height:0;padding:18px 24px 24px;overflow:auto}
   .toolbox-panel .tool-group{margin-top:0;margin-bottom:18px}
   .toolbox-panel .tool-group.is-hidden{display:none}
-  .toolbox-panel .cards{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));align-items:start}
+  .toolbox-panel .cards{grid-template-columns:repeat(auto-fill,minmax(280px,1fr));align-items:stretch;grid-auto-rows:1fr}
   .toolbox-panel .card{border-radius:12px;background:#fffdf8}
-  .tool-card{display:grid;gap:11px;padding:15px 16px!important;box-shadow:0 5px 18px rgba(91,65,41,.05)}
+  .tool-card{display:grid;grid-template-rows:auto auto auto auto auto 1fr auto;align-content:start;gap:11px;height:430px;overflow:auto;scrollbar-width:thin;padding:15px 16px!important;box-shadow:0 5px 18px rgba(91,65,41,.05)}
   .tool-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
   .tool-card-head h3{font-size:15px;line-height:1.4;margin:0;color:#4d3423}
   .tool-category{flex:0 0 auto;padding:3px 8px;border-radius:999px;background:#f0ddc7;color:#795338;font-size:10px}
@@ -252,12 +259,24 @@
   .tool-capabilities{display:flex;gap:5px;flex-wrap:wrap;list-style:none}
   .tool-capabilities li{padding:4px 7px;border-radius:6px;background:#f5ede3;color:#614a37;font-size:10px;line-height:1.35}
   .tool-scenes{margin:0;padding-left:17px;color:#5e4c3e;font-size:11px;line-height:1.6}
-  .tool-links{display:flex;gap:8px;flex-wrap:wrap;padding-top:2px}
+  .tool-links{display:flex;align-self:end;gap:8px;flex-wrap:wrap;padding-top:2px;margin-top:auto}
   .tool-links a{display:inline-flex;align-items:center;min-height:32px;padding:0 10px;border-radius:8px;background:#765338;
      color:#fffaf2;font-size:11px;text-decoration:none}
   .tool-links a.secondary{background:#f2e7da;color:#73543d}
+  .tool-pricing{padding:11px 12px;border:1px solid #ead8c5;border-radius:9px;background:#fff9f1}
+  .tool-price-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
+  .tool-price-head strong{font-size:12px;color:#5b402c}
+  .tool-price-refresh{min-height:28px;border:1px solid #d7b995;border-radius:7px;background:#fffdf8;color:#775537;
+    padding:0 9px;font:700 10px/1 inherit;cursor:pointer}
+  .tool-price-refresh:hover{background:#f1dfcb}.tool-price-refresh:disabled{opacity:.55;cursor:default}
+  .tool-price-summary{margin:0 0 7px;font-size:11px;line-height:1.65;color:#6c523e}
+  .tool-price-list{display:grid;gap:5px;margin:0}.tool-price-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;
+    align-items:start;font-size:10px;line-height:1.45;color:#7e6856}.tool-price-row dd,.tool-price-row dt{margin:0}
+  .tool-price-row dd{text-align:right;color:#4d3829;font-weight:700}.tool-price-meta{margin-top:7px;font-size:9px;color:#9a826c}
+  .tool-price-status{min-height:14px;margin-top:5px;font-size:10px;color:#9b5a40}
   .tool-new{display:inline-block;margin-left:6px;padding:2px 5px;border-radius:999px;background:#b75f52;color:#fff;font-size:9px;vertical-align:2px}
-  .skill-zone[hidden]{display:none}.skill-zone{display:grid;gap:24px}.skill-zone-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:13px;border-bottom:1px solid #ead9c6}.skill-zone-head h3{font-size:17px;color:#4d3423;margin:0 0 4px}.skill-zone-head p{font-size:12px;line-height:1.6;color:#806b58;margin:0}.skill-health{flex:0 0 auto;font-size:10px;padding:4px 8px;border-radius:999px;background:#e5eddc;color:#536448}.skill-health.waiting{background:#f1e5d6;color:#85674c}.skill-section h4{font-size:13px;color:#70513a;margin:0 0 10px}.skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:11px}.skill-card{display:grid;gap:9px;align-content:start;border:1px solid #ead8c4;border-radius:12px;background:#fffdf9;padding:13px;min-width:0}.skill-card.recommended{background:#f8f1e6;border-style:dashed}.skill-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:9px}.skill-card h5{font-size:14px;line-height:1.4;color:#4e3828;margin:0;overflow-wrap:anywhere}.skill-state{flex:0 0 auto;font-size:9px;padding:3px 6px;border-radius:999px;background:#e6efdc;color:#536448}.skill-state.recommend{background:#ecddc9;color:#7d5a3c}.skill-card p{font-size:11px;line-height:1.65;color:#665344;margin:0}.skill-tags{display:flex;gap:5px;flex-wrap:wrap}.skill-tags span{font-size:9px;padding:3px 6px;border-radius:6px;background:#f3e9dc;color:#785b43}.skill-use{padding-top:8px;border-top:1px solid #f0e4d6}.skill-use b{display:block;font-size:9px;color:#98795e;margin-bottom:3px}.skill-build{justify-self:start;border:0;border-radius:8px;background:#7b5a40;color:#fffaf2;padding:7px 10px;font:11px inherit;cursor:pointer}.skill-build:disabled{opacity:.5;cursor:default}.skill-zone-status{min-height:16px;font-size:11px;color:#80654f}
+  .skill-zone[hidden]{display:none}.skill-zone{display:grid;gap:24px}.skill-zone-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:13px;border-bottom:1px solid #ead9c6}.skill-zone-head h3{font-size:17px;color:#4d3423;margin:0 0 4px}.skill-zone-head p{font-size:12px;line-height:1.6;color:#806b58;margin:0}.skill-health{flex:0 0 auto;font-size:10px;padding:4px 8px;border-radius:999px;background:#e5eddc;color:#536448}.skill-health.waiting{background:#f1e5d6;color:#85674c}.skill-section h4{font-size:13px;color:#70513a;margin:0 0 10px}.skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:11px}.skill-card{display:grid;gap:9px;align-content:start;border:1px solid #ead8c4;border-radius:12px;background:#fffdf9;padding:13px;min-width:0}.skill-card.recommended{background:#f8f1e6;border-style:dashed}.skill-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:9px}.skill-card h5{font-size:14px;line-height:1.4;color:#4e3828;margin:0;overflow-wrap:anywhere}.skill-state{flex:0 0 auto;font-size:9px;padding:3px 6px;border-radius:999px;background:#e6efdc;color:#536448}.skill-state.recommend{background:#ecddc9;color:#7d5a3c}.skill-card p{font-size:11px;line-height:1.65;color:#665344;margin:0}.skill-tags{display:flex;gap:5px;flex-wrap:wrap}.skill-tags span{font-size:9px;padding:3px 6px;border-radius:6px;background:#f3e9dc;color:#785b43}.skill-use{padding-top:8px;border-top:1px solid #f0e4d6}.skill-use b{display:block;font-size:9px;color:#98795e;margin-bottom:3px}.skill-build{justify-self:start;border:0;border-radius:8px;background:#7b5a40;color:#fffaf2;padding:7px 10px;font:11px inherit;cursor:pointer;text-decoration:none}.skill-build:disabled{opacity:.5;cursor:default}.skill-zone-status{min-height:16px;font-size:11px;color:#80654f}
+  .skill-build{display:inline-flex;align-items:center;justify-content:center;min-height:32px;padding:0 10px;background:#765338;font-family:inherit;font-size:11px;line-height:1}
   @media(max-width:620px){.toolbox-panel{width:100vw;height:100vh;border-radius:0}.toolbox-head{padding:18px 52px 12px 16px}.toolbox-body{padding:14px 16px 20px}.toolbox-import{grid-template-columns:1fr}.toolbox-import button{width:100%}.toolbox-panel .cards{grid-template-columns:1fr}}
   .scene-close{position:absolute;right:18px;top:18px;z-index:4;float:none;background:rgba(247,239,225,.8);
      box-shadow:0 8px 20px rgba(24,18,10,.18)}
@@ -454,15 +473,22 @@
   .bb-main{padding:32px 34px 28px;overflow:auto;background:linear-gradient(180deg,#fffaf0,#f8e9c4)}
   .bb-question{max-width:760px}
   .bb-question .eyebrow{font-size:12px;color:#9b6c26;margin-bottom:10px}
+  .bb-question-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .bb-question-head .eyebrow{margin:0}
+  .bb-refresh-question{width:32px;height:32px;display:grid;place-items:center;border:1px solid rgba(143,94,25,.2);border-radius:50%;background:rgba(255,255,255,.62);color:#79521f;cursor:pointer;font-size:18px;line-height:1;transition:background .18s ease,transform .18s ease}
+  .bb-refresh-question:hover{background:#fffdf7;transform:rotate(18deg)}
+  .bb-refresh-question:disabled{opacity:.5;cursor:wait;transform:none}
   .bb-question h3{font-size:24px;line-height:1.42;margin-bottom:14px;color:#4f3d20;font-weight:760}
   .bb-question p{font-size:15px;line-height:1.8;color:rgba(83,54,22,.86);margin:10px 0}
   .bb-answer-box{width:100%;max-width:720px;min-height:160px;margin-top:18px;border:1px solid rgba(143,94,25,.22);
      background:rgba(255,255,255,.72);color:#4d3214;border-radius:14px;padding:16px 18px;resize:vertical;
      font:inherit;line-height:1.7;outline:none}
   .bb-answer-box:focus{border-color:rgba(143,94,25,.46);background:#fffdf8}
+  .bb-answer-box:disabled{color:rgba(83,54,22,.68);background:rgba(255,255,255,.46);cursor:not-allowed}
   .bb-submit{margin-top:12px;border:1px solid rgba(111,74,29,.18);background:#7a5424;
      color:#fff8e8;border-radius:999px;padding:9px 18px;font:inherit;cursor:pointer}
   .bb-submit:hover{background:#5f3e18}
+  .bb-submit:disabled{background:#b9a27e;color:#fff9ec;cursor:not-allowed;box-shadow:none}
   .bb-note{font-size:13px;color:rgba(83,54,22,.62);margin-top:10px}
   .bb-pills{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
   .bb-pill{font-size:12px;border:1px solid rgba(143,94,25,.18);border-radius:999px;padding:5px 10px;color:#6b4618;background:rgba(255,255,255,.62)}
@@ -470,9 +496,26 @@
   .bb-material h4,.bb-review-card h4{font-size:14px;color:#6b4618;margin-bottom:8px}
   .bb-material ul,.bb-review-card ul,.bb-standard{padding-left:20px}
   .bb-material li,.bb-review-card li,.bb-standard li{font-size:13px;line-height:1.75;color:rgba(83,54,22,.82);margin:3px 0}
+  .bb-helper{margin:14px 0 18px;border:1px solid rgba(143,94,25,.14);border-radius:16px;background:rgba(255,255,255,.48);overflow:hidden}
+  .bb-helper-head{display:flex;align-items:center;gap:9px;padding:11px 13px;border-bottom:1px solid rgba(143,94,25,.1)}
+  .bb-helper-avatar{width:28px;height:28px;flex:0 0 auto;border-radius:50%;background:url("assets/estate/butler_dog.webp") center/116% no-repeat}
+  .bb-helper-head strong{display:block;font-size:13px;color:#60421d}.bb-helper-head small{display:block;margin-top:1px;font-size:10px;color:#987541}
+  .bb-helper-chat{display:none;padding:11px 13px 0}.bb-helper-chat.show{display:block}.bb-helper-chat p{margin:0;font-size:13px;line-height:1.7;color:#654a29}
+  .bb-helper-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:11px 13px}.bb-helper-row input{min-width:0;border:1px solid rgba(143,94,25,.18);border-radius:10px;background:rgba(255,255,255,.78);padding:9px 11px;color:#4d3214;outline:none;font:12px inherit}.bb-helper-row button{border:0;border-radius:10px;background:#b47b24;color:#fffaf0;padding:0 13px;cursor:pointer;font:12px inherit}.bb-helper-row button:disabled{opacity:.5;cursor:wait}
+  .bb-score-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.bb-score-item{padding:10px 11px;border-radius:10px;background:rgba(255,249,232,.78)}.bb-score-item b{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#63451f}.bb-score-item p{margin:4px 0 0;font-size:11px;line-height:1.55;color:#85693e}
   .bb-comparison{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
   .bb-comparison .bb-review-card{margin:0}
-  .bb-history{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:14px}
+  .bb-history{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px}
+  .bb-history .category-archive{border:1px solid rgba(143,94,25,.14);border-radius:14px;background:rgba(255,255,255,.58);overflow:hidden}
+  .bb-history .category-archive summary{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:13px 15px;cursor:pointer;list-style:none}
+  .bb-history .category-archive summary::-webkit-details-marker{display:none}
+  .bb-history .category-archive summary>span:first-child{font-size:14px;font-weight:700;color:#5d421e}
+  .bb-history .category-archive-count{font-size:11px;color:#9b763d}
+  .bb-history .category-archive summary:after{grid-column:3;justify-self:end;margin-left:2px}
+  .bb-history .category-archive-list{padding:0 14px 14px}
+  .bb-history-question{padding:10px 12px;border-radius:10px;background:rgba(255,249,232,.72);font-size:13px;line-height:1.75;color:#5d4323}
+  .bb-history-state{display:inline-flex;margin-top:8px;padding:3px 8px;border-radius:999px;background:#e6d3a7;color:#735322;font-size:10px}
+  .bb-history-state.done{background:#dce6c7;color:#4e6432}
   .bb-history .card{background:rgba(255,255,255,.66);border-color:rgba(143,94,25,.14);color:#4d3214}
   .bb-history .card p{color:rgba(83,54,22,.68)}
   .bb-direction-box{margin-top:22px;padding-top:18px;border-top:1px solid rgba(143,94,25,.14)}
@@ -484,12 +527,17 @@
      box-shadow:0 10px 26px var(--shadow);display:block;margin:0 auto 14px}
   .preview-note{text-align:center;font-size:15px}
   .preview-date{text-align:center;color:#8a7963;font-size:12px;margin-top:4px}
-  .photo-wall-scene>.photo-wall-bg{filter:blur(12px) brightness(.7);transform:scale(1.035)}
+  .photo-wall-scene>.photo-wall-bg{filter:none;opacity:1;transform:none;transition:filter .25s ease,opacity .25s ease,transform .25s ease}
+  .photo-wall-scene.library-open>.photo-wall-bg{filter:blur(8px) brightness(.78);opacity:.8;transform:scale(1.025)}
+  .photo-wall-cover{position:absolute;inset:0;z-index:2;display:flex;align-items:flex-end;justify-content:center;padding:0 22px 8vh;background:transparent}
+  .photo-wall-enter{min-width:152px;height:44px;border:1px solid #715844;border-radius:9px;background:#4b3a2f;color:#fffaf2;font:14px inherit;cursor:pointer;box-shadow:0 12px 32px rgba(0,0,0,.26)}
+  .photo-wall-enter:hover{background:#3f3028}
   .photo-library{position:absolute;inset:0;z-index:2;overflow:auto;padding:68px clamp(22px,5vw,74px) 42px;color:#fffaf2;background:rgba(28,25,25,.2)}
   .photo-library-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin:0 0 22px}.photo-library-head h2{font-size:24px;margin:0 0 4px}.photo-library-head p{font-size:12px;color:rgba(255,250,242,.72);margin:0}.photo-library-actions{display:flex;gap:8px}.photo-library-actions button,.photo-album-toolbar button{border:1px solid rgba(255,255,255,.22);border-radius:9px;background:rgba(37,31,28,.46);color:#fffaf2;padding:8px 11px;font:12px inherit;cursor:pointer;backdrop-filter:blur(8px)}
-  .photo-album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}.photo-album-tile{position:relative;min-height:230px;border:0;padding:0;background:transparent;color:#fff;text-align:left;cursor:pointer}.photo-album-cover{position:relative;height:184px;border-radius:7px;overflow:hidden;background:rgba(255,255,255,.12);box-shadow:0 14px 34px rgba(0,0,0,.2)}.photo-album-cover img{position:static;width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s ease}.photo-album-tile:hover .photo-album-cover img{transform:scale(1.025)}.photo-album-title{display:block;font-size:14px;font-weight:650;margin-top:10px}.photo-album-meta{display:flex;justify-content:space-between;gap:8px;margin-top:4px;color:rgba(255,255,255,.62);font-size:10px}.photo-date-mark{color:#bfe4f5;background:rgba(100,174,210,.13);border-radius:999px;padding:2px 7px}.photo-album-add{height:184px;border:1px dashed rgba(255,255,255,.42);border-radius:7px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:38px;font-weight:200;color:rgba(255,255,255,.72)}
+  .photo-library-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.photo-library-tools button,.photo-library-tools select{height:34px;border:1px solid rgba(255,255,255,.22);border-radius:8px;background:rgba(37,31,28,.46);color:#fffaf2;padding:0 10px;font:11px inherit;cursor:pointer;backdrop-filter:blur(8px)}
+  .photo-album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}.photo-album-tile{position:relative;min-height:230px;border:0;padding:0;background:transparent;color:#fff;text-align:left}.photo-album-cover{position:relative;display:block;width:100%;height:184px;border:0;padding:0;border-radius:7px;overflow:hidden;background:rgba(255,255,255,.12);box-shadow:0 14px 34px rgba(0,0,0,.2);cursor:pointer}.photo-album-cover img{position:static;width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s ease}.photo-album-tile:hover .photo-album-cover img{transform:scale(1.025)}.photo-album-title{display:block;font-size:14px;font-weight:650;margin-top:10px}.photo-album-meta{display:flex;justify-content:space-between;gap:8px;margin-top:4px;color:rgba(255,255,255,.62);font-size:10px}.photo-date-mark{color:#bfe4f5;background:rgba(100,174,210,.13);border-radius:999px;padding:2px 7px}.photo-album-move{position:absolute;right:7px;top:7px;z-index:2;display:flex;gap:4px}.photo-album-move button{width:27px;height:27px;border:0;border-radius:7px;background:rgba(24,22,21,.56);color:#fff;cursor:pointer}.photo-album-add{height:184px;border:1px dashed rgba(255,255,255,.42);border-radius:7px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:38px;font-weight:200;color:rgba(255,255,255,.72)}
   .photo-album-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px}.photo-album-toolbar h2{font-size:20px;margin:0 auto 0 0}.photo-album-toolbar .danger{color:#ffd4cd}.photo-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}.photo-detail-item{position:relative;margin:0;min-width:0}.photo-detail-item img{position:static;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:7px;display:block;background:rgba(255,255,255,.08)}.photo-detail-item figcaption{display:flex;align-items:center;gap:7px;margin-top:6px;font-size:11px;color:rgba(255,255,255,.72)}.photo-detail-controls{margin-left:auto;display:flex;gap:3px}.photo-detail-controls button{width:25px;height:25px;border:0;border-radius:6px;background:rgba(20,18,17,.48);color:#fff;cursor:pointer}.photo-wall-status{font-size:11px;color:#d6edf7;min-height:16px;margin-top:10px}
-  @media(max-width:620px){.photo-library{padding:62px 14px 30px}.photo-library-head{align-items:flex-start;flex-direction:column}.photo-album-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.photo-album-cover,.photo-album-add{height:132px}.photo-album-tile{min-height:178px}.photo-detail-grid{grid-template-columns:1fr 1fr}}
+  @media(max-width:620px){.tool-card{grid-template-rows:none;height:auto}.photo-library{padding:62px 14px 30px}.photo-library-head{align-items:flex-start;flex-direction:column}.photo-album-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.photo-album-cover,.photo-album-add{height:132px}.photo-album-tile{min-height:178px}.photo-detail-grid{grid-template-columns:1fr 1fr}}
   .source-tag{display:inline-block;font-size:11px;border-radius:999px;padding:3px 8px;background:#ead7c2;color:#6b4b2e;margin-bottom:6px}
 </style>
 </head>
@@ -514,7 +562,7 @@
 
     <!-- 管家晨报 -->
     <div id="butler">
-      <div class="who"><span class="fox"></span><span>管家 · 阿栗</span></div>
+      <div class="who"><span class="fox"></span><span class="butler-copy"><span class="butler-name">管家 · 阿栗 <span class="butler-online-state">连接中</span></span><span class="butler-weather" id="b-weather">正在看时间与天气</span></span></div>
       <div class="row" id="b-greeting">早安，小院主人。阿栗在门口值班，家里很安全。</div>
       <div class="row"><b>今日一读 · </b><span id="b-news">——</span></div>
       <div class="row"><b>今日一步 · </b><span id="b-tip">——</span></div>
@@ -618,7 +666,8 @@ async function loadCore(){
   const fallback = window.COZY || {};
   const files = {estate_state:'core/estate_state.json',heart_hollow:'core/heart_hollow.json',
                  private_wing:'core/private_wing.json',manifest:'core/manifest.json',
-                 notice_reports:'core/notice_reports.json',butler_sources:'core/butler_sources.json'};
+                 notice_reports:'core/notice_reports.json',butler_sources:'core/butler_sources.json',
+                 daily_questions:'core/daily_questions.json'};
   const out = {};
   for(const [k,path] of Object.entries(files)){
     out[k] = window.CozyRuntime ? await window.CozyRuntime.loadJson(path,{},k) : (fallback[k] || {});
@@ -627,11 +676,12 @@ async function loadCore(){
 }
 
 let CORE = {};
-(async ()=>{
+const CORE_READY = (async ()=>{
   CORE = await loadCore();
   renderWall();
   renderTitle();
   renderButlerState();
+  return CORE;
 })();
 
 /* ---------- 外墙照片墙 ---------- */
@@ -704,6 +754,8 @@ function openToolbox(){
     if(!key || seen.has(key)) return false;
     seen.add(key); return true;
   }).reverse().map(item=>Object.assign({},item,{category:toolboxCategory(item)}));
+  window.TOOLBOX_ITEMS_BY_KEY={};
+  items.forEach(item=>{window.TOOLBOX_ITEMS_BY_KEY[toolItemKey(item)]=item;});
   const preferred = ['写代码','学术','图像与视频','产品与原型','办公与中文','本地与协议','其他'];
   const categories = preferred.filter(name=>items.some(item=>item.category===name))
     .concat([...new Set(items.map(item=>item.category))].filter(name=>!preferred.includes(name)));
@@ -718,6 +770,9 @@ function openToolbox(){
     '<div class="toolbox-import" id="toolbox-import"><input id="toolbox-link-input" type="url" placeholder="粘贴工具官网或资讯链接" onkeydown="if(event.key===\'Enter\')importToolboxLink()" />'+
     '<button id="toolbox-import-btn" onclick="importToolboxLink()">解析并加入</button><div class="toolbox-import-status" id="toolbox-import-status"></div></div></div>'+
     '<div class="toolbox-body"><div id="toolbox-groups">'+(block || '<p class="sub">工具箱还是空的，先加入一个工具。</p>')+'</div>'+skillZoneShell()+'</div>', 'toolbox-panel');
+  const zone=document.getElementById('skill-zone');
+  if(zone)zone.hidden=false;
+  loadSkillZone();
 }
 
 function toggleToolboxImport(force){
@@ -747,18 +802,23 @@ function toolboxCategory(item){
   return raw || '其他';
 }
 
+function toolItemKey(item){
+  return [item&&item.title||'',item&&item.url||''].map(value=>String(value).trim().toLowerCase()).join('|');
+}
+
 function setToolboxGroup(name, btn){
   document.querySelectorAll('.toolbox-nav .toolbox-filter').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
   const skills=name==='Skills';
+  const includeSkills=skills||name==='全部';
   const groups=document.getElementById('toolbox-groups');
   const zone=document.getElementById('skill-zone');
   if(groups)groups.hidden=skills;
-  if(zone)zone.hidden=!skills;
+  if(zone)zone.hidden=!includeSkills;
   document.querySelectorAll('.toolbox-panel .tool-group').forEach(group=>{
     group.classList.toggle('is-hidden', skills || (name !== '全部' && group.dataset.toolGroup !== name));
   });
-  if(skills)loadSkillZone();
+  if(includeSkills)loadSkillZone();
 }
 
 const SKILL_UI={
@@ -776,16 +836,15 @@ const SKILL_UI={
   'build-skill':['Skill 工匠','现有能力不足时创建、测试并注册新的私有 Skill。','阿栗缺少完成任务的可复用能力时'],
   'organize-checklist':['清单整理','把零散事项变成带稳定编号和状态的结构化清单。','需要整理一组明确待办时']
 };
-const RECOMMENDED_SKILLS=[
-  {name:'research-brief',title:'深度资料研究',description:'围绕一个问题检索多来源材料，区分事实、推断与争议，输出带来源的研究简报。',use:'竞品、行业、技术路线和面试课题研究'},
-  {name:'ai-evaluation-lab',title:'AI 评测实验室',description:'把产品目标拆成评测维度、样本、评分规则、失败类型和回归集。',use:'模型选型、Agent 与记忆系统验收'},
-  {name:'prototype-review',title:'原型体验审查',description:'读取页面截图与交互流程，检查信息层级、状态、文案、移动端和关键任务阻塞。',use:'原型评审与上线前体验检查'},
-  {name:'document-digest',title:'长文档消化',description:'解析 PDF 或长文档，提取结构、关键论点、行动项，并沉淀到知识专题。',use:'论文、报告、PRD 与技术文档'},
-  {name:'interview-story',title:'面试案例整理',description:'从真实项目和记忆证据中整理背景、判断、行动、结果与复盘，不虚构贡献。',use:'作品集、简历和面试表达'}
+const EXTERNAL_SKILLS=[
+  {title:'Anthropic Skills',publisher:'Anthropic',description:'公开的 Agent Skills 示例库，包含文档、表格、演示稿等可复用工作流。',use:'参考成熟 Skill 的目录结构、说明和执行脚本。',url:'https://github.com/anthropics/skills'},
+  {title:'OpenAI Skills',publisher:'OpenAI',description:'面向 Codex 的公开 Skills 集合，可按任务安装或作为自定义 Skill 的参考。',use:'为编码、文档和自动化任务补充专门能力。',url:'https://github.com/openai/skills'},
+  {title:'Agent Skills Directory',publisher:'社区',description:'集中浏览不同团队发布的 Agent Skills，适合先看用途和维护情况再选择。',use:'发现新的研究、设计、开发和效率类 Skill。',url:'https://skills.sh'},
+  {title:'Awesome Agent Skills',publisher:'社区',description:'社区维护的 Agent Skill 索引，覆盖资料研究、开发、内容和产品工作流。',use:'寻找特定场景的现成 Skill，并回到官方仓库核验。',url:'https://github.com/VoltAgent/awesome-agent-skills'}
 ];
 let skillZoneLoaded=false;
 function skillZoneShell(){
-  return '<section class="skill-zone" id="skill-zone" hidden><header class="skill-zone-head"><div><h3>阿栗的 Skills</h3><p>Skill 是阿栗处理一类任务时遵循的能力与执行规则，不等同于普通工具链接。</p></div><span class="skill-health waiting" id="skill-health">正在读取</span></header><section class="skill-section"><h4>已接入</h4><div class="skill-grid" id="installed-skills"></div></section><section class="skill-section"><h4>值得补充</h4><div class="skill-grid" id="recommended-skills"></div></section><div class="skill-zone-status" id="skill-zone-status"></div></section>';
+  return '<section class="skill-zone" id="skill-zone" hidden><header class="skill-zone-head"><div><h3>公开 Skills</h3><p>这里收纳其他团队发布、可以直接了解或安装的好用 Skill。小院自身的系统 Skill 只放在密阁。</p></div><span class="skill-health" id="skill-health">外部资源</span></header><section class="skill-section"><div class="skill-grid" id="recommended-skills"></div></section></section>';
 }
 function skillCardHtml(skill){
   const ui=SKILL_UI[skill.name]||[skill.name,skill.description||'实例中新增的可执行 Skill。','在匹配的任务中由阿栗调用'];
@@ -797,26 +856,12 @@ function recommendedSkillHtml(skill,canBuild){
 }
 async function loadSkillZone(force){
   if(skillZoneLoaded&&!force)return;
-  const installed=document.getElementById('installed-skills');
   const recommended=document.getElementById('recommended-skills');
   const health=document.getElementById('skill-health');
-  if(!installed||!recommended)return;
-  try{
-    const data=await cozyApi('/api/skills',undefined,15000);
-    const skills=Array.isArray(data.skills&&data.skills.skills)?data.skills.skills:[];
-    installed.innerHTML=skills.length?skills.map(skillCardHtml).join(''):'<p class="sub">还没有读取到已接入 Skill。</p>';
-    const canBuild=!!(data.skills&&data.skills.can_build);
-    recommended.innerHTML=RECOMMENDED_SKILLS.map(skill=>recommendedSkillHtml(skill,canBuild)).join('');
-    const ok=data.skills&&data.skills.health&&data.skills.health.ok!==false;
-    health.textContent=skills.length+' 个已接入';health.classList.toggle('waiting',!ok);
-    const status=document.getElementById('skill-zone-status');
-    if(status&&!canBuild)status.textContent='推荐 Skill 需要本地掌院权限和至少一个已配置的文本模型 API。';
-    skillZoneLoaded=true;
-  }catch(error){
-    installed.innerHTML='<p class="sub">启动本地服务后可以查看真实 Skill 状态。</p>';
-    recommended.innerHTML=RECOMMENDED_SKILLS.map(skill=>recommendedSkillHtml(skill,false)).join('');
-    health.textContent='未连接';
-  }
+  if(!recommended)return;
+  recommended.innerHTML=EXTERNAL_SKILLS.map(skill=>'<article class="skill-card"><div class="skill-card-head"><h5>'+escapeNotice(skill.title)+'</h5><span class="skill-state">'+escapeNotice(skill.publisher)+'</span></div><p>'+escapeNotice(skill.description)+'</p><div class="skill-use"><b>适合</b><p>'+escapeNotice(skill.use)+'</p></div><a class="skill-build" href="'+escapeNotice(skill.url)+'" target="_blank" rel="noopener">查看 Skill</a></article>').join('');
+  if(health)health.textContent=EXTERNAL_SKILLS.length+' 个来源';
+  skillZoneLoaded=true;
 }
 async function buildRecommendedSkill(btn,name){
   const skill=RECOMMENDED_SKILLS.find(item=>item.name===name);const status=document.getElementById('skill-zone-status');
@@ -837,7 +882,38 @@ function toolCard(i){
     (capabilities.length?'<div class="tool-detail"><strong>关键能力</strong><ul class="tool-capabilities">'+capabilities.map(value=>'<li>'+escapeNotice(value)+'</li>').join('')+'</ul></div>':'')+
     (scenes.length?'<div class="tool-detail"><strong>适用场景</strong><ul class="tool-scenes">'+scenes.map(value=>'<li>'+escapeNotice(value)+'</li>').join('')+'</ul></div>':'')+
     (i.example?'<div class="tool-detail"><strong>使用例子</strong><p>'+escapeNotice(i.example)+'</p></div>':'')+
+    toolPricingHtml(i)+
     '<div class="tool-links">'+(i.url?'<a href="'+escapeNotice(i.url)+'" target="_blank" rel="noopener">使用工具</a>':'')+(i.source_url&&i.source_url!==i.url?'<a class="secondary" href="'+escapeNotice(i.source_url)+'" target="_blank" rel="noopener">查看来源</a>':'')+'</div></article>';
+}
+
+function toolPricingHtml(item){
+  const pricing=item&&item.pricing&&typeof item.pricing==='object'?item.pricing:{};
+  const rows=Array.isArray(pricing.items)?pricing.items.filter(row=>row&&row.label&&row.value).slice(0,6):[];
+  const source=pricing.source_url||item.price_url||'';
+  // Failed or unavailable price lookups stay visually empty instead of showing
+  // an error, estimate, or blank pricing panel.
+  if(pricing.status==='unavailable'||(!pricing.summary&&!rows.length)) return '';
+  return '<section class="tool-pricing"><div class="tool-price-head"><strong>当前价格</strong>'+
+    (source?'<button class="tool-price-refresh" data-tool-key="'+escapeNotice(toolItemKey(item))+'" onclick="refreshToolPrice(this)" title="重新读取官方价格页">更新价格</button>':'')+'</div>'+
+    (pricing.summary?'<p class="tool-price-summary">'+escapeNotice(pricing.summary)+'</p>':'')+
+    (rows.length?'<dl class="tool-price-list">'+rows.map(row=>'<div class="tool-price-row"><dt>'+escapeNotice(row.label)+'</dt><dd>'+escapeNotice(row.value)+(row.unit?' <span>'+escapeNotice(row.unit)+'</span>':'')+'</dd></div>').join('')+'</dl>':'')+
+    ((pricing.checked_at||pricing.note)?'<div class="tool-price-meta">'+(pricing.checked_at?'核验于 '+escapeNotice(pricing.checked_at):'')+(pricing.note?(pricing.checked_at?' · ':'')+escapeNotice(pricing.note):'')+'</div>':'')+'<div class="tool-price-status"></div></section>';
+}
+
+async function refreshToolPrice(button){
+  if(!button||button.disabled)return;
+  const item=(window.TOOLBOX_ITEMS_BY_KEY||{})[button.dataset.toolKey];
+  const box=button.closest('.tool-pricing');
+  const status=box&&box.querySelector('.tool-price-status');
+  if(!item){if(status)status.textContent='没有找到这张工具卡。';return;}
+  button.disabled=true;button.textContent='解析中';if(status)status.textContent='正在读取官方价格页…';
+  try{
+    const data=await cozyApi('/api/toolbox/refresh-price',{tool:item},165000);
+    applyButlerServerState(data.state,false);
+    openToolbox();
+  }catch(error){
+    button.disabled=false;button.textContent='更新价格';if(status)status.textContent='';
+  }
 }
 
 async function importToolboxLink(){
@@ -863,9 +939,10 @@ async function importToolboxLink(){
 }
 
 async function openBlackboard(){
+  await CORE_READY;
   const bb = ((CORE.manifest && CORE.manifest.items)||[]).filter(i=>i.type==='blackboard');
-  const today = bb[0] || {title:'MoE 混合专家', tags:['架构','LLM']};
   const generatedHistory = ((CORE.daily_questions && CORE.daily_questions.items)||[]);
+  const today = generatedHistory.find(item=>item.date===localCalendarDate()) || generatedHistory[0] || bb[0] || {title:'每日产品题', tags:['产品判断']};
   const history = generatedHistory.length ? generatedHistory : (bb.length ? bb : [today]);
   openOverlay(
     '<div class="blackboard-app">'+
@@ -880,9 +957,9 @@ async function openBlackboard(){
     'blackboard-panel'
   );
   const saved = JSON.parse(localStorage.getItem('cozy_blackboard_answers') || '[]');
-  window.BB_STATE = {today, history, questionData:getBlackboardQuestionData(today)};
-  const initialSaved = saved.find(item=>item.date === localCalendarDate());
-  if(initialSaved){window.BB_STATE.answer=initialSaved.answer;window.BB_STATE.review=initialSaved.review;}
+  window.BB_STATE = {today, history, questionData:getBlackboardQuestionData(today),locked:false,submitting:false,refreshing:false};
+  const initialSaved = findSavedBlackboardAnswer(saved,window.BB_STATE.questionData);
+  if(initialSaved){window.BB_STATE.answer=initialSaved.answer;window.BB_STATE.review=initialSaved.review;window.BB_STATE.questionData.supplementalMaterials=initialSaved.supplementalMaterials||[];window.BB_STATE.locked=true;}
   showBlackboardMode('question');
   try{
     const data = await cozyApi('/api/blackboard/today',undefined,90000);
@@ -897,8 +974,41 @@ async function openBlackboard(){
       seedHint:'',
       date:item.date
     };
-    if(!window.BB_STATE.answer) showBlackboardMode('question');
+    delete window.BB_STATE.answer;
+    delete window.BB_STATE.review;
+    window.BB_STATE.locked=false;
+    const submitted=findSavedBlackboardAnswer(saved,window.BB_STATE.questionData);
+    if(submitted){window.BB_STATE.answer=submitted.answer;window.BB_STATE.review=submitted.review;window.BB_STATE.questionData.supplementalMaterials=submitted.supplementalMaterials||[];window.BB_STATE.locked=true;}
+    showBlackboardMode('question');
   }catch(error){ /* 双击打开时继续使用本地题 */ }
+}
+
+async function refreshBlackboardQuestion(){
+  const state=window.BB_STATE;
+  if(!state||state.refreshing||state.submitting)return;
+  state.refreshing=true;
+  const current=state.questionData;
+  if(current&&blackboardQuestionKey(current))state.history=[current,...(state.history||[])];
+  showBlackboardMode('question');
+  try{
+    const nonce=Date.now();
+    const data=await cozyApi('/api/blackboard/today?refresh='+nonce,undefined,90000);
+    const item=data.question||{};
+    state.today={title:item.title||'每日产品题',tags:item.types||[]};
+    state.questionData={id:item.id||('local-'+nonce),title:item.title||'每日产品题',types:item.types||['产品场景'],question:item.question||'',materials:item.materials||[],standard:item.standard_points||item.standard||[],seedHint:'',date:item.date||localCalendarDate()};
+    delete state.answer;delete state.review;delete state.nextQuestion;
+    state.locked=false;
+    const saved=findSavedBlackboardAnswer(JSON.parse(localStorage.getItem('cozy_blackboard_answers')||'[]'),state.questionData);
+    if(saved){state.answer=saved.answer;state.review=saved.review;state.locked=true;}
+  }catch(error){
+    state.history=(state.history||[]).filter(item=>blackboardQuestionKey(item)!==blackboardQuestionKey(current));
+    state.questionData=current;
+    const note=document.getElementById('bb-answer-note');
+    if(note)note.textContent='换题失败：'+error.message;
+  }finally{
+    state.refreshing=false;
+    showBlackboardMode('question');
+  }
 }
 
 function showBlackboardMode(mode){
@@ -919,41 +1029,88 @@ function showBlackboardMode(mode){
     }
     content.innerHTML = renderBlackboardResult(q, s.answer, s.review || buildBbReview(s.answer, q));
   }else{
-    const saved = JSON.parse(localStorage.getItem('cozy_blackboard_answers') || '[]');
-    const answered = saved.map(i=>'<details class="category-archive"><summary><span>'+escapeNotice(i.title)+'</span><span class="category-archive-count">'+escapeNotice(i.date)+'</span></summary><div class="category-archive-list"><article class="report-card"><h4>我的答案</h4><p>'+escapeNotice(i.answer)+'</p>'+(i.review&&i.review.revised?'<div class="ai-summary-box"><span>阿栗润色</span><p>'+escapeNotice(i.review.revised)+'</p></div>':'')+'</article></div></details>').join('');
-    const cards = (s.history || []).map(i=>'<div class="card"><h3>'+escapeNotice(i.title)+'</h3><p>'+escapeNotice((i.tags||[]).join(' · ') || '题目素材')+'</p></div>').join('');
-    content.innerHTML = '<section class="bb-question"><div class="eyebrow">历史题目</div><h3>题目存档</h3><div class="bb-history">'+(answered || '')+cards+'</div></section>';
+    content.innerHTML = '<section class="bb-question"><div class="eyebrow">历史题目</div><h3>题目存档</h3><div class="bb-history">'+renderBlackboardHistory(s)+'</div></section>';
   }
+}
+
+function blackboardQuestionKey(item){
+  return String(item&&item.question||item&&item.title||'').replace(/\s+/g,'').slice(0,180);
+}
+
+function findSavedBlackboardAnswer(saved,question){
+  const key=blackboardQuestionKey(question);
+  const date=question&&question.date||localCalendarDate();
+  return (saved||[]).find(item=>blackboardQuestionKey(item)===key && (!item.date||item.date===date));
+}
+
+function renderBlackboardHistory(state){
+  const saved=JSON.parse(localStorage.getItem('cozy_blackboard_answers')||'[]');
+  const archive=[];
+  const seen=new Map();
+  const add=item=>{
+    if(!item)return;
+    const normalized={title:item.title||'未命名题目',question:item.question||'',types:item.types||item.tags||[],date:item.date||'',standard:item.standard_points||item.standard||[],materials:item.materials||[],supplementalMaterials:item.supplementalMaterials||[],answer:item.answer||'',review:item.review||null};
+    const key=blackboardQuestionKey(normalized);
+    if(!key)return;
+    if(seen.has(key)){
+      const current=seen.get(key);
+      if(normalized.answer&&!current.answer)Object.assign(current,normalized);
+      else if(!current.question&&normalized.question)current.question=normalized.question;
+      return;
+    }
+    seen.set(key,normalized);archive.push(normalized);
+  };
+  saved.forEach(add);
+  add(state.questionData);
+  (state.history||[]).forEach(add);
+  return archive.map(item=>{
+    const done=!!item.answer;
+    const types=(item.types||[]).filter(Boolean).map(type=>'<span class="bb-pill">'+escapeNotice(type)+'</span>').join('');
+    const answer=done?'<article class="bb-review-card"><h4>我的答案</h4><p>'+escapeNotice(item.answer)+'</p></article>':'<p class="bb-note">这道题还没有作答记录。</p>';
+    const review=done&&item.review&&item.review.revised?'<article class="bb-review-card"><h4>阿栗帮答</h4><p>'+escapeNotice(item.review.revised)+'</p></article>':'';
+    const standard=done&&item.standard&&item.standard.length?'<article class="bb-review-card"><h4>标准答案</h4><ol class="bb-standard">'+item.standard.map(point=>'<li>'+escapeNotice(point)+'</li>').join('')+'</ol></article>':'';
+    return '<details class="category-archive"><summary><span>'+escapeNotice(item.title)+'</span><span class="category-archive-count">'+escapeNotice(item.date||'未标日期')+'</span></summary><div class="category-archive-list"><div class="bb-history-question">'+escapeNotice(item.question||item.title)+'</div><div class="bb-pills">'+types+'</div><span class="bb-history-state '+(done?'done':'')+'">'+(done?'已作答':'未作答')+'</span>'+answer+review+standard+'</div></details>';
+  }).join('')||'<p class="bb-note">还没有历史题目。</p>';
 }
 
 async function submitBbAnswer(){
   const input = document.getElementById('bb-answer-input');
   const note = document.getElementById('bb-answer-note');
   if(!input || !note) return;
+  window.BB_STATE = window.BB_STATE || {};
+  if(window.BB_STATE.locked||window.BB_STATE.submitting){note.textContent='今日答案已经提交并锁定。';return;}
   const value = input.value.trim();
   if(!value){
     note.textContent = '先写一点答案，哪怕只有三句话也可以。';
     return;
   }
+  window.BB_STATE.submitting=true;
+  input.disabled=true;
+  const submitButton=document.getElementById('bb-submit-button');
+  if(submitButton){submitButton.disabled=true;submitButton.textContent='批改中…';}
   note.textContent = '阿栗正在逐点批改，并和标准答案对照……';
-  window.BB_STATE = window.BB_STATE || {};
   const q = window.BB_STATE.questionData || getBlackboardQuestionData(window.BB_STATE.today || {});
   window.BB_STATE.answer = value;
   try{
-    const data = window.CozyButler ? await CozyButler.api('/api/room',{room:'blackboard',message:value,context:{title:q.title,question:q.question,materials:q.materials,reference:q.standard}}) : null;
+    const data = window.CozyButler ? await CozyButler.api('/api/room',{room:'blackboard',message:value,context:{intent:'grade_answer',title:q.title,question:q.question,materials:[...(q.materials||[]),...(q.supplementalMaterials||[])],reference:q.standard}}) : null;
     const result = data && data.result ? data.result : {};
     window.BB_STATE.review = {
       revised:result.polished_answer || buildBbReview(value,q).revised,
       suggestions:Array.isArray(result.suggestions)&&result.suggestions.length?result.suggestions:buildBbReview(value,q).suggestions,
       thinking:Array.isArray(result.thinking_directions)?result.thinking_directions:[],
       diagnosis:Array.isArray(result.diagnosis)?result.diagnosis:[],
-      score:result.score || ''
+      scoreBreakdown:normalizeBlackboardScores(result.score_breakdown),
+      scoreSummary:result.score_summary||result.score||''
     };
+    window.BB_STATE.review.score=window.BB_STATE.review.scoreBreakdown.length?window.BB_STATE.review.scoreBreakdown.reduce((sum,item)=>sum+item.awarded,0)+'/100 · '+window.BB_STATE.review.scoreSummary:window.BB_STATE.review.scoreSummary;
     if(Array.isArray(result.standard_points)&&result.standard_points.length) q.standard=result.standard_points;
     window.BB_STATE.nextQuestion=result.next_question||'';
   }catch(error){window.BB_STATE.review=buildBbReview(value,q);window.BB_STATE.review.suggestions.push('本次 AI 批改未连接成功，已保留本地结构化建议。');}
   const saved = JSON.parse(localStorage.getItem('cozy_blackboard_answers') || '[]');
-  saved.unshift({title:q.title, question:q.question, answer:value, review:window.BB_STATE.review, standard:q.standard, next_question:window.BB_STATE.nextQuestion||'', date:localCalendarDate()});
+  const record={title:q.title,question:q.question,types:q.types||[],materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],answer:value,review:window.BB_STATE.review,standard:q.standard,next_question:window.BB_STATE.nextQuestion||'',date:q.date||localCalendarDate()};
+  const duplicateIndex=saved.findIndex(item=>blackboardQuestionKey(item)===blackboardQuestionKey(record));
+  if(duplicateIndex>=0)saved.splice(duplicateIndex,1);
+  saved.unshift(record);
   localStorage.setItem('cozy_blackboard_answers', JSON.stringify(saved.slice(0,30)));
   window.CozyButler?.persistLocal(['cozy_blackboard_answers']);
   if(window.CozyMemory){
@@ -966,10 +1123,44 @@ async function submitBbAnswer(){
       summary:'黑板答题：'+q.title+'。会影响后续题目难度、表达习惯和产品理解路径。'
     });
   }
+  window.BB_STATE.locked=true;
+  window.BB_STATE.submitting=false;
   showBlackboardMode('result');
 }
 
+function normalizeBlackboardScores(items){
+  const names=['问题理解','方案完整','验证与指标','风险与回滚'],source=Array.isArray(items)?items:[];
+  if(source.length<4)return[];
+  return names.map((name,index)=>{const raw=source.find(item=>String(item?.criterion||'').includes(name.slice(0,2)))||source[index]||{};return{criterion:name,max:25,awarded:Math.round(Math.max(0,Math.min(25,Number(raw.awarded)||0))),reason:String(raw.reason||'本项没有给出有效评分依据。')};});
+}
+
+async function regradeBlackboardAnswer(){
+  const state=window.BB_STATE,q=state?.questionData,button=document.getElementById('bb-regrade');if(!state?.answer||!q||button?.disabled)return;
+  button.disabled=true;button.textContent='核分中…';
+  try{
+    const data=await CozyButler.api('/api/room',{room:'blackboard',message:state.answer,context:{intent:'grade_answer',title:q.title,question:q.question,materials:[...(q.materials||[]),...(q.supplementalMaterials||[])],reference:q.standard}}),result=data?.result||{};
+    const scores=normalizeBlackboardScores(result.score_breakdown),fallback=buildBbReview(state.answer,q);if(scores.length!==4)throw new Error('模型没有返回完整的四项评分，已保留原结果');
+    state.review={revised:result.polished_answer||fallback.revised,suggestions:Array.isArray(result.suggestions)&&result.suggestions.length?result.suggestions:fallback.suggestions,thinking:Array.isArray(result.thinking_directions)?result.thinking_directions:[],diagnosis:Array.isArray(result.diagnosis)?result.diagnosis:[],scoreBreakdown:scores,scoreSummary:result.score_summary||'已按四项标准重新核分'};
+    state.review.score=scores.reduce((sum,item)=>sum+item.awarded,0)+'/100 · '+state.review.scoreSummary;
+    if(Array.isArray(result.standard_points)&&result.standard_points.length)q.standard=result.standard_points;
+    const saved=JSON.parse(localStorage.getItem('cozy_blackboard_answers')||'[]'),index=saved.findIndex(item=>blackboardQuestionKey(item)===blackboardQuestionKey(q));
+    if(index>=0){saved[index]={...saved[index],review:state.review,standard:q.standard,materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[]};localStorage.setItem('cozy_blackboard_answers',JSON.stringify(saved));window.CozyButler?.persistLocal(['cozy_blackboard_answers']);}
+    showBlackboardMode('result');
+  }catch(error){button.disabled=false;button.textContent='重新核分';button.title=error.message;}
+}
+
 function getBlackboardQuestionData(today){
+  if(today&&today.question){
+    return {
+      title:today.title||'每日产品题',
+      types:today.types||today.tags||['产品场景'],
+      question:today.question,
+      seedHint:today.seed_hint||'',
+      materials:today.materials||[],
+      standard:today.standard_points||today.standard||[],
+      date:today.date||localCalendarDate()
+    };
+  }
   const seeds = JSON.parse(localStorage.getItem('cozy_orchard_seeds') || '[]');
   const seedText = seeds[0] ? seeds[0].text.slice(0,42) : '';
   const title = today.title || 'AI 产品边界设计';
@@ -997,25 +1188,44 @@ function getBlackboardQuestionData(today){
 
 function renderBlackboardQuestion(q, answer){
   const pills = q.types.map(t=>'<span class="bb-pill">'+escapeNotice(t)+'</span>').join('');
-  const materials = q.materials && q.materials.length ? '<div class="bb-material"><h4>本题资料</h4><ul>'+q.materials.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>' : '';
-  return '<section class="bb-question"><div class="eyebrow">今日题目</div>'+
+  const allMaterials=[...(q.materials||[]),...(q.supplementalMaterials||[])];
+  const materials = allMaterials.length ? '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list">'+allMaterials.map((x,index)=>'<li'+(index>=(q.materials||[]).length?' class="bb-added-material"':'')+'>'+escapeNotice(x)+'</li>').join('')+'</ul></div>' : '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list"></ul></div>';
+  const refreshing=!!(window.BB_STATE&&window.BB_STATE.refreshing);
+  return '<section class="bb-question"><div class="bb-question-head"><div class="eyebrow">今日题目</div><button class="bb-refresh-question" onclick="refreshBlackboardQuestion()" '+(refreshing?'disabled':'')+' title="换一道新题" aria-label="换一道新题">'+(refreshing?'…':'↻')+'</button></div>'+
     '<h3>'+escapeNotice(q.question)+'</h3><div class="bb-pills">'+pills+'</div>'+
-    (q.seedHint ? '<p>'+escapeNotice(q.seedHint)+'</p>' : '')+materials+
-    '<textarea id="bb-answer-input" class="bb-answer-box" placeholder="写你的答案。可以按 1、2、3 列，也可以先用几句话说清楚。">'+escapeNotice(answer)+'</textarea>'+
-    '<br><button class="bb-submit" onclick="submitBbAnswer()">提交并批改</button><div class="bb-note" id="bb-answer-note">提交后会生成润色版、标准答案和修改建议。</div></section>';
+    (q.seedHint ? '<p>'+escapeNotice(q.seedHint)+'</p>' : '')+materials+renderBlackboardHelper()+
+    '<textarea id="bb-answer-input" class="bb-answer-box" placeholder="写你的答案。可以按 1、2、3 列，也可以先用几句话说清楚。"'+(window.BB_STATE&&window.BB_STATE.locked?' disabled':'')+'>'+escapeNotice(answer)+'</textarea>'+
+    '<br><button id="bb-submit-button" class="bb-submit" onclick="submitBbAnswer()"'+(window.BB_STATE&&window.BB_STATE.locked?' disabled':'')+'>'+(window.BB_STATE&&window.BB_STATE.locked?'本题已完成':'提交并批改')+'</button><div class="bb-note" id="bb-answer-note">'+(refreshing?'阿栗正在准备一道不同的新题……':(window.BB_STATE&&window.BB_STATE.locked?'答案已锁定，可在“批改结果”和“历史题目”中查看。':'提交后会生成润色版、标准答案和修改建议。'))+'</div></section>';
+}
+
+function renderBlackboardHelper(){return '<section class="bb-helper"><div class="bb-helper-head"><span class="bb-helper-avatar"></span><span><strong>题边的阿栗</strong><small>只补背景，不替你作答</small></span></div><div class="bb-helper-chat" id="bb-helper-chat"></div><div class="bb-helper-row"><input id="bb-helper-input" placeholder="例如：openJiuwen 是什么组织？" onkeydown="if(event.key===\'Enter\'){event.preventDefault();askBlackboardHelper()}"><button id="bb-helper-send" onclick="askBlackboardHelper()">问问</button></div></section>';}
+
+async function askBlackboardHelper(){
+  const input=document.getElementById('bb-helper-input'),button=document.getElementById('bb-helper-send'),chat=document.getElementById('bb-helper-chat');
+  const question=(input?.value||'').trim(),q=window.BB_STATE?.questionData;if(!question||!q||button?.disabled)return;
+  button.disabled=true;button.textContent='查找中';chat.className='bb-helper-chat show';chat.innerHTML='<p>阿栗正在结合题目资料查清楚……</p>';
+  try{
+    const data=await CozyButler.api('/api/room',{room:'blackboard',message:question,context:{intent:'question_helper',title:q.title,question:q.question,materials:[...(q.materials||[]),...(q.supplementalMaterials||[])]}});
+    const result=data?.result||{},reply=result.reply||data?.reply||'暂时没有找到可靠信息。';
+    chat.innerHTML='<p>'+escapeNotice(reply)+'</p>';
+    if(result.material){q.supplementalMaterials=Array.isArray(q.supplementalMaterials)?q.supplementalMaterials:[];const material=String(result.material).trim();if(material&&!q.supplementalMaterials.includes(material)){q.supplementalMaterials.push(material);const list=document.getElementById('bb-material-list');if(list)list.insertAdjacentHTML('beforeend','<li class="bb-added-material">'+escapeNotice(material)+'</li>');}}
+    input.value='';
+  }catch(error){chat.innerHTML='<p>这次没有查到：'+escapeNotice(error.message)+'</p>';}
+  finally{button.disabled=false;button.textContent='问问';}
 }
 
 function renderBlackboardResult(q, answer, review){
+  const scoreGrid=review.scoreBreakdown&&review.scoreBreakdown.length?'<div class="bb-score-grid">'+review.scoreBreakdown.map(item=>'<div class="bb-score-item"><b><span>'+escapeNotice(item.criterion||'评分项')+'</span><span>'+escapeNotice(item.awarded||0)+' / '+escapeNotice(item.max||25)+'</span></b><p>'+escapeNotice(item.reason||'')+'</p></div>').join('')+'</div>':'';
   return '<section class="bb-question"><div class="eyebrow">批改结果</div><h3>'+escapeNotice(q.title)+' · 答案对照</h3>'+
-    (review.score?'<div class="bb-review-card"><h4>本次完成度</h4><p>'+escapeNotice(review.score)+'</p></div>':'')+
+    (review.score?'<div class="bb-review-card"><h4>本次完成度</h4><p>'+escapeNotice(review.score)+'</p>'+scoreGrid+'<button id="bb-regrade" class="bb-submit" onclick="regradeBlackboardAnswer()">重新核分</button></div>':'')+
     (review.diagnosis&&review.diagnosis.length?'<div class="bb-review-card"><h4>答案诊断</h4><ul>'+review.diagnosis.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>':'')+
-    '<div class="bb-review-card"><h4>阿栗润色版</h4><p>'+escapeNotice(review.revised)+'</p></div>'+
+    '<div class="bb-review-card"><h4>阿栗帮答</h4><p>'+escapeNotice(review.revised)+'</p></div>'+
     '<div class="bb-comparison"><div class="bb-review-card"><h4>你的原答案</h4><p>'+escapeNotice(answer)+'</p></div>'+
     '<div class="bb-review-card"><h4>标准答案</h4><ol class="bb-standard">'+q.standard.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ol></div></div>'+
     '<div class="bb-review-card"><h4>AI 修改建议</h4><ul>'+review.suggestions.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>'+
     (review.thinking&&review.thinking.length?'<div class="bb-review-card"><h4>下一轮思考方向</h4><ul>'+review.thinking.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>':'')+
     (window.BB_STATE&&window.BB_STATE.nextQuestion?'<div class="bb-review-card"><h4>下一步练习</h4><p>'+escapeNotice(window.BB_STATE.nextQuestion)+'</p></div>':'')+
-    '<button class="bb-submit" onclick="window.BB_STATE.answer=\'\';showBlackboardMode(\'question\')">重新答一次</button></section>';
+    '</section>';
 }
 
 function saveBlackboardDirection(){
@@ -1046,9 +1256,11 @@ function buildBbReview(answer, q){
 
 function openPhotoWall(){
   openOverlay('<div class="photo-wall-scene"><img class="photo-wall-bg" src="assets/photos/photo_wall.webp" onerror="this.src=\'assets/photos/photo_wall.png\'" alt="">'+
-    '<main class="photo-library" id="photo-library"></main></div>','scene-panel');
-  renderPhotoAlbums();
+    '<main class="photo-wall-cover" id="photo-library"><button class="photo-wall-enter" onclick="openPhotoLibrary()">进入照片库</button></main></div>','scene-panel');
 }
+
+let PHOTO_ALBUM_SORT='time';
+function openPhotoLibrary(){document.querySelector('.photo-wall-scene')?.classList.add('library-open');renderPhotoAlbums();}
 
 function seedPhotoAlbums(){
   const saved=readNoticeList('cozy_photo_albums');
@@ -1075,10 +1287,16 @@ function savePhotoAlbums(albums){
 
 function renderPhotoAlbums(){
   const box=document.getElementById('photo-library');if(!box)return;
-  const albums=seedPhotoAlbums().slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||'')));
-  const tiles=albums.map(album=>{const cover=(album.photos||[])[0]||{};return '<button class="photo-album-tile" onclick="openPhotoAlbum(\''+escapeNotice(album.id)+'\')"><span class="photo-album-cover">'+(cover.src?'<img src="'+escapeNotice(cover.src)+'" alt="">':'')+'</span><span class="photo-album-title">'+escapeNotice(album.title)+'</span><span class="photo-album-meta"><span>'+((album.photos||[]).length)+' 张</span><span class="photo-date-mark">'+escapeNotice(photoDateLabel(album.date))+'</span></span></button>';}).join('');
-  box.innerHTML='<header class="photo-library-head"><div><h2>照片集</h2><p>上传与旅行带回的照片按集合整理，默认从最近的时间开始。</p></div></header><div class="photo-album-grid">'+tiles+'<button class="photo-album-tile" onclick="createPhotoAlbum()"><span class="photo-album-add">＋</span><span class="photo-album-title">新照片集</span><span class="photo-album-meta"><span>自己命名</span></span></button></div><div class="photo-wall-status" id="photo-wall-status"></div>';
+  box.className='photo-library';
+  const original=seedPhotoAlbums().slice();
+  const albumTime=value=>{const parts=String(value||'').match(/(\d{4})\D(\d{1,2})\D(\d{1,2})/);return parts?new Date(Number(parts[1]),Number(parts[2])-1,Number(parts[3])).getTime():0;};
+  const albums=PHOTO_ALBUM_SORT==='time'?original.sort((a,b)=>albumTime(b.date)-albumTime(a.date)):original;
+  const tiles=albums.map((album,index)=>{const cover=(album.photos||[])[0]||{};return '<article class="photo-album-tile"><button class="photo-album-cover" onclick="openPhotoAlbum(\''+escapeNotice(album.id)+'\')">'+(cover.src?'<img src="'+escapeNotice(cover.src)+'" alt="">':'')+'</button><span class="photo-album-title">'+escapeNotice(album.title)+'</span><span class="photo-album-meta"><span>'+((album.photos||[]).length)+' 张</span><span class="photo-date-mark">'+escapeNotice(photoDateLabel(album.date))+'</span></span>'+(PHOTO_ALBUM_SORT==='manual'?'<span class="photo-album-move"><button title="向前移动" onclick="movePhotoAlbum(\''+escapeNotice(album.id)+'\',-1)">←</button><button title="向后移动" onclick="movePhotoAlbum(\''+escapeNotice(album.id)+'\',1)">→</button></span>':'')+'</article>';}).join('');
+  box.innerHTML='<header class="photo-library-head"><div><h2>照片集</h2><p>上传与旅行带回的照片按集合整理。</p></div><div class="photo-library-tools"><select onchange="setPhotoAlbumSort(this.value)" aria-label="照片集排序"><option value="time"'+(PHOTO_ALBUM_SORT==='time'?' selected':'')+'>按时间</option><option value="manual"'+(PHOTO_ALBUM_SORT==='manual'?' selected':'')+'>手动排序</option></select><button onclick="createPhotoAlbum()">＋ 新照片集</button></div></header><div class="photo-album-grid">'+tiles+'</div><div class="photo-wall-status" id="photo-wall-status"></div>';
 }
+
+function setPhotoAlbumSort(value){PHOTO_ALBUM_SORT=value==='manual'?'manual':'time';renderPhotoAlbums();}
+function movePhotoAlbum(id,step){const albums=seedPhotoAlbums();const index=albums.findIndex(item=>item.id===id);const target=index+step;if(index<0||target<0||target>=albums.length)return;[albums[index],albums[target]]=[albums[target],albums[index]];savePhotoAlbums(albums);PHOTO_ALBUM_SORT='manual';renderPhotoAlbums();}
 
 function photoDateLabel(value){const parts=String(value||'').split('-');return parts.length>=3?Number(parts[1])+'月'+Number(parts[2])+'日':String(value||'未标日期');}
 
@@ -1503,7 +1721,7 @@ function noticeAdvice(report){
 
 function noticeAdviceBlock(report){
   const items=noticeAdvice(report);
-  return '<section class="insight-box advice-box"><h3>阿栗的建议</h3><p class="advice-lead">不是再复述新闻，而是把本期变化转成你做 AI 产品时能验证的判断。</p><ul>'+items.map(item=>'<li>'+escapeNotice(item)+'</li>').join('')+'</ul></section>';
+  return '<section class="insight-box advice-box"><h3>阿栗的建议</h3><ul>'+items.map(item=>'<li>'+escapeNotice(item)+'</li>').join('')+'</ul></section>';
 }
 
 function showNoticeView(view, btn){
@@ -2427,6 +2645,7 @@ function applyEstateScene(scene, weatherData){
   const src = ESTATE_SCENES[scene] || ESTATE_SCENES.sunny;
   if(!img || !stage) return;
   const weatherTitle = sceneWeatherTitle(weatherData);
+  updateButlerClock(weatherData);
   stage.dataset.scene = scene;
   localStorage.setItem('cozy_estate_scene',scene);
   stage.dataset.weather = (weatherData && weatherData.current && weatherData.current.condition) || '晴天';
@@ -2455,8 +2674,22 @@ async function refreshEstateWeather(){
   }
 }
 
+let latestEstateWeather=null;
+function updateButlerClock(weatherData){
+  if(weatherData)latestEstateWeather=weatherData;
+  const node=document.getElementById('b-weather');if(!node)return;
+  const now=new Date();
+  const clock=String(now.getMonth()+1).padStart(2,'0')+'月'+String(now.getDate()).padStart(2,'0')+'日 '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
+  const data=latestEstateWeather||{};const location=data.location||{};const current=data.current||{};
+  const temperature=current.temperature==null?'':Math.round(Number(current.temperature))+'°';
+  const weather=[location.city,current.condition,temperature].filter(Boolean).join(' ');
+  node.textContent=clock+(weather?' · '+weather:' · 天气待更新');
+}
+
 function initWeatherScene(){
   applyEstateScene(localTimeScene(), null);
+  updateButlerClock(null);
+  setInterval(()=>updateButlerClock(null),60*1000);
   if(window.CozyRuntime && window.CozyRuntime.readOnly)return;
   refreshEstateWeather();
   setInterval(refreshEstateWeather, 2 * 60 * 60 * 1000);

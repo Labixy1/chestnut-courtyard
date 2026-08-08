@@ -11,7 +11,7 @@ description: Respond to 树洞 entries, group multiple entries by day, and seal 
    - `dialogue`: reflect one concrete detail, respond naturally, and ask at most one gentle follow-up question so the conversation can continue.
 3. Store raw content as sealed memory.
 4. Never place tree-hollow media on the normal photo wall.
-5. Generate buried media only for unusually concrete memories and at low frequency.
+5. Generate one buried image, never a video, only for unusually concrete memories and at low frequency.
 6. For a concrete entry, optionally emit a `growth_signal` for the growth field. It contains only `should_grow`, a privacy-safe abstract title, a short growth hint, and nourishment from 1 to 3.
 7. Short emotional utterances, microphone tests, repeated phrases, and vague distress do not create growth signals.
 8. A growth signal must never repeat or reveal raw words, people, companies, places, or other sealed details. The original entry remains sealed in the tree hollow.

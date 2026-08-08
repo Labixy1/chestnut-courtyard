@@ -27,6 +27,9 @@ assert.equal(result.status, 200);
 assert.equal(result.body.access, "preview");
 assert.equal(result.body.storage.kv, true);
 
+result = await payload(await request("/api/providers"));
+assert.equal(result.body.providers.image.nano_banana.model, "gemini-2.5-flash-image");
+
 result = await payload(await request("/api/data?key=estate_state"));
 assert.equal(result.body.level, "新来的住客");
 

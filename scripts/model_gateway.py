@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -28,6 +29,7 @@ class ModelGateway:
             "glm": ("GLM_API_KEY", "BIGMODEL_API_KEY"),
             "qwen": ("QWEN_API_KEY", "DASHSCOPE_API_KEY"),
             "ark": ("ARK_API_KEY",),
+            "gemini": ("GEMINI_API_KEY",),
         }
         return next((self._env(name) for name in names.get(provider, ()) if self._env(name)), "")
 
@@ -38,6 +40,7 @@ class ModelGateway:
             "glm": ("GLM_BASE_URL", "https://open.bigmodel.cn/api/paas/v4"),
             "qwen": ("QWEN_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
             "ark": ("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),
+            "gemini": ("GEMINI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta"),
         }
         env_name, default = values[provider]
         return self._env(env_name, default).rstrip("/")
@@ -49,8 +52,9 @@ class ModelGateway:
             ("deepseek", "text"): ("COZY_DEEPSEEK_MODEL", "deepseek-chat"),
             ("glm", "text"): ("COZY_GLM_MODEL", "glm-4.7-flash"),
             ("qwen", "text"): ("COZY_QWEN_MODEL", "qwen3.7-flash"),
-            ("ark", "image"): ("COZY_SEEDREAM_MODEL", "doubao-seedream-5-0-pro-260628"),
-            ("ark", "video"): ("COZY_SEEDANCE_MODEL", "doubao-seedance-2-0-260128"),
+            ("ark", "image"): ("COZY_SEEDREAM_MODEL", "doubao-seedream-4-0-250828"),
+            ("ark", "video"): ("COZY_SEEDANCE_MODEL", "doubao-seedance-2-0-mini-260615"),
+            ("gemini", "image"): ("COZY_GEMINI_IMAGE_MODEL", "gemini-2.5-flash-image"),
         }
         env_name, default = values[(provider, capability)]
         return self._env(env_name, default)
@@ -71,10 +75,15 @@ class ModelGateway:
         if not key:
             raise RuntimeError(f"{provider} API Key 尚未配置")
         data = None if body is None else json.dumps(body, ensure_ascii=False).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        if provider == "gemini":
+            headers["x-goog-api-key"] = key
+        else:
+            headers["Authorization"] = "Bearer " + key
         request = urllib.request.Request(
             self._base_url(provider) + path,
             data=data,
-            headers={"Authorization": "Bearer " + key, "Content-Type": "application/json"},
+            headers=headers,
             method=method,
         )
         try:
@@ -145,7 +154,6 @@ class ModelGateway:
                 "model": str(options.get("model") or self._model("ark", "image")),
                 "prompt": str(prompt),
                 "size": str(options.get("size") or "2K"),
-                "output_format": str(options.get("output_format") or "png"),
                 "response_format": str(options.get("response_format") or "url"),
                 "watermark": bool(options.get("watermark", False)),
             }
@@ -174,7 +182,27 @@ class ModelGateway:
             payload = self._request("openai", "POST", "/images/generations", body, timeout=180)
             return {"provider": "openai", "model": body["model"], "created": payload.get("created"),
                     "data": payload.get("data") or [], "usage": payload.get("usage") or {}}
-        raise ValueError("图片生成 provider 只支持 seedream 或 openai")
+        if provider in {"gemini", "nano-banana", "nano_banana"}:
+            model = str(options.get("model") or self._model("gemini", "image"))
+            parts = [{"text": str(prompt)}]
+            for image in options.get("images") or []:
+                value = str(image)
+                match = re.match(r"^data:([^;,]+);base64,(.+)$", value, re.S)
+                if match:
+                    parts.append({"inline_data": {"mime_type": match.group(1), "data": match.group(2)}})
+            payload = self._request("gemini", "POST", "/models/" + urllib.parse.quote(model, safe=".-_") + ":generateContent", {
+                "contents": [{"role": "user", "parts": parts}],
+                "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
+            }, timeout=180)
+            data = []
+            for candidate in payload.get("candidates") or []:
+                for part in (candidate.get("content") or {}).get("parts") or []:
+                    inline = part.get("inlineData") or part.get("inline_data") or {}
+                    if inline.get("data"):
+                        data.append({"b64_json": inline["data"], "mime_type": inline.get("mimeType") or inline.get("mime_type")})
+            return {"provider": "gemini", "model": model, "data": data,
+                    "usage": payload.get("usageMetadata") or {}}
+        raise ValueError("图片生成 provider 只支持 seedream、openai 或 gemini")
 
     def create_video(self, prompt, provider="seedance", **options):
         if str(provider or "seedance").lower() not in {"seedance", "ark"}:
@@ -231,6 +259,7 @@ class ModelGateway:
             "image": {
                 "seedream": {"configured": bool(self._key("ark")), "model": self._model("ark", "image")},
                 "openai": {"configured": bool(self._key("openai")), "model": self._model("openai", "image")},
+                "nano_banana": {"configured": bool(self._key("gemini")), "model": self._model("gemini", "image")},
             },
             "video": {"seedance": {"configured": bool(self._key("ark")), "model": self._model("ark", "video")}},
         }

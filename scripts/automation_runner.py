@@ -220,7 +220,7 @@ class AutomationRunner:
         items = local.setdefault("values", {}).get("cozy_hollow_buried_media", [])
         if not isinstance(items, list):
             return False
-        due = next((item for item in items if item.get("status") == "queued_for_night" and
+        due = next((item for item in items if item.get("status") in {"queued_for_night", "pending"} and
                     (now.hour >= 22 or str(item.get("date") or "") < now.date().isoformat())), None)
         if not due:
             return False
@@ -234,13 +234,13 @@ class AutomationRunner:
                 "记忆标题：%s。内容线索：%s" % (str(due.get("title") or "")[:80], str(due.get("summary") or "")[:500])
             )
             task = self.media_service.generate_image({"kind": "image", "provider": "seedream", "prompt": prompt,
-                                                      "size": "2K", "output_format": "webp", "watermark": False})
+                                                      "size": "2K", "watermark": False})
             output = (task.get("outputs") or [{}])[0]
             due.update({"status": "ready", "file": output.get("file", ""), "task_id": task.get("id"),
                         "generated_at": self.now()})
             self._record("hollow_memory_media", "completed", "今天的树洞记忆影像已生成")
         except Exception as exc:
-            due.update({"status": "queued_for_night", "last_error": str(exc)[:300], "last_attempt_at": self.now()})
+            due.update({"status": "failed", "last_error": str(exc)[:300], "last_attempt_at": self.now()})
             self._record("hollow_memory_media", "failed", str(exc))
         self._write_local_state(local_path, local)
         return due.get("status") == "ready"

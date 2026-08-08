@@ -429,6 +429,44 @@ class MemoryStore:
         self._write(self.paths["profile"], profile)
         return profile
 
+    def _inner_profile(self):
+        """Turn sealed tree-hollow records into private, non-quoting tendencies."""
+        sealed = self._read(self.paths["sealed"], {"items": []}).get("items", [])
+        records = [item for item in sealed if item.get("source") == "heart_hollow"][:160]
+        themes = (
+            ("work", "工作与方向", r"工作|公司|项目|职业|面试|产品|会议|同事", "会认真追问投入是否值得，也希望把下一步想清楚"),
+            ("relationship", "关系与边界", r"朋友|关系|家人|相处|他说|她说|理解|边界", "在关系里重视真诚、边界和是否被真正理解"),
+            ("pressure", "自我要求", r"压力|累|焦虑|失败|做不好|来不及|应该|必须|责怪", "对自己有要求，也正在学习分辨哪些重量不必一直背着"),
+            ("choice", "选择与变化", r"选择|决定|以后|方向|改变|放弃|离开|开始", "面对重要选择时会反复权衡，希望决定来自真实意愿"),
+            ("life", "生活与恢复", r"旅行|睡|休息|家里|生活|天气|散步|吃饭", "会从具体生活体验里恢复能量，也珍惜不被任务占满的时刻"),
+        )
+        counts = Counter()
+        for item in records:
+            text = self._clean(str(item.get("content") or "") + " " + str(item.get("summary") or ""))
+            for theme_id, _title, pattern, _insight in themes:
+                if re.search(pattern, text, re.I):
+                    counts[theme_id] += 1
+        visible = []
+        for theme_id, title, _pattern, insight in themes:
+            count = counts.get(theme_id, 0)
+            if count >= 2:
+                visible.append({"id": theme_id, "title": title, "text": insight, "evidence_count": count})
+        if not records:
+            summary = "树洞里还没有足够内容形成内在轨迹。"
+        elif visible:
+            summary = "；".join(item["text"] for item in visible[:4]) + "。"
+        else:
+            summary = "树洞里已经有一些只属于你的记录，阿栗仍在观察重复出现的线索，不会用单次倾诉定义你。"
+        fingerprint = hashlib.sha256("|".join(
+            "%s:%s:%s" % (item.get("id", ""), item.get("date", ""), item.get("summary", ""))
+            for item in records
+        ).encode("utf-8")).hexdigest()[:20]
+        return {
+            "version": 1, "generated_at": self.now(), "fingerprint": fingerprint,
+            "source_count": len(records), "summary": summary, "sections": visible,
+            "rules": ["只提炼重复倾向", "不展示树洞原话", "单次倾诉不会定义人格"],
+        }
+
     def state(self, include_sealed=False):
         cards = self._read(self.paths["cards"], {"items": []}).get("items", [])
         categories_data = self._read(self.paths["categories"], {"items": [], "suggestions": []})
@@ -444,6 +482,7 @@ class MemoryStore:
             "policy": self._read(self.paths["policy"], {}),
             "migration": self._read(self.paths["migration"], {}),
             "profile": self._refresh_profile(cards),
+            "inner_profile": self._inner_profile(),
         }
         result["sealed"] = self._read(self.paths["sealed"], {"items": []}).get("items", []) if include_sealed else []
         return result
@@ -844,6 +883,7 @@ class MemoryStore:
             "context_package": {"query": query, "generated_at": self.now(), "cards": compact},
             "confirmed_preferences": preference_cards,
             "relevant_memory": memory_cards,
+            "inner_profile": self._inner_profile(),
             "recent_working_context": [{key: item.get(key) for key in ("source", "summary", "date")} for item in working],
             "rules": [
                 "只使用已激活且与当前任务相关的记忆卡片；候选卡片不影响执行。",

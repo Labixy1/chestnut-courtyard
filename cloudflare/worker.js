@@ -20,7 +20,8 @@ const providerConfig = (env, name) => {
     deepseek: {key: env.DEEPSEEK_API_KEY, base: env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1", model: env.COZY_DEEPSEEK_MODEL || "deepseek-chat"},
     glm: {key: env.GLM_API_KEY, base: env.GLM_BASE_URL || "https://open.bigmodel.cn/api/paas/v4", model: env.COZY_GLM_MODEL || "glm-4.7-flash"},
     qwen: {key: env.QWEN_API_KEY || env.DASHSCOPE_API_KEY, base: env.QWEN_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1", model: env.COZY_QWEN_MODEL || "qwen3.7-flash"},
-    ark: {key: env.ARK_API_KEY, base: env.ARK_BASE_URL || "https://ark.cn-beijing.volces.com/api/v3"}
+    ark: {key: env.ARK_API_KEY, base: env.ARK_BASE_URL || "https://ark.cn-beijing.volces.com/api/v3"},
+    gemini: {key: env.GEMINI_API_KEY, base: env.GEMINI_BASE_URL || "https://generativelanguage.googleapis.com/v1beta", model: env.COZY_GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image"}
   };
   return configs[name];
 };
@@ -132,9 +133,12 @@ async function login(request, env) {
 async function providerRequest(env, provider, path, body, method = "POST") {
   const config = providerConfig(env, provider);
   if (!config?.key) throw new Error(`${provider} API Key 尚未配置`);
+  const headers = {"content-type": "application/json"};
+  if (provider === "gemini") headers["x-goog-api-key"] = config.key;
+  else headers.authorization = `Bearer ${config.key}`;
   const response = await fetch(config.base.replace(/\/$/, "") + path, {
     method,
-    headers: {authorization: `Bearer ${config.key}`, "content-type": "application/json"},
+    headers,
     body: body == null ? undefined : JSON.stringify(body)
   });
   const payload = await response.json().catch(() => ({}));
@@ -186,9 +190,10 @@ function dateInShanghai(offsetDays = 0) {
   return new Date(Date.now() + offsetDays * 86400000).toLocaleDateString("en-CA", {timeZone: "Asia/Shanghai"});
 }
 
-async function cloudBlackboardQuestion(env) {
+async function cloudBlackboardQuestion(env, variant = "") {
   const date = dateInShanghai();
-  const cached = await readState(env, `blackboard:question:${date}`, null);
+  const cacheKey = `blackboard:question:${date}${variant ? `:${variant}` : ""}`;
+  const cached = await readState(env, cacheKey, null);
   if (cached) return cached;
   const [reports, local, memory] = await Promise.all([
     readData(env, "notice_reports"), readData(env, "local_state"), memoryContext(env)
@@ -203,18 +208,19 @@ async function cloudBlackboardQuestion(env) {
 最近答案：${JSON.stringify(answers).slice(0, 5000)}
 近期巡报：${JSON.stringify((reports.reports || []).slice(0, 2)).slice(0, 9000)}
 相关记忆：${JSON.stringify(memory).slice(0, 5000)}`;
-  const result = await callText(env, prompt, 1400);
+  const finalPrompt = prompt + (variant ? `\n这是同一天的换题请求（编号 ${variant}）。必须避开最近答案中已有题目的核心问题，换一个训练方向。` : "");
+  const result = await callText(env, finalPrompt, 1400);
   const parsed = extractJson(result.text);
   if (!parsed.question || !Array.isArray(parsed.standard_points)) throw new Error("模型生成的题目结构不完整");
   const question = {
-    id: `cloud-${date}`, date, title: String(parsed.title || "今天的产品判断").slice(0, 40),
+    id: `cloud-${date}-${variant || "daily"}`, date, title: String(parsed.title || "今天的产品判断").slice(0, 40),
     type: String((parsed.types || ["产品场景"])[0] || "产品场景"),
     types: (parsed.types || ["产品场景"]).slice(0, 4), question: String(parsed.question).slice(0, 2000),
     materials: (parsed.materials || []).slice(0, 2).map(String),
     standard: parsed.standard_points.slice(0, 7).map(String), standard_points: parsed.standard_points.slice(0, 7).map(String),
     provider: result.provider
   };
-  await writeState(env, `blackboard:question:${date}`, question, {expirationTtl: 60 * 60 * 24 * 45});
+  await writeState(env, cacheKey, question, {expirationTtl: 60 * 60 * 24 * 45});
   return question;
 }
 
@@ -246,7 +252,21 @@ async function runCloudReport(env, force = false) {
     '(AI 产品 原型 OR Agent 评测 OR 记忆系统 OR AI 工作流) when:7d'
   ];
   const settled = await Promise.allSettled(queries.map(fetchNewsRss));
-  const pool = settled.flatMap(item => item.status === "fulfilled" ? item.value : []).slice(0, 45);
+  const articleKeys = item => {
+    const keys = new Set();
+    const title = String(item?.title || "").toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g, "");
+    if (title.length >= 8) keys.add(`title:${title}`);
+    try {
+      const parsed = new URL(String(item?.link || item?.url || ""));
+      [...parsed.searchParams.keys()].forEach(key => { if (key.toLowerCase().startsWith("utm_") || ["from", "source", "ref", "spm"].includes(key.toLowerCase())) parsed.searchParams.delete(key); });
+      parsed.hash = ""; parsed.pathname = parsed.pathname.replace(/\/$/, "");
+      keys.add(`url:${parsed.toString()}`);
+    } catch (_error) {}
+    return keys;
+  };
+  const previousKeys = new Set();
+  (reportsData.reports || []).forEach(report => [...(report.hot_items || []), ...(report.sections || []).flatMap(section => section.items || [])].forEach(item => articleKeys(item).forEach(key => previousKeys.add(key))));
+  const pool = settled.flatMap(item => item.status === "fulfilled" ? item.value : []).filter(item => ![...articleKeys(item)].some(key => previousKeys.has(key))).slice(0, 45);
   if (!pool.length) throw new Error("近期资讯源没有返回可整理内容");
   const prompt = `你是阿栗，负责为 AI 产品经理整理一次“资讯巡报”。从候选中只挑真正重要、具体、多样的 7 到 11 条，不要为了凑数收录普通软文。
 只返回 JSON：{"focus_title":"本期最重要变化","hot_items":[{"source_id":"候选id","category":"模型与技术","original_summary":"基于标题与已有摘要的忠实短摘要","ai_summary":"120到200字，说明具体变化、关键数字或能力、值得关注的结论"}],"sections":[{"name":"国内外动态","items":[同结构]},{"name":"产品相关动态","items":[同结构]}],"insights":["跨文章案例总结"],"advice":["给正在做AI产品的主人一个有深度且可执行的建议"]}。
@@ -306,7 +326,7 @@ async function generateImage(env, input) {
     let payload;
     if (provider === "seedream" || provider === "ark") {
       payload = await providerRequest(env, "ark", "/images/generations", {
-        model: input.model || env.COZY_SEEDREAM_MODEL || "doubao-seedream-5-0-pro-260628",
+        model: input.model || env.COZY_SEEDREAM_MODEL || "doubao-seedream-4-0-250828",
         prompt: task.prompt, image: input.images || undefined, size: input.size || "2K",
         output_format: input.output_format || "png", response_format: "url", watermark: Boolean(input.watermark)
       });
@@ -315,7 +335,17 @@ async function generateImage(env, input) {
         model: input.model || env.COZY_OPENAI_IMAGE_MODEL || "gpt-image-2", prompt: task.prompt,
         size: input.size || "1536x1024", quality: input.quality || "high", output_format: input.output_format || "png", n: Number(input.count || 1)
       });
-    } else throw new Error("图片 provider 只支持 seedream 或 openai");
+    } else if (["gemini", "nano-banana", "nano_banana"].includes(provider)) {
+      const model = input.model || env.COZY_GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image";
+      const gemini = await providerRequest(env, "gemini", `/models/${encodeURIComponent(model)}:generateContent`, {
+        contents: [{role: "user", parts: [{text: task.prompt}]}],
+        generationConfig: {responseModalities: ["TEXT", "IMAGE"]}
+      });
+      payload = {model, data: (gemini.candidates || []).flatMap(candidate => candidate.content?.parts || []).map(part => {
+        const inline = part.inlineData || part.inline_data || {};
+        return inline.data ? {b64_json: inline.data, mime_type: inline.mimeType || inline.mime_type} : null;
+      }).filter(Boolean), usage: gemini.usageMetadata || {}};
+    } else throw new Error("图片 provider 只支持 seedream、openai 或 gemini");
     const outputs = [];
     for (const item of (payload.data || []).slice(0, 4)) {
       if (item.url) outputs.push(...await storeRemoteMedia(env, task, item.url, input.output_format || "png"));
@@ -342,11 +372,11 @@ async function createVideo(env, input) {
   try {
     const content = [{type: "text", text: task.prompt}, ...(input.images || []).map(url => ({type: "image_url", image_url: {url}, role: "reference_image"}))];
     const payload = await providerRequest(env, "ark", "/contents/generations/tasks", {
-      model: input.model || env.COZY_SEEDANCE_MODEL || "doubao-seedance-2-0-260128", content,
+      model: input.model || env.COZY_SEEDANCE_MODEL || "doubao-seedance-2-0-mini-260615", content,
       generate_audio: Boolean(input.generate_audio), ratio: input.ratio || "16:9", resolution: input.resolution || "720p",
       duration: Math.min(Math.max(Number(input.duration || 5), 3), 30), watermark: Boolean(input.watermark)
     });
-    task = {...task, status: "queued", remote_id: payload.id, model: input.model || env.COZY_SEEDANCE_MODEL || "doubao-seedance-2-0-260128"};
+    task = {...task, status: "queued", remote_id: payload.id, model: input.model || env.COZY_SEEDANCE_MODEL || "doubao-seedance-2-0-mini-260615"};
     return saveGenerationTask(env, task);
   } catch (error) {
     await saveGenerationTask(env, {...task, status: "failed", error: error.message});
@@ -370,6 +400,50 @@ function cleanHtml(value) {
     .replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&")
     .replace(/&quot;/gi, "\"").replace(/&#39;/gi, "'").replace(/\s+/g, " ").trim();
+}
+
+function embeddedDocumentText(html, limit = 160000) {
+  const values = [];
+  const seen = new Set();
+  const pattern = /\\"insert\\":\\"((?:\\\\.|[^\\"])*)\\"/g;
+  let size = 0;
+  for (const match of String(html || "").matchAll(pattern)) {
+    let value = "";
+    try { value = JSON.parse(`"${match[1]}"`); } catch (_error) { continue; }
+    value = String(value).replace(/\s+/g, " ").trim();
+    if (!value || value === "*" || seen.has(value)) continue;
+    seen.add(value);
+    values.push(value);
+    size += value.length + 1;
+    if (size >= limit) break;
+  }
+  return values.join("\n").slice(0, limit);
+}
+
+function priceContext(text, tool) {
+  const model = String(tool?.model || "").trim();
+  const canonical = model.replace(/-\d{6}$/, "");
+  const dotted = canonical.replace(/-(\d+)-(\d+)(?=-|$)/, "-$1.$2");
+  const terms = [...new Set([model, canonical, dotted].filter(Boolean))].sort((a, b) => b.length - a.length);
+  if (!terms.length) terms.push(String(tool?.title || "").replace(/\s+API$/i, "").trim());
+  const source = String(text || "");
+  const lower = source.toLowerCase();
+  const windows = [];
+  const seen = new Set();
+  for (const term of terms) {
+    const needle = term.toLowerCase();
+    let start = 0;
+    while (needle && windows.length < 6) {
+      const index = lower.indexOf(needle, start);
+      if (index < 0) break;
+      const left = Math.max(0, index - 520);
+      const right = Math.min(source.length, index + needle.length + 650);
+      const marker = `${Math.floor(left / 300)}:${Math.floor(right / 300)}`;
+      if (!seen.has(marker)) { seen.add(marker); windows.push(source.slice(left, right)); }
+      start = index + needle.length;
+    }
+  }
+  return (windows.length ? windows.join("\n--- 当前模型相邻价格区 ---\n") : source.slice(0, 8000)).slice(0, 12000);
 }
 
 function metaValue(html, names) {
@@ -404,7 +478,7 @@ function categoryForArticle(text) {
 
 async function parseUrl(env, value, instruction = "") {
   const url = safeExternalUrl(value);
-  const response = await fetch(url.toString(), {redirect: "follow", headers: {"user-agent": "Mozilla/5.0 (compatible; ChestnutCourtyard/1.0)", accept: "text/html,application/xhtml+xml"}});
+  const response = await fetch(url.toString(), {redirect: "follow", headers: {"user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36", accept: "text/html,application/xhtml+xml"}});
   if (!response.ok) throw new Error(`网页读取失败（HTTP ${response.status}）`);
   const type = response.headers.get("content-type") || "";
   if (!type.includes("text/html") && !type.includes("text/plain")) throw new Error("这个链接不是可解析的网页正文");
@@ -425,6 +499,35 @@ async function parseUrl(env, value, instruction = "") {
     summary: (original || articleText.slice(0, 360)).slice(0, 600), ai_summary: aiSummary.slice(0, 1200),
     archived_at: now()
   };
+}
+
+async function refreshToolPriceCloud(env, rawTool) {
+  const tool = rawTool && typeof rawTool === "object" ? rawTool : {};
+  const title = String(tool.title || "").trim();
+  const source = tool.price_url || tool.pricing?.source_url || tool.source_url;
+  if (!title || !source) throw new Error("这个工具还没有可核验的官方价格页");
+  const url = safeExternalUrl(source);
+  let response;
+  let html = "";
+  const dynamicDoc = url.hostname.toLowerCase().endsWith("volcengine.com");
+  for (let attempt = 0; attempt < (dynamicDoc ? 4 : 1); attempt += 1) {
+    response = await fetch(url.toString(), {redirect: "follow", headers: {"user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0 Safari/537.36", accept: "text/html,application/xhtml+xml"}});
+    if (!response.ok) throw new Error(`官方价格页读取失败（HTTP ${response.status}）`);
+    html = (await response.text()).slice(0, 1200000);
+    if (!dynamicDoc || html.length >= 100000 || html.includes('\\"insert\\"')) break;
+    if (attempt < 3) await new Promise(resolve => setTimeout(resolve, 700 + attempt * 600));
+  }
+  const embeddedText = embeddedDocumentText(html);
+  const pageText = priceContext(embeddedText.length >= 80 ? embeddedText : cleanHtml(html), tool);
+  const result = await callText(env, `只根据下面官方价格页核验“${title}”的当前价格。不得猜测，不得混入同页其他模型。正文已截取到当前模型附近，只采用紧跟当前模型名的价格，不采用片段边缘处其他模型的价格。当前日期 ${dateInShanghai()}。只返回 JSON：{"summary":"一句价格概括","currency":"CNY/USD/其他","items":[{"label":"计费项或规格","value":"价格数值、范围或折扣","unit":"计费单位"}],"status":"current/estimate/unavailable","note":"优惠期限或动态计费说明"}。页面没有明确价格时标 unavailable。\n当前模型：${tool.model || ""}\n官方页：${url}\n正文：${pageText}`, 1200);
+  const parsed = extractJson(result.text);
+  const items = (Array.isArray(parsed.items) ? parsed.items : []).filter(item => item?.label && item?.value).slice(0, 8).map(item => ({label: String(item.label).slice(0, 100), value: String(item.value).slice(0, 160), unit: String(item.unit || "").slice(0, 100)}));
+  if (String(parsed.status || "") === "unavailable" || !items.length) throw new Error("官方页面里没有解析到这个模型的明确价格，已保留原价格");
+  const sourceNumbers = new Set([...pageText.matchAll(/(?<![A-Za-z])\d+(?:\.\d+)?/g)].map(match => Number(match[0])));
+  const returnedNumbers = [...items.flatMap(item => [...item.value.matchAll(/(?<![A-Za-z])\d+(?:\.\d+)?/g)].map(match => Number(match[0])))];
+  if (returnedNumbers.some(value => !sourceNumbers.has(value))) throw new Error("价格核验结果包含官方截取片段中不存在的数字，已保留原价格");
+  const pricing = {summary: String(parsed.summary || "").slice(0, 300), currency: String(parsed.currency || "").slice(0, 20), items, status: String(parsed.status || "current"), note: String(parsed.note || "").slice(0, 300), checked_at: dateInShanghai(), source_url: url.toString()};
+  return {...tool, type: "toolbox", pricing, price_url: url.toString(), source: "price_refresh"};
 }
 
 function extractUrls(text) {
@@ -516,7 +619,9 @@ async function roomReply(env, room, message, context) {
   };
   const guide = roomPrompts[room] || "根据当前房间和上下文直接回应。";
   const formats = {
-    blackboard: '只返回 JSON：{"score":"分数与一句依据","diagnosis":["逐点诊断"],"polished_answer":"保留原意的优化答案","standard_points":["4到7条参考答案要点"],"suggestions":["针对原答案的具体建议"],"thinking_directions":["下一轮思考或验证方向"],"next_question":"下一步练习"}',
+    blackboard: String(context?.intent || "grade_answer") === "question_helper"
+      ? '只返回 JSON：{"reply":"80到180字解释题目涉及的组织、概念或事实背景，不泄露标准答案，不代写方案","material":"一条可加入本题资料的简明摘要，并说明信息边界"}。只回答当前题目相关问题；只能把上下文资料明确写出的内容当事实。资料未说明组织性质、归属、价格或指标时必须说现有资料无法确认，禁止凭模型印象补全。组织性质未明确时只能称“该项目”或“该发布主体”，不得称为公司、社区、机构或团队。'
+      : '只返回 JSON：{"score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"方案完整","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"验证与指标","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"风险与回滚","max":25,"awarded":0到25,"reason":"引用原答案证据"}],"score_summary":"一句总评，不写总分","diagnosis":["逐点诊断"],"polished_answer":"在主人答案基础上补全的阿栗帮答","standard_points":["4到7条参考答案要点"],"suggestions":["具体建议"],"thinking_directions":["思考方向"],"next_question":"下一步练习"}。无论答案多短都必须返回完整四项评分，不能省略 score_breakdown；四项各25分，没有在原答案明确出现的内容不得给分，awarded 必须为整数；极短答案可低分，但每项仍要说明缺失内容。',
     orchard: '只返回 JSON：{"reply":"直接而有余味的解答","seed_summary":"成长主题","key_insight":"可复用判断","next_step":"3天内的小实验","knowledge_topic":{"match_id":"","title":"可持续更新的专题名","category":"成长与方向","entities":[],"summary":"专题最新摘要","knowledge_points":[]}}',
     heart_hollow: String(context?.mode || "oracle") === "dialogue"
       ? '只返回 JSON：{"reply":"自然的对话回应","mode":"dialogue","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。'
@@ -655,8 +760,8 @@ export async function handleRequest(request, env, ctx = {}) {
     if (request.method === "GET" && url.pathname === "/api/providers") return json({ok: true, providers: {
       text: Object.fromEntries(["openai", "deepseek", "glm", "qwen"].map(name => [name, {configured: Boolean(providerConfig(env, name)?.key), model: providerConfig(env, name)?.model}])),
       workers_ai: {configured: Boolean(env.AI), model: env.COZY_WORKERS_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct-fp8"},
-      image: {seedream: {configured: Boolean(env.ARK_API_KEY), model: env.COZY_SEEDREAM_MODEL || "doubao-seedream-5-0-pro-260628"}, openai: {configured: Boolean(env.OPENAI_API_KEY), model: env.COZY_OPENAI_IMAGE_MODEL || "gpt-image-2"}},
-      video: {seedance: {configured: Boolean(env.ARK_API_KEY), model: env.COZY_SEEDANCE_MODEL || "doubao-seedance-2-0-260128"}}
+      image: {seedream: {configured: Boolean(env.ARK_API_KEY), model: env.COZY_SEEDREAM_MODEL || "doubao-seedream-4-0-250828"}, openai: {configured: Boolean(env.OPENAI_API_KEY), model: env.COZY_OPENAI_IMAGE_MODEL || "gpt-image-2"}, nano_banana: {configured: Boolean(env.GEMINI_API_KEY), model: env.COZY_GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image"}},
+      video: {seedance: {configured: Boolean(env.ARK_API_KEY), model: env.COZY_SEEDANCE_MODEL || "doubao-seedance-2-0-mini-260615"}}
     }});
     if (request.method === "GET" && url.pathname === "/api/data") {
       const key = String(url.searchParams.get("key") || "");
@@ -675,13 +780,13 @@ export async function handleRequest(request, env, ctx = {}) {
       {name: "关注方向", description: "调整后续资讯关注"}, {name: "媒体来源", description: "维护巡逻信息源"},
       {name: "工具箱", description: "从链接整理工具卡片"}, {name: "记忆整理", description: "维护非封存记忆档案"}
     ], skills: [
-      "archive-travel", "coach-blackboard", "curate-news", "curate-photos", "generate-media", "guide-orchard",
+      "archive-travel", "coach-blackboard", "curate-news", "curate-photos", "generate-media", "imagegen-assets", "remove-background", "guide-orchard",
       "listen-tree-hollow", "manage-memory", "manage-toolbox", "run-automation"
     ].map(name => ({name, origin: "bundled", status: "installed", kind: "guide", permission: "normal"})),
     can_build: false, health: {ok: true, summary: "云端内置能力已连接"}}});
     if (request.method === "GET" && url.pathname === "/api/automation") return json({ok: true, automation: await readState(env, "automation:status", {last_check: "", jobs: {}})});
     if (request.method === "GET" && url.pathname === "/api/voice/status") return json({ok: true, active: false, ready: false, phase: "browser_only", transcript: ""});
-    if (request.method === "GET" && url.pathname === "/api/blackboard/today") return json({ok: true, question: await cloudBlackboardQuestion(env)});
+    if (request.method === "GET" && url.pathname === "/api/blackboard/today") return json({ok: true, question: await cloudBlackboardQuestion(env, (url.searchParams.get("refresh") || "").slice(0, 32))});
     if (request.method === "GET" && url.pathname === "/api/media/tasks") return json({ok: true, task: await loadGenerationTask(env, url.searchParams.get("id"))});
     if (request.method === "GET" && url.pathname === "/api/media/file") {
       if (!env.COZY_MEDIA) return new Response("Media storage is not enabled", {status: 503});
@@ -727,6 +832,17 @@ export async function handleRequest(request, env, ctx = {}) {
       const tool = {...item, id: `tool_${crypto.randomUUID().slice(0, 10)}`, type: "toolbox", purpose: item.ai_summary || item.summary, key_capabilities: [], usage_example: "从原文案例开始试用"};
       const state = await appendButlerItem(env, "toolbox", tool);
       return json({ok: true, summary: `已加入工具箱：${tool.title}`, item: tool, state});
+    }
+    if (url.pathname === "/api/toolbox/refresh-price") {
+      let tool;
+      try { tool = await refreshToolPriceCloud(env, input.tool); }
+      catch (_error) {
+        const original = input.tool && typeof input.tool === "object" ? input.tool : {};
+        const source = original.price_url || original.pricing?.source_url || "";
+        tool = {...original, type: "toolbox", pricing: {summary: "", currency: "", items: [], checked_at: "", source_url: source, status: "unavailable", note: ""}};
+      }
+      const state = await appendButlerItem(env, "toolbox", tool);
+      return json({ok: true, item: tool, state});
     }
     if (url.pathname === "/api/weekly/run") return json({ok: true, report: await runCloudReport(env, Boolean(input.force))});
     if (url.pathname === "/api/voice/start" || url.pathname === "/api/voice/stop") return json({ok: false, error: "云端使用浏览器语音识别，不启用本机语音服务"}, 501);

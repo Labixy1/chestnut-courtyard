@@ -1,0 +1,16 @@
+{
+  "name": "remove-background",
+  "description": "使用 OpenCV 把项目内图片的主体抠出，保存为透明 PNG 或 WebP。",
+  "arguments": {
+    "type": "object",
+    "required": ["input", "output"],
+    "properties": {
+      "input": {"type": "string", "description": "项目内输入图片路径"},
+      "output": {"type": "string", "description": "项目内输出 PNG 或 WebP 路径"},
+      "rect": {"type": "array", "description": "可选主体矩形比例 [x,y,width,height]，数值为 0 到 1"}
+    }
+  },
+  "entrypoint": "scripts/run.py",
+  "permission": "normal",
+  "timeout": 60
+}

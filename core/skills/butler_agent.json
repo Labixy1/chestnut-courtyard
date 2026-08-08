@@ -40,7 +40,7 @@
     {
       "name": "add_toolbox_item",
       "description": "把一个真实工具加入工具箱分类。",
-      "arguments": {"title": "工具名称", "category": "分类", "purpose": "用途", "key_capabilities": "关键能力数组", "use_cases": "使用场景数组", "example": "使用例子", "url": "官方地址"}
+      "arguments": {"title": "工具名称", "category": "分类", "purpose": "用途", "key_capabilities": "关键能力数组", "use_cases": "使用场景数组", "example": "使用例子", "url": "官方地址", "price_url": "官方价格页，可选", "pricing": "结构化价格，可选"}
     },
     {
       "name": "add_tool_from_link",

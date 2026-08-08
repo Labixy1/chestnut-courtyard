@@ -82,31 +82,35 @@
      font-size:15px;resize:vertical;font-family:inherit;background:#f6efdd;color:#4a3b2b}
   .composer .btns{display:flex;gap:10px;margin-top:10px;align-items:center}
   .composer button{border:0;border-radius:20px;padding:8px 18px;cursor:pointer;font-size:14px}
+  .write-mode{display:flex;align-items:center;gap:5px;margin-bottom:9px;color:#c9bca6;font-size:10px}.write-mode>span{margin-right:auto}.write-mode button{padding:4px 9px;border:1px solid rgba(255,239,213,.12);background:rgba(255,255,255,.06);color:#d7ccb8;font-size:10px}.write-mode button.active{background:#d9c28d;color:#3d3022;border-color:#d9c28d}
   .mic{background:#3a4a3a;color:#dfe6d3}
   .send{background:#8fb46a;color:#26302a;font-weight:600}
   .hint{color:#9fae94;font-size:12px}
   .nav{display:flex;justify-content:space-between;max-width:780px;width:100%;margin-top:10px}
   .nav button{background:rgba(32,22,14,.36);color:#fff1d1;border:0;border-radius:20px;padding:6px 16px;cursor:pointer;font-size:13px}
-  .history-wrap{display:none;position:absolute;left:3vw;right:3vw;bottom:3vh;z-index:8;height:min(52vh,520px);grid-template-columns:minmax(240px,32%) minmax(0,1fr);overflow:hidden;background:rgba(246,239,221,.91);color:#4a3b2b;border-radius:18px;box-shadow:0 26px 70px rgba(0,0,0,.34);backdrop-filter:blur(14px)}
+  .history-wrap{display:none;position:absolute;left:3vw;right:3vw;bottom:3vh;z-index:8;height:min(82vh,780px);grid-template-columns:minmax(0,1.65fr) minmax(320px,.7fr);overflow:hidden;background:rgba(246,239,221,.94);color:#4a3b2b;border-radius:16px;box-shadow:0 26px 70px rgba(0,0,0,.34);backdrop-filter:blur(14px)}
   .hollow-stage.history-unlocked .history-wrap{display:grid}
-  .buried-wrap{overflow:auto;border-right:1px solid rgba(74,59,43,.14);padding:18px}
-  .history-main{min-width:0;overflow:auto;padding:18px 20px}
-  .buried-wrap h2{font-size:14px;color:#6b4b2e;margin-bottom:8px}
-  .buried-card{display:grid;grid-template-columns:54px 1fr;gap:10px;align-items:center;
-     background:rgba(255,255,255,.52);border-radius:14px;padding:8px;margin:8px 0}
-  .buried-thumb{height:44px;border-radius:10px;background:linear-gradient(135deg,#b9c8a4,#ead6aa) center/cover;
-     display:flex;align-items:center;justify-content:center;color:#5d4a30;font-size:11px;font-weight:700}
-  .buried-card h3{font-size:13px;color:#4a3b2b;margin-bottom:3px}
-  .buried-card p{font-size:12px;line-height:1.55;color:#75614b}
+  .history-close{position:absolute;right:12px;top:12px;z-index:3;width:34px;height:34px;border:0;border-radius:50%;background:rgba(74,59,43,.09);color:#5f4935;font-size:20px;cursor:pointer}
+  .buried-wrap{overflow:auto;border-right:1px solid rgba(74,59,43,.14);padding:22px 24px}
+  .history-main{min-width:0;overflow:auto;padding:54px 20px 18px}
+  .buried-wrap h2{font-size:16px;color:#6b4b2e;margin-bottom:12px}
+  .buried-card{display:grid;gap:12px;background:rgba(255,255,255,.54);border-radius:12px;padding:10px;margin:10px 0 18px}
+  .buried-thumb{width:100%;aspect-ratio:16/10;min-height:390px;border-radius:9px;background:linear-gradient(135deg,#b9c8a4,#ead6aa) center/cover no-repeat;
+     display:flex;align-items:center;justify-content:center;color:#5d4a30;font-size:13px;font-weight:700}
+  .buried-thumb:not([style]){flex-direction:column;gap:7px;padding:18px;text-align:center}.buried-thumb small{max-width:92%;font-size:10px;line-height:1.55;font-weight:500;color:rgba(255,248,232,.9)}
+  .buried-thumb.status-failed{background:#8f6d64;color:#fff7ef}.buried-thumb.status-waiting{background:linear-gradient(135deg,#8fa080,#c7b98f)}
+  .buried-card h3{font-size:16px;color:#4a3b2b;margin-bottom:5px}
+  .buried-card p{font-size:13px;line-height:1.7;color:#75614b}
   .buried-card button{border:0;border-radius:999px;background:#798765;color:#fff9e8;padding:5px 9px;font:10px inherit;margin-top:5px;cursor:pointer}
   .grass-secret{position:fixed;left:0;right:0;bottom:0;height:18%;z-index:2;border:0;background:transparent;cursor:default}
   .day-card{border-bottom:1px dashed rgba(74,59,43,.22);padding:12px 0}
   .day-card:last-child{border-bottom:0}
   .day-card h2{font-size:14px;color:#6b4b2e;margin-bottom:8px}
   .memory-item{font-size:13px;line-height:1.65;margin:8px 0;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.48)}
-  .memory-item .time{font-size:11px;color:#9b856c;margin-bottom:4px}
+  .memory-item .time{display:flex;align-items:center;gap:6px;font-size:11px;color:#9b856c;margin-bottom:4px}
+  .memory-mode{display:inline-flex;padding:2px 6px;border-radius:999px;font-size:9px;background:#e6d6b7;color:#745835}.memory-mode.dialogue{background:#d7e2d2;color:#4f6b4d}
   .memory-item .echo-line{color:#5f7d47;margin-top:4px}
-  @media(max-width:720px){.history-wrap{left:10px;right:10px;bottom:10px;height:68vh;grid-template-columns:1fr}.buried-wrap{max-height:38%;border-right:0;border-bottom:1px solid rgba(74,59,43,.14)}.history-main{padding:14px}.live-transcript{top:34%;width:82vw;font-size:15px}}
+  @media(max-width:720px){.history-wrap{left:10px;right:10px;bottom:10px;height:82vh;grid-template-columns:1fr}.buried-wrap{max-height:58%;border-right:0;border-bottom:1px solid rgba(74,59,43,.14)}.buried-thumb{min-height:190px}.history-main{padding:16px}.live-transcript{top:34%;width:82vw;font-size:15px}}
 </style>
 </head>
 <body>
@@ -127,6 +131,7 @@
   <details class="quiet-type">
     <summary>写</summary>
     <div class="composer">
+      <div class="write-mode"><span>回应方式</span><button id="write-mode-oracle" type="button" onclick="setHollowMode('oracle')">签语</button><button id="write-mode-dialogue" type="button" onclick="setHollowMode('dialogue')">对话</button></div>
       <textarea id="input" placeholder="轻轻写在这里……"></textarea>
       <div class="btns">
         <button class="send" onclick="addEntry()">埋进树洞</button>
@@ -136,6 +141,7 @@
   </details>
 
 <div class="history-wrap">
+  <button class="history-close" type="button" aria-label="关闭历史" title="关闭" onclick="closeHistory()">×</button>
   <section class="buried-wrap">
     <h2>草堆里的影像</h2>
     <div id="buried-media"></div>
@@ -188,7 +194,7 @@ function render(){
   });
   box.innerHTML = Object.keys(byDay).sort().reverse().map(day=>{
     const items = byDay[day].sort((a,b)=>(b.time||'').localeCompare(a.time||'')).map(e=>
-      '<div class="memory-item"><div class="time">'+(e.time||'')+'</div><div>'+escapeHtml(e.transcript||'')+'</div><div class="echo-line">'+escapeHtml(e.echo||'……')+'</div></div>'
+      '<div class="memory-item"><div class="time"><span>'+(e.time||'')+'</span><span class="memory-mode '+(e.mode==='dialogue'?'dialogue':'oracle')+'">'+(e.mode==='dialogue'?'对话':'签语')+'</span></div><div>'+escapeHtml(e.transcript||'')+'</div><div class="echo-line">'+escapeHtml(e.echo||'……')+'</div></div>'
     ).join('');
     return '<section class="day-card"><h2>'+day+' · '+byDay[day].length+' 次</h2>'+items+'</section>';
   }).join('');
@@ -197,9 +203,26 @@ function renderBuriedMedia(){
   const box = document.getElementById('buried-media');
   if(!box) return;
   const items = JSON.parse(localStorage.getItem('cozy_hollow_buried_media') || '[]');
-  box.innerHTML = items.length ? items.slice(0,8).map(item=>
-    '<article class="buried-card"><div class="buried-thumb" '+(item.file?'style="background-image:url(\'../'+escapeHtml(item.file)+'\')"':'')+'>'+(item.file?'':(item.kind === 'video' ? '5s' : '待补图'))+'</div><div><h3>'+escapeHtml(item.title)+'</h3><p>'+escapeHtml(item.summary)+'</p>'+(item.file?'':'<button onclick="chooseBuriedPhoto(\''+escapeHtml(item.id)+'\')">补一张照片</button>')+'</div></article>'
-  ).join('') : '<p style="font-size:12px;color:#8b765d;line-height:1.6">还没有需要留下的影像。阿栗每天最多挑一段真正具体的内容；如果没有，就不会生成。</p>';
+  box.innerHTML = items.length ? items.slice(0,8).map(item=>{
+    const status=String(item.status||'pending');
+    const error=String(item.last_error||item.error||'').slice(0,180);
+    const label=status==='failed'?'生成失败':status==='generating'?'正在生成':status==='queued_for_night'?'等待夜间生成':'等待生成';
+    const thumb=item.file
+      ? '<div class="buried-thumb" style="background-image:url(\'../'+escapeHtml(item.file)+'\')"></div>'
+      : '<div class="buried-thumb '+(status==='failed'?'status-failed':'status-waiting')+'"><span>'+label+'</span>'+(status==='failed'?'<small>'+escapeHtml(error||'图片接口没有返回可用结果。')+'</small>':'')+'</div>';
+    return '<article class="buried-card">'+thumb+'<div><h3>'+escapeHtml(item.title)+'</h3><p>'+escapeHtml(item.summary)+'</p>'+(item.file?'':'<button onclick="chooseBuriedPhoto(\''+escapeHtml(item.id)+'\')">补一张照片</button>')+'</div></article>';
+  }).join('') : '<p style="font-size:12px;color:#8b765d;line-height:1.6">还没有需要留下的影像。阿栗每天最多挑一段真正具体的内容；如果没有，就不会生成。</p>';
+}
+async function syncBuriedMediaState(){
+  if(!window.CozyButler)return;
+  try{
+    const data=await CozyButler.api('/api/local-state');
+    const serverItems=data&&data.state&&data.state.values&&data.state.values.cozy_hollow_buried_media;
+    if(Array.isArray(serverItems)){
+      localStorage.setItem('cozy_hollow_buried_media',JSON.stringify(serverItems));
+      renderBuriedMedia();
+    }
+  }catch(error){}
 }
 function prevEntry(){ if(idx>0){idx--;render();} }
 function nextEntry(){ if(idx<filtered().length-1){idx++;render();} }
@@ -218,6 +241,8 @@ function localEcho(){ return ECHO_POOL[Math.floor(Math.random()*ECHO_POOL.length
 function renderHollowMode(){
   document.getElementById('mode-oracle')?.classList.toggle('active',hollowMode==='oracle');
   document.getElementById('mode-dialogue')?.classList.toggle('active',hollowMode==='dialogue');
+  document.getElementById('write-mode-oracle')?.classList.toggle('active',hollowMode==='oracle');
+  document.getElementById('write-mode-dialogue')?.classList.toggle('active',hollowMode==='dialogue');
 }
 function setHollowMode(mode){
   hollowMode=mode==='dialogue'?'dialogue':'oracle';
@@ -270,7 +295,6 @@ async function addEntry(){
   }
   document.getElementById('input').value='';
   filterMonth='all'; idx=0; renderMonths(); render();
-  document.getElementById('hint').textContent='已收好';
   showStatus('已收好');
   const requestText=hollowMode==='oracle'?pendingOracleText(t,e.date):t;
   if(hollowMode==='oracle'&&requestText.replace(/\s+/g,'').length<55){
@@ -405,14 +429,17 @@ function tapGrass(){
   clearTimeout(grassTimer);
   if(grassCount >= 5){
     document.getElementById('hollow-stage').classList.add('history-unlocked');
+    syncBuriedMediaState();
     showStatus('历史已打开');
     grassCount = 0;
     return;
   }
   grassTimer = setTimeout(()=>{ grassCount = 0; }, 1600);
 }
+function closeHistory(){document.getElementById('hollow-stage').classList.remove('history-unlocked');grassCount=0;}
 window.addEventListener('cozy:state-synced',load);
-window.addEventListener('beforeunload',()=>{if(voiceController?.isActive())voiceController.stop();});
+const buriedSyncTimer=setInterval(syncBuriedMediaState,30000);
+window.addEventListener('beforeunload',()=>{clearInterval(buriedSyncTimer);if(voiceController?.isActive())voiceController.stop();});
 load();
 </script>
 </body>
