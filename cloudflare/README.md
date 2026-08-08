@@ -34,6 +34,17 @@ When no external text key is configured, the Worker falls back to the bound
 Cloudflare Workers AI model. R2 is optional. Until the account enables it,
 event logs fall back to bounded KV storage and media uploads remain local-only.
 
+The owner Worker cron runs at 08:00 Asia/Shanghai every two days. It collects
+recent AI news candidates, asks the configured text model to keep only the
+important items, and appends a new `notice_reports` entry. The same pipeline is
+available from `/api/weekly/run` for a manual refresh. Blackboard questions and
+grading also use the configured model and persisted memory context.
+
+`workers.dev` URLs always include the Cloudflare account subdomain. Renaming a
+Worker cannot hide that account segment; use a custom domain for a clean public
+address, or change the account's Workers subdomain and accept the resulting
+`worker-name.account-subdomain.workers.dev` format.
+
 ## Public preview
 
 ```sh
