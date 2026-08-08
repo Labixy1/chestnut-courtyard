@@ -518,6 +518,8 @@
   .bb-history-question{padding:10px 12px;border-radius:10px;background:rgba(255,249,232,.72);font-size:13px;line-height:1.75;color:#5d4323}
   .bb-history-state{display:inline-flex;margin-top:8px;padding:3px 8px;border-radius:999px;background:#e6d3a7;color:#735322;font-size:10px}
   .bb-history-state.done{background:#dce6c7;color:#4e6432}
+  .bb-topic-group{border:1px solid rgba(143,94,25,.14);border-radius:14px;background:rgba(255,255,255,.58);overflow:hidden}.bb-topic-group>summary{display:flex;align-items:center;gap:10px;padding:13px 15px;cursor:pointer;list-style:none;color:#5d421e}.bb-topic-group>summary::-webkit-details-marker{display:none}.bb-topic-group>summary strong{font-size:14px}.bb-topic-group>summary:after{content:"+";margin-left:auto;font-size:18px;font-weight:400;color:#9b763d}.bb-topic-group[open]>summary:after{content:"−"}.bb-topic-list{display:grid;gap:9px;padding:0 12px 12px}
+  .bb-history-entry{border:1px solid rgba(143,94,25,.12);border-radius:10px;background:rgba(255,249,232,.72);overflow:hidden}.bb-history-entry>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;list-style:none}.bb-history-entry>summary::-webkit-details-marker{display:none}.bb-history-entry>summary strong{font-size:13px;line-height:1.5;color:#5d4323}.bb-history-entry>summary small{font-size:10px;color:#9b763d}.bb-history-entry-body{padding:0 12px 12px}.bb-history-entry .bb-history-question{padding:8px 0;background:transparent}.bb-history-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0}.bb-redo{border:0;border-radius:8px;background:#7b653e;color:#fff9e9;padding:6px 10px;font:11px inherit;cursor:pointer}
   .bb-history .card{background:rgba(255,255,255,.66);border-color:rgba(143,94,25,.14);color:#4d3214}
   .bb-history .card p{color:rgba(83,54,22,.68)}
   .bb-direction-box{margin-top:22px;padding-top:18px;border-top:1px solid rgba(143,94,25,.14)}
@@ -1045,33 +1047,66 @@ function findSavedBlackboardAnswer(saved,question){
   return (saved||[]).find(item=>blackboardQuestionKey(item)===key && (!item.date||item.date===date));
 }
 
+function blackboardArchiveTopic(item){
+  const title=String(item.title||'').toLowerCase(),text=[title,item.question,...(item.types||[])].join(' ').toLowerCase();
+  if(/产品|用户|体验|需求|原型|交互/.test(title))return'AI 产品与用户体验';
+  if(/模型|llm|moe|token|多模态|rag|微调/.test(title))return'模型与技术理解';
+  if(/agent|智能体|蜂群|多智能体|mcp|skill|harness|权限|工作流|记忆|架构|编排/.test(text))return'Agent 与系统设计';
+  if(/模型|llm|moe|token|上下文|推理|多模态|rag|向量|微调|提示词/.test(text))return'模型与技术理解';
+  if(/产品|用户|体验|需求|原型|交互|功能|场景/.test(text))return'AI 产品与用户体验';
+  if(/评测|指标|数据集|测试|幻觉|安全|风险|质量|基准|回滚/.test(text))return'评测、质量与安全';
+  if(/商业|成本|价格|定价|roi|收入|增长|运营|市场|落地/.test(text))return'商业化与落地';
+  return'AI 产品与用户体验';
+}
+
+function blackboardArchiveId(item){let h=2166136261;for(const char of blackboardQuestionKey(item)){h^=char.charCodeAt(0);h=Math.imul(h,16777619);}return'bb_'+Math.abs(h>>>0).toString(36);}
+
+function redoBlackboardQuestion(id){
+  const item=window.BB_HISTORY_ITEMS&&window.BB_HISTORY_ITEMS[id],state=window.BB_STATE;if(!item||!state)return;
+  state.questionData={title:item.title,question:item.question,types:item.types||[],materials:item.materials||[],supplementalMaterials:item.supplementalMaterials||[],standard:item.standard||[],date:localCalendarDate(),archiveSourceDate:item.date||''};
+  state.today={title:item.title,tags:item.types||[]};state.redoMode=true;state.locked=false;state.submitting=false;
+  delete state.answer;delete state.review;delete state.nextQuestion;
+  showBlackboardMode('question');
+  const note=document.getElementById('bb-answer-note');if(note)note.textContent='这是一次新的作答，提交后会保留之前的答案供你对照。';
+}
+
 function renderBlackboardHistory(state){
   const saved=JSON.parse(localStorage.getItem('cozy_blackboard_answers')||'[]');
   const archive=[];
   const seen=new Map();
   const add=item=>{
     if(!item)return;
-    const normalized={title:item.title||'未命名题目',question:item.question||'',types:item.types||item.tags||[],date:item.date||'',standard:item.standard_points||item.standard||[],materials:item.materials||[],supplementalMaterials:item.supplementalMaterials||[],answer:item.answer||'',review:item.review||null};
+    const normalized={title:item.title||'未命名题目',question:item.question||'',types:item.types||item.tags||[],date:item.date||'',standard:item.standard_points||item.standard||[],materials:item.materials||[],supplementalMaterials:item.supplementalMaterials||[],answer:item.answer||'',review:item.review||null,attempts:[]};
     const key=blackboardQuestionKey(normalized);
     if(!key)return;
     if(seen.has(key)){
       const current=seen.get(key);
-      if(normalized.answer&&!current.answer)Object.assign(current,normalized);
+      if(normalized.answer)current.attempts.push(normalized);
       else if(!current.question&&normalized.question)current.question=normalized.question;
       return;
     }
+    if(normalized.answer)normalized.attempts.push({...normalized,attempts:undefined});
     seen.set(key,normalized);archive.push(normalized);
   };
   saved.forEach(add);
   add(state.questionData);
   (state.history||[]).forEach(add);
-  return archive.map(item=>{
-    const done=!!item.answer;
+  window.BB_HISTORY_ITEMS={};
+  const groups={};
+  archive.forEach(item=>{const topic=blackboardArchiveTopic(item);(groups[topic]=groups[topic]||[]).push(item);});
+  const order=['AI 产品与用户体验','Agent 与系统设计','模型与技术理解','评测、质量与安全','商业化与落地'];
+  return order.filter(topic=>groups[topic]?.length).map((topic,topicIndex)=>{
+    const questions=groups[topic].map(item=>{
+    const archiveId=blackboardArchiveId(item),attempts=item.attempts||[],latest=attempts[0]||item,done=attempts.length>0;
+    window.BB_HISTORY_ITEMS[archiveId]=item;
     const types=(item.types||[]).filter(Boolean).map(type=>'<span class="bb-pill">'+escapeNotice(type)+'</span>').join('');
-    const answer=done?'<article class="bb-review-card"><h4>我的答案</h4><p>'+escapeNotice(item.answer)+'</p></article>':'<p class="bb-note">这道题还没有作答记录。</p>';
-    const review=done&&item.review&&item.review.revised?'<article class="bb-review-card"><h4>阿栗帮答</h4>'+renderPolishedAnswer(item.review.revised)+'</article>':'';
-    const standard=done&&item.standard&&item.standard.length?'<article class="bb-review-card"><h4>标准答案</h4><ol class="bb-standard">'+item.standard.map(point=>'<li>'+escapeNotice(point)+'</li>').join('')+'</ol></article>':'';
-    return '<details class="category-archive"><summary><span>'+escapeNotice(item.title)+'</span><span class="category-archive-count">'+escapeNotice(item.date||'未标日期')+'</span></summary><div class="category-archive-list"><div class="bb-history-question">'+escapeNotice(item.question||item.title)+'</div><div class="bb-pills">'+types+'</div><span class="bb-history-state '+(done?'done':'')+'">'+(done?'已作答':'未作答')+'</span>'+answer+review+standard+'</div></details>';
+    const answer=done?'<article class="bb-review-card"><h4>最近一次答案</h4><p>'+escapeNotice(latest.answer)+'</p></article>':'<p class="bb-note">这道题还没有作答记录。</p>';
+    const review=done&&latest.review&&latest.review.revised?'<article class="bb-review-card"><h4>阿栗帮答</h4>'+renderPolishedAnswer(latest.review.revised)+'</article>':'';
+    const standardPoints=(latest.standard&&latest.standard.length?latest.standard:item.standard)||[];
+    const standard=done&&standardPoints.length?'<article class="bb-review-card"><h4>标准答案</h4><ol class="bb-standard">'+standardPoints.map(point=>'<li>'+escapeNotice(point)+'</li>').join('')+'</ol></article>':'';
+    return '<details class="bb-history-entry"><summary><strong>'+escapeNotice(item.title)+'</strong><small>'+escapeNotice(item.date||'未标日期')+'</small></summary><div class="bb-history-entry-body"><div class="bb-history-question">'+escapeNotice(item.question||item.title)+'</div><div class="bb-pills">'+types+'</div><div class="bb-history-actions"><span class="bb-history-state '+(done?'done':'')+'">'+(done?'已作答 '+attempts.length+' 次':'未作答')+'</span><button class="bb-redo" onclick="redoBlackboardQuestion(\''+archiveId+'\')">'+(done?'再做一次':'开始作答')+'</button></div>'+answer+review+standard+'</div></details>';
+    }).join('');
+    return '<details class="bb-topic-group" '+(topicIndex===0?'open':'')+'><summary><strong>'+escapeNotice(topic)+'</strong><span class="category-archive-count">'+groups[topic].length+' 题</span></summary><div class="bb-topic-list">'+questions+'</div></details>';
   }).join('')||'<p class="bb-note">还没有历史题目。</p>';
 }
 
@@ -1109,9 +1144,9 @@ async function submitBbAnswer(){
     window.BB_STATE.nextQuestion=result.next_question||'';
   }catch(error){window.BB_STATE.review=buildBbReview(value,q);window.BB_STATE.review.suggestions.push('本次 AI 批改未连接成功，已保留本地结构化建议。');}
   const saved = JSON.parse(localStorage.getItem('cozy_blackboard_answers') || '[]');
-  const record={title:q.title,question:q.question,types:q.types||[],materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],answer:value,review:window.BB_STATE.review,standard:q.standard,next_question:window.BB_STATE.nextQuestion||'',date:q.date||localCalendarDate()};
+  const record={title:q.title,question:q.question,types:q.types||[],materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],answer:value,review:window.BB_STATE.review,standard:q.standard,next_question:window.BB_STATE.nextQuestion||'',date:q.date||localCalendarDate(),attemptId:'attempt_'+Date.now().toString(36),archiveSourceDate:q.archiveSourceDate||''};
   const duplicateIndex=saved.findIndex(item=>blackboardQuestionKey(item)===blackboardQuestionKey(record));
-  if(duplicateIndex>=0)saved.splice(duplicateIndex,1);
+  if(!window.BB_STATE.redoMode&&duplicateIndex>=0)saved.splice(duplicateIndex,1);
   saved.unshift(record);
   localStorage.setItem('cozy_blackboard_answers', JSON.stringify(saved.slice(0,30)));
   window.CozyButler?.persistLocal(['cozy_blackboard_answers']);
@@ -1126,6 +1161,7 @@ async function submitBbAnswer(){
     });
   }
   window.BB_STATE.locked=true;
+  window.BB_STATE.redoMode=false;
   window.BB_STATE.submitting=false;
   showBlackboardMode('result');
 }
