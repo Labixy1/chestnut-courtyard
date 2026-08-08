@@ -112,6 +112,7 @@
   .memory-item .time{display:flex;align-items:center;gap:6px;font-size:11px;color:#9b856c;margin-bottom:4px}
   .memory-mode{display:inline-flex;padding:2px 6px;border-radius:999px;font-size:9px;background:#e6d6b7;color:#745835}.memory-mode.dialogue{background:#d7e2d2;color:#4f6b4d}
   .memory-item .echo-line{color:#5f7d47;margin-top:4px}
+  .memory-actions{display:flex;gap:6px;margin-top:7px}.memory-actions button{border:0;border-radius:999px;background:rgba(105,88,65,.09);color:#806b53;padding:4px 8px;font:9px inherit;cursor:pointer}.memory-actions button.danger{color:#9a655d}.memory-editor{display:grid;gap:7px}.memory-editor textarea{width:100%;min-height:72px;box-sizing:border-box;border:1px solid rgba(91,70,48,.18);border-radius:8px;background:rgba(255,255,255,.72);color:#4a3b2b;padding:8px;font:12px/1.6 inherit;resize:vertical}.memory-editor label{font-size:9px;color:#927d64}
   @media(max-width:720px){.history-wrap{left:10px;right:10px;bottom:10px;height:82vh;grid-template-columns:1fr}.buried-wrap{max-height:58%;border-right:0;border-bottom:1px solid rgba(74,59,43,.14)}.buried-thumb{min-height:190px}.history-main{padding:16px}.live-transcript{top:34%;width:82vw;font-size:15px}}
 </style>
 </head>
@@ -159,13 +160,16 @@ let entries = [];
 let idx = 0;
 let filterMonth = 'all';
 let hollowMode = localStorage.getItem('cozy_hollow_mode') || 'oracle';
+function stableHeartEntryId(entry){if(entry&&entry.id)return String(entry.id);let h=2166136261;for(const char of [entry?.date,entry?.time,entry?.transcript].join('|')){h^=char.charCodeAt(0);h=Math.imul(h,16777619);}return'heart_legacy_'+Math.abs(h>>>0).toString(36);}
 
 async function load(){
   CORE = window.CozyRuntime ? await window.CozyRuntime.loadJson('../core/heart_hollow.json',{entries:[]},'heart_hollow') : ((window.COZY && window.COZY.heart_hollow) || {entries:[]});
   const localEntries = JSON.parse(localStorage.getItem('cozy_heart_entries') || '[]');
+  const deletedIds = new Set(JSON.parse(localStorage.getItem('cozy_heart_deleted_entries') || '[]').concat(localEntries.filter(item=>item.deleted).map(item=>item.id)));
   const seen = new Set();
-  entries = localEntries.concat(CORE.entries||[]).filter(entry=>{
-    const key=entry.id||[entry.date,entry.time,entry.transcript].join('|');
+  entries = localEntries.concat(CORE.entries||[]).filter(entry=>!entry.deleted).map(entry=>({...entry,id:stableHeartEntryId(entry)})).filter(entry=>{
+    const key=entry.id;
+    if(deletedIds.has(key))return false;
     if(seen.has(key))return false;seen.add(key);return true;
   }).sort((a,b)=> ((b.date||'')+(b.time||'')).localeCompare((a.date||'')+(a.time||'')));
   renderMonths();
@@ -195,12 +199,21 @@ function render(){
     byDay[day].push(e);
   });
   box.innerHTML = Object.keys(byDay).sort().reverse().map(day=>{
-    const items = byDay[day].sort((a,b)=>(b.time||'').localeCompare(a.time||'')).map(e=>
-      '<div class="memory-item"><div class="time"><span>'+(e.time||'')+'</span><span class="memory-mode '+(e.mode==='dialogue'?'dialogue':'oracle')+'">'+(e.mode==='dialogue'?'对话':'签语')+'</span></div><div>'+escapeHtml(e.transcript||'')+'</div><div class="echo-line">'+escapeHtml(e.echo||'……')+'</div></div>'
-    ).join('');
+    const items = byDay[day].sort((a,b)=>(b.time||'').localeCompare(a.time||'')).map(e=>renderHeartEntry(e)).join('');
     return '<section class="day-card"><h2>'+day+' · '+byDay[day].length+' 次</h2>'+items+'</section>';
   }).join('');
 }
+function heartEntryKey(entry){return stableHeartEntryId(entry);}
+function renderHeartEntry(entry){
+  const key=heartEntryKey(entry),editing=window.editingHeartEntryId===key,mode=entry.mode==='dialogue'?'dialogue':'oracle';
+  const body=editing?'<div class="memory-editor"><label>你说的话</label><textarea id="heart-edit-transcript">'+escapeHtml(entry.transcript||'')+'</textarea><label>阿栗的'+(mode==='dialogue'?'回复':'签语')+'</label><textarea id="heart-edit-echo">'+escapeHtml(entry.echo||'')+'</textarea><div class="memory-actions"><button onclick="saveHeartEntryEdit(\''+escapeHtml(key)+'\')">保存</button><button onclick="cancelHeartEntryEdit()">取消</button></div></div>':'<div>'+escapeHtml(entry.transcript||'')+'</div><div class="echo-line">'+escapeHtml(entry.echo||'……')+'</div><div class="memory-actions"><button onclick="editHeartEntry(\''+escapeHtml(key)+'\')">编辑</button><button class="danger" onclick="deleteHeartEntry(\''+escapeHtml(key)+'\')">删除</button></div>';
+  return '<div class="memory-item"><div class="time"><span>'+(entry.time||'')+'</span><span class="memory-mode '+mode+'">'+(mode==='dialogue'?'对话':'签语')+'</span></div>'+body+'</div>';
+}
+function editHeartEntry(key){window.editingHeartEntryId=key;render();document.getElementById('heart-edit-transcript')?.focus();}
+function cancelHeartEntryEdit(){window.editingHeartEntryId='';render();}
+function persistHeartEntries(){const deleted=JSON.parse(localStorage.getItem('cozy_heart_deleted_entries')||'[]');const tombstones=deleted.slice(0,240).map(id=>({id,deleted:true}));localStorage.setItem('cozy_heart_entries',JSON.stringify(entries.slice(0,160).concat(tombstones)));window.CozyButler?.persistLocal(['cozy_heart_entries']);}
+function saveHeartEntryEdit(key){const entry=entries.find(item=>heartEntryKey(item)===key);if(!entry)return;entry.transcript=String(document.getElementById('heart-edit-transcript')?.value||'').trim().slice(0,2000);entry.echo=String(document.getElementById('heart-edit-echo')?.value||'').trim().slice(0,1200);entry.updatedAt=new Date().toISOString();persistHeartEntries();window.editingHeartEntryId='';render();showStatus((entry.mode==='dialogue'?'对话':'签语')+'已修改');}
+function deleteHeartEntry(key){if(!confirm('删除这条树洞记录吗？你说的话和阿栗的回应都会移除。'))return;entries=entries.filter(item=>heartEntryKey(item)!==key);const deleted=JSON.parse(localStorage.getItem('cozy_heart_deleted_entries')||'[]');if(!deleted.includes(key))deleted.unshift(key);localStorage.setItem('cozy_heart_deleted_entries',JSON.stringify(deleted.slice(0,240)));persistHeartEntries();window.CozyButler?.persistLocal(['cozy_heart_deleted_entries']);renderMonths();render();showStatus('这条记录已删除');}
 function renderBuriedMedia(){
   const box = document.getElementById('buried-media');
   if(!box) return;

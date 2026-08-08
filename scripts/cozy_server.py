@@ -240,7 +240,7 @@ def sync_local_state(payload: dict):
     allowed = {
         "cozy_blackboard_answers", "cozy_blackboard_directions", "cozy_orchard_seeds", "cozy_orchard_topics",
         "cozy_orchard_garden", "cozy_orchard_backpack", "cozy_orchard_growth_events", "cozy_notice_requests",
-        "cozy_trips", "cozy_trip_reflections", "cozy_heart_entries",
+        "cozy_trips", "cozy_trip_reflections", "cozy_heart_entries", "cozy_heart_deleted_entries",
         "cozy_hollow_buried_media", "cozy_memory_events", "cozy_global_butler_history",
         "cozy_toolbox_local_items", "cozy_notice_links", "cozy_notice_chest",
         "cozy_butler_watch_topics", "cozy_butler_local_sources", "cozy_photo_albums",
