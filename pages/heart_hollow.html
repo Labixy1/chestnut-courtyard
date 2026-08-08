@@ -102,6 +102,8 @@
   .buried-card h3{font-size:16px;color:#4a3b2b;margin-bottom:5px}
   .buried-card p{font-size:13px;line-height:1.7;color:#75614b}
   .buried-card button{border:0;border-radius:999px;background:#798765;color:#fff9e8;padding:5px 9px;font:10px inherit;margin-top:5px;cursor:pointer}
+  .buried-actions{display:flex;gap:7px;flex-wrap:wrap}.buried-actions button.danger{background:#9a6f67}
+  .buried-editor{display:grid;gap:8px}.buried-editor input,.buried-editor textarea{width:100%;box-sizing:border-box;border:1px solid rgba(91,70,48,.2);border-radius:8px;background:rgba(255,255,255,.72);color:#4a3b2b;padding:8px 10px;font:13px/1.6 inherit;outline:none}.buried-editor textarea{min-height:110px;resize:vertical}.buried-editor input:focus,.buried-editor textarea:focus{border-color:#87936f;box-shadow:0 0 0 2px rgba(121,135,101,.12)}
   .grass-secret{position:fixed;left:0;right:0;bottom:0;height:18%;z-index:2;border:0;background:transparent;cursor:default}
   .day-card{border-bottom:1px dashed rgba(74,59,43,.22);padding:12px 0}
   .day-card:last-child{border-bottom:0}
@@ -210,8 +212,31 @@ function renderBuriedMedia(){
     const thumb=item.file
       ? '<div class="buried-thumb" style="background-image:url(\'../'+escapeHtml(item.file)+'\')"></div>'
       : '<div class="buried-thumb '+(status==='failed'?'status-failed':'status-waiting')+'"><span>'+label+'</span>'+(status==='failed'?'<small>'+escapeHtml(error||'图片接口没有返回可用结果。')+'</small>':'')+'</div>';
-    return '<article class="buried-card">'+thumb+'<div><h3>'+escapeHtml(item.title)+'</h3><p>'+escapeHtml(item.summary)+'</p>'+(item.file?'':'<button onclick="chooseBuriedPhoto(\''+escapeHtml(item.id)+'\')">补一张照片</button>')+'</div></article>';
+    const editing=window.editingBuriedId===item.id;
+    const copy=editing
+      ? '<div class="buried-editor"><input id="buried-edit-title" maxlength="40" aria-label="影像标题" value="'+escapeHtml(item.title||'')+'"><textarea id="buried-edit-summary" maxlength="600" aria-label="影像文字">'+escapeHtml(item.summary||'')+'</textarea><div class="buried-actions"><button onclick="saveBuriedText(\''+escapeHtml(item.id)+'\')">保存</button><button onclick="cancelBuriedEdit()">取消</button></div></div>'
+      : '<div><h3>'+escapeHtml(item.title||'未命名影像')+'</h3><p>'+escapeHtml(item.summary||'这张影像还没有文字。')+'</p><div class="buried-actions">'+(item.file?'':'<button onclick="chooseBuriedPhoto(\''+escapeHtml(item.id)+'\')">补一张照片</button>')+'<button onclick="editBuriedText(\''+escapeHtml(item.id)+'\')">编辑文字</button>'+(item.summary?'<button onclick="clearBuriedText(\''+escapeHtml(item.id)+'\')">删除文字</button>':'')+'<button class="danger" onclick="deleteBuriedItem(\''+escapeHtml(item.id)+'\')">删除影像</button></div></div>';
+    return '<article class="buried-card">'+thumb+copy+'</article>';
   }).join('') : '<p style="font-size:12px;color:#8b765d;line-height:1.6">还没有需要留下的影像。阿栗每天最多挑一段真正具体的内容；如果没有，就不会生成。</p>';
+}
+function buriedItems(){return JSON.parse(localStorage.getItem('cozy_hollow_buried_media')||'[]');}
+function saveBuriedItems(items){localStorage.setItem('cozy_hollow_buried_media',JSON.stringify(items.slice(0,24)));window.CozyButler?.persistLocal(['cozy_hollow_buried_media']);}
+function editBuriedText(id){window.editingBuriedId=id;renderBuriedMedia();document.getElementById('buried-edit-title')?.focus();}
+function cancelBuriedEdit(){window.editingBuriedId='';renderBuriedMedia();}
+function saveBuriedText(id){
+  const title=String(document.getElementById('buried-edit-title')?.value||'').trim().slice(0,40);
+  const summary=String(document.getElementById('buried-edit-summary')?.value||'').trim().slice(0,600);
+  const items=buriedItems(),item=items.find(entry=>entry.id===id);if(!item)return;
+  item.title=title||'未命名影像';item.summary=summary;item.updatedAt=new Date().toISOString();saveBuriedItems(items);window.editingBuriedId='';renderBuriedMedia();showStatus('影像文字已保存');
+}
+function clearBuriedText(id){
+  if(!confirm('只删除这张影像里的文字吗？图片和标题会保留。'))return;
+  const items=buriedItems(),item=items.find(entry=>entry.id===id);if(!item)return;
+  item.summary='';item.transcripts=[];item.updatedAt=new Date().toISOString();saveBuriedItems(items);renderBuriedMedia();showStatus('影像文字已删除');
+}
+function deleteBuriedItem(id){
+  if(!confirm('删除这条草堆影像吗？图片和整理后的文字都会移除。'))return;
+  saveBuriedItems(buriedItems().filter(item=>item.id!==id));window.editingBuriedId='';renderBuriedMedia();showStatus('这条影像已删除');
 }
 async function syncBuriedMediaState(){
   if(!window.CozyButler)return;
