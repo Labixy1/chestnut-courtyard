@@ -116,6 +116,7 @@ def run_validation():
         names = [item.get("name") for item in manifest.get("tools", [])]
         check(len(names) == len(set(names)), "工具注册存在重名")
         check(len(names) >= 23, "注册工具数量异常")
+        check(len(manifest.get("skills", [])) == len(EXPECTED_SKILLS), "工具箱 Skill 专区没有完整读取内置 Skill")
 
         trip = tools.execute("manage_trip", {"action": "create", "place": "测试岛", "start": "2026-08-06"})
         tools.execute("manage_trip", {"action": "complete", "id": trip["item"]["id"]})

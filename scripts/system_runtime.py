@@ -214,6 +214,34 @@ class SystemRuntime:
                     skills.append(data)
         return skills
 
+    def skill_catalog(self):
+        catalog = []
+        dynamic_by_name = {item.get("name"): item for item in self.dynamic_skills()}
+        for path in sorted(self.bundled_skills_dir.glob("*/SKILL.md")):
+            text = path.read_text(encoding="utf-8", errors="replace")
+            name_match = re.search(r"^name:\s*(.+)$", text, re.M)
+            description_match = re.search(r"^description:\s*(.+)$", text, re.M)
+            name = (name_match.group(1).strip() if name_match else path.parent.name)
+            executable = dynamic_by_name.get(name)
+            catalog.append({
+                "name": name,
+                "description": description_match.group(1).strip() if description_match else "",
+                "origin": "bundled",
+                "status": "installed",
+                "kind": "executable" if executable else "guide",
+                "permission": (executable or {}).get("permission") or ("steward" if name in {"build-skill", "manage-system"} else "normal"),
+            })
+        bundled_names = {item["name"] for item in catalog}
+        for item in dynamic_by_name.values():
+            if item.get("name") in bundled_names:
+                continue
+            catalog.append({
+                "name": item.get("name"), "description": item.get("description", "实例私有 Skill"),
+                "origin": item.get("origin", "private"), "status": "installed", "kind": "executable",
+                "permission": item.get("permission", "normal"),
+            })
+        return catalog
+
     def execute_dynamic(self, name: str, arguments: dict):
         skill = next((item for item in self.dynamic_skills() if item.get("name") == name), None)
         if not skill:

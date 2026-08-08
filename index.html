@@ -257,6 +257,7 @@
      color:#fffaf2;font-size:11px;text-decoration:none}
   .tool-links a.secondary{background:#f2e7da;color:#73543d}
   .tool-new{display:inline-block;margin-left:6px;padding:2px 5px;border-radius:999px;background:#b75f52;color:#fff;font-size:9px;vertical-align:2px}
+  .skill-zone[hidden]{display:none}.skill-zone{display:grid;gap:24px}.skill-zone-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding-bottom:13px;border-bottom:1px solid #ead9c6}.skill-zone-head h3{font-size:17px;color:#4d3423;margin:0 0 4px}.skill-zone-head p{font-size:12px;line-height:1.6;color:#806b58;margin:0}.skill-health{flex:0 0 auto;font-size:10px;padding:4px 8px;border-radius:999px;background:#e5eddc;color:#536448}.skill-health.waiting{background:#f1e5d6;color:#85674c}.skill-section h4{font-size:13px;color:#70513a;margin:0 0 10px}.skill-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:11px}.skill-card{display:grid;gap:9px;align-content:start;border:1px solid #ead8c4;border-radius:12px;background:#fffdf9;padding:13px;min-width:0}.skill-card.recommended{background:#f8f1e6;border-style:dashed}.skill-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:9px}.skill-card h5{font-size:14px;line-height:1.4;color:#4e3828;margin:0;overflow-wrap:anywhere}.skill-state{flex:0 0 auto;font-size:9px;padding:3px 6px;border-radius:999px;background:#e6efdc;color:#536448}.skill-state.recommend{background:#ecddc9;color:#7d5a3c}.skill-card p{font-size:11px;line-height:1.65;color:#665344;margin:0}.skill-tags{display:flex;gap:5px;flex-wrap:wrap}.skill-tags span{font-size:9px;padding:3px 6px;border-radius:6px;background:#f3e9dc;color:#785b43}.skill-use{padding-top:8px;border-top:1px solid #f0e4d6}.skill-use b{display:block;font-size:9px;color:#98795e;margin-bottom:3px}.skill-build{justify-self:start;border:0;border-radius:8px;background:#7b5a40;color:#fffaf2;padding:7px 10px;font:11px inherit;cursor:pointer}.skill-build:disabled{opacity:.5;cursor:default}.skill-zone-status{min-height:16px;font-size:11px;color:#80654f}
   @media(max-width:620px){.toolbox-panel{width:100vw;height:100vh;border-radius:0}.toolbox-head{padding:18px 52px 12px 16px}.toolbox-body{padding:14px 16px 20px}.toolbox-import{grid-template-columns:1fr}.toolbox-import button{width:100%}.toolbox-panel .cards{grid-template-columns:1fr}}
   .scene-close{position:absolute;right:18px;top:18px;z-index:4;float:none;background:rgba(247,239,225,.8);
      box-shadow:0 8px 20px rgba(24,18,10,.18)}
@@ -694,6 +695,7 @@ function openPhoto(p){
 }
 
 function openToolbox(){
+  skillZoneLoaded=false;
   const localItems = JSON.parse(localStorage.getItem('cozy_toolbox_local_items') || '[]');
   const combined = ((CORE.manifest && CORE.manifest.items)||[]).filter(i=>i.type==='toolbox').concat(localItems);
   const seen = new Set();
@@ -712,10 +714,10 @@ function openToolbox(){
   const nav = ['全部'].concat(categories).map((name,idx)=>
     '<button class="toolbox-filter '+(idx===0?'active':'')+'" onclick="setToolboxGroup(\''+name+'\',this)">'+name+'</button>').join('');
   openOverlay('<div class="toolbox-head"><h2>工具箱</h2><div class="sub">按使用场景收纳，需要新工具时从分类栏末尾加入。</div>'+
-    '<nav class="toolbox-nav">'+nav+'<button class="toolbox-import-toggle" id="toolbox-import-toggle" aria-expanded="false" title="解析工具官网或资讯链接" onclick="toggleToolboxImport()">＋ 解析加入</button></nav>'+
+    '<nav class="toolbox-nav">'+nav+'<button class="toolbox-filter skill-zone-tab" onclick="setToolboxGroup(\'Skills\',this)">Skills</button><button class="toolbox-import-toggle" id="toolbox-import-toggle" aria-expanded="false" title="解析工具官网或资讯链接" onclick="toggleToolboxImport()">＋ 解析加入</button></nav>'+
     '<div class="toolbox-import" id="toolbox-import"><input id="toolbox-link-input" type="url" placeholder="粘贴工具官网或资讯链接" onkeydown="if(event.key===\'Enter\')importToolboxLink()" />'+
     '<button id="toolbox-import-btn" onclick="importToolboxLink()">解析并加入</button><div class="toolbox-import-status" id="toolbox-import-status"></div></div></div>'+
-    '<div class="toolbox-body">'+(block || '<p class="sub">工具箱还是空的，先加入一个工具。</p>')+'</div>', 'toolbox-panel');
+    '<div class="toolbox-body"><div id="toolbox-groups">'+(block || '<p class="sub">工具箱还是空的，先加入一个工具。</p>')+'</div>'+skillZoneShell()+'</div>', 'toolbox-panel');
 }
 
 function toggleToolboxImport(force){
@@ -748,9 +750,81 @@ function toolboxCategory(item){
 function setToolboxGroup(name, btn){
   document.querySelectorAll('.toolbox-nav .toolbox-filter').forEach(b=>b.classList.remove('active'));
   if(btn) btn.classList.add('active');
+  const skills=name==='Skills';
+  const groups=document.getElementById('toolbox-groups');
+  const zone=document.getElementById('skill-zone');
+  if(groups)groups.hidden=skills;
+  if(zone)zone.hidden=!skills;
   document.querySelectorAll('.toolbox-panel .tool-group').forEach(group=>{
-    group.classList.toggle('is-hidden', name !== '全部' && group.dataset.toolGroup !== name);
+    group.classList.toggle('is-hidden', skills || (name !== '全部' && group.dataset.toolGroup !== name));
   });
+  if(skills)loadSkillZone();
+}
+
+const SKILL_UI={
+  'curate-news':['资讯巡逻','筛选真正重要的 AI 与产品动态，整理成资讯巡报。','需要抓取、判断和整理近期资讯时'],
+  'coach-blackboard':['黑板教练','结合资讯、历史答案和记忆出题，并逐点批改。','每日出题、答案诊断与标准答案生成'],
+  'guide-orchard':['成长田向导','回应成长困惑，把持续关注沉淀为种子与知识专题。','成长田对话与知识积累'],
+  'manage-toolbox':['工具管家','解析工具链接，补齐用途、能力、场景和官方地址。','新增、整理或移动工具卡片'],
+  'manage-memory':['记忆整理','从交互证据中更新记忆档案、分类和偏好。','需要记住、纠正、查询或忘记内容时'],
+  'listen-tree-hollow':['树洞倾听','处理语音倾诉、签语与封存记忆，不向普通空间泄露。','进入树洞倾诉或整理当天记录时'],
+  'archive-travel':['旅行归档','按地点整理日期、照片、摘要和旅行感悟。','记录出发、回家和旅行收获时'],
+  'curate-photos':['照片集整理','管理普通照片集与旅行相册，隔离树洞影像。','新增、移动、删除或整理照片集时'],
+  'generate-media':['图像与视频生成','调用 Seedream、GPT Image 或 Seedance 生成并保存素材。','明确要求生成图片或视频时'],
+  'run-automation':['自动任务','运行资讯巡报、夜间媒体、记忆维护与失败重试。','定时任务或后台任务需要执行时'],
+  'manage-system':['掌院修改','快照后修改页面、Prompt 与业务逻辑，验证失败自动回滚。','主人要求改变小院系统时'],
+  'build-skill':['Skill 工匠','现有能力不足时创建、测试并注册新的私有 Skill。','阿栗缺少完成任务的可复用能力时'],
+  'organize-checklist':['清单整理','把零散事项变成带稳定编号和状态的结构化清单。','需要整理一组明确待办时']
+};
+const RECOMMENDED_SKILLS=[
+  {name:'research-brief',title:'深度资料研究',description:'围绕一个问题检索多来源材料，区分事实、推断与争议，输出带来源的研究简报。',use:'竞品、行业、技术路线和面试课题研究'},
+  {name:'ai-evaluation-lab',title:'AI 评测实验室',description:'把产品目标拆成评测维度、样本、评分规则、失败类型和回归集。',use:'模型选型、Agent 与记忆系统验收'},
+  {name:'prototype-review',title:'原型体验审查',description:'读取页面截图与交互流程，检查信息层级、状态、文案、移动端和关键任务阻塞。',use:'原型评审与上线前体验检查'},
+  {name:'document-digest',title:'长文档消化',description:'解析 PDF 或长文档，提取结构、关键论点、行动项，并沉淀到知识专题。',use:'论文、报告、PRD 与技术文档'},
+  {name:'interview-story',title:'面试案例整理',description:'从真实项目和记忆证据中整理背景、判断、行动、结果与复盘，不虚构贡献。',use:'作品集、简历和面试表达'}
+];
+let skillZoneLoaded=false;
+function skillZoneShell(){
+  return '<section class="skill-zone" id="skill-zone" hidden><header class="skill-zone-head"><div><h3>阿栗的 Skills</h3><p>Skill 是阿栗处理一类任务时遵循的能力与执行规则，不等同于普通工具链接。</p></div><span class="skill-health waiting" id="skill-health">正在读取</span></header><section class="skill-section"><h4>已接入</h4><div class="skill-grid" id="installed-skills"></div></section><section class="skill-section"><h4>值得补充</h4><div class="skill-grid" id="recommended-skills"></div></section><div class="skill-zone-status" id="skill-zone-status"></div></section>';
+}
+function skillCardHtml(skill){
+  const ui=SKILL_UI[skill.name]||[skill.name,skill.description||'实例中新增的可执行 Skill。','在匹配的任务中由阿栗调用'];
+  const tags=[skill.origin==='private'?'实例私有':'小院内置',skill.kind==='executable'?'可执行':'任务规则',skill.permission==='steward'?'掌院权限':'普通权限'];
+  return '<article class="skill-card"><div class="skill-card-head"><h5>'+escapeNotice(ui[0])+'</h5><span class="skill-state">已接入</span></div><p>'+escapeNotice(ui[1])+'</p><div class="skill-tags">'+tags.map(tag=>'<span>'+escapeNotice(tag)+'</span>').join('')+'</div><div class="skill-use"><b>会在什么时候使用</b><p>'+escapeNotice(ui[2])+'</p></div></article>';
+}
+function recommendedSkillHtml(skill,canBuild){
+  return '<article class="skill-card recommended"><div class="skill-card-head"><h5>'+escapeNotice(skill.title)+'</h5><span class="skill-state recommend">推荐</span></div><p>'+escapeNotice(skill.description)+'</p><div class="skill-use"><b>适合</b><p>'+escapeNotice(skill.use)+'</p></div><button class="skill-build" '+(canBuild?'':'disabled')+' onclick="buildRecommendedSkill(this,\''+escapeNotice(skill.name)+'\')">＋ 交给阿栗创建</button></article>';
+}
+async function loadSkillZone(force){
+  if(skillZoneLoaded&&!force)return;
+  const installed=document.getElementById('installed-skills');
+  const recommended=document.getElementById('recommended-skills');
+  const health=document.getElementById('skill-health');
+  if(!installed||!recommended)return;
+  try{
+    const data=await cozyApi('/api/skills',undefined,15000);
+    const skills=Array.isArray(data.skills&&data.skills.skills)?data.skills.skills:[];
+    installed.innerHTML=skills.length?skills.map(skillCardHtml).join(''):'<p class="sub">还没有读取到已接入 Skill。</p>';
+    const canBuild=!!(data.skills&&data.skills.can_build);
+    recommended.innerHTML=RECOMMENDED_SKILLS.map(skill=>recommendedSkillHtml(skill,canBuild)).join('');
+    const ok=data.skills&&data.skills.health&&data.skills.health.ok!==false;
+    health.textContent=skills.length+' 个已接入';health.classList.toggle('waiting',!ok);
+    const status=document.getElementById('skill-zone-status');
+    if(status&&!canBuild)status.textContent='推荐 Skill 需要本地掌院权限和至少一个已配置的文本模型 API。';
+    skillZoneLoaded=true;
+  }catch(error){
+    installed.innerHTML='<p class="sub">启动本地服务后可以查看真实 Skill 状态。</p>';
+    recommended.innerHTML=RECOMMENDED_SKILLS.map(skill=>recommendedSkillHtml(skill,false)).join('');
+    health.textContent='未连接';
+  }
+}
+async function buildRecommendedSkill(btn,name){
+  const skill=RECOMMENDED_SKILLS.find(item=>item.name===name);const status=document.getElementById('skill-zone-status');
+  if(!skill||btn.disabled)return;btn.disabled=true;btn.textContent='正在交给阿栗…';if(status)status.textContent='阿栗会先检查现有能力，确实缺少时才创建新的 Skill。';
+  try{
+    const data=await cozyApi('/api/assistant/start',{message:'请创建并验证一个名为 '+skill.name+' 的私有 Skill。用途：'+skill.description+' 使用场景：'+skill.use+'。先复用现有工具，确实缺少能力时再创建。',context:{page:'toolbox-skills'}},20000);
+    btn.textContent='已进入任务';if(status)status.textContent='任务已交给阿栗，离开工具箱也会继续运行。任务编号：'+(data.task_id||'已记录');
+  }catch(error){btn.disabled=false;btn.textContent='＋ 交给阿栗创建';if(status)status.textContent='没有启动：'+error.message;}
 }
 
 function toolCard(i){

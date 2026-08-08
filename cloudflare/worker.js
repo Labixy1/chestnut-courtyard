@@ -672,7 +672,11 @@ export async function handleRequest(request, env, ctx = {}) {
       {name: "网页解析", description: "读取网页、生成摘要并归档"}, {name: "栗夹归档", description: "保存长期资料"},
       {name: "关注方向", description: "调整后续资讯关注"}, {name: "媒体来源", description: "维护巡逻信息源"},
       {name: "工具箱", description: "从链接整理工具卡片"}, {name: "记忆整理", description: "维护非封存记忆档案"}
-    ], health: {summary: "云端内置能力已连接"}}});
+    ], skills: [
+      "archive-travel", "coach-blackboard", "curate-news", "curate-photos", "generate-media", "guide-orchard",
+      "listen-tree-hollow", "manage-memory", "manage-toolbox", "run-automation"
+    ].map(name => ({name, origin: "bundled", status: "installed", kind: "guide", permission: "normal"})),
+    can_build: false, health: {ok: true, summary: "云端内置能力已连接"}}});
     if (request.method === "GET" && url.pathname === "/api/automation") return json({ok: true, automation: await readState(env, "automation:status", {last_check: "", jobs: {}})});
     if (request.method === "GET" && url.pathname === "/api/voice/status") return json({ok: true, active: false, ready: false, phase: "browser_only", transcript: ""});
     if (request.method === "GET" && url.pathname === "/api/blackboard/today") return json({ok: true, question: await cloudBlackboardQuestion(env)});

@@ -971,7 +971,9 @@ class CozyHandler(SimpleHTTPRequestHandler):
             self.send_json(200, {"ok": True, **SYSTEM_RUNTIME.tasks()})
             return
         if parsed_path.path == "/api/skills":
-            self.send_json(200, {"ok": True, "skills": BUTLER_TOOLS.skill_manifest()})
+            skills = BUTLER_TOOLS.skill_manifest()
+            skills["can_build"] = bool(skills.get("can_build") and provider_name() != "none")
+            self.send_json(200, {"ok": True, "skills": skills})
             return
         if parsed_path.path == "/api/automation":
             self.send_json(200, {"ok": True, "automation": AUTOMATION.status()})

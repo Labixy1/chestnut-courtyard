@@ -629,6 +629,8 @@ class ButlerTools:
         manifest["health"] = self._read_json("core/skill_health.json", {
             "ok": False, "summary": "尚未运行 Skill 验证", "skills": [],
         })
+        manifest["skills"] = self.system_runtime.skill_catalog() if self.system_runtime else []
+        manifest["can_build"] = bool(self.system_runtime and self.system_runtime.permissions().get("steward_mode"))
         return manifest
 
     def skill_instructions(self, message):

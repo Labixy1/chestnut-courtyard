@@ -1,6 +1,6 @@
 ---
 name: curate-news
-description: Collect, rank, summarize, archive, and organize weekly AI and product news for the 公告板.
+description: Collect, rank, summarize, archive, and organize recurring AI and product news reports for the 公告板.
 ---
 
 # Curate News
