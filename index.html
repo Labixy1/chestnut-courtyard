@@ -1328,11 +1328,15 @@ function seedPhotoAlbums(){
   let albums=saved.length?saved.slice():[];
   if(!albums.length){if(personal.length)albums.push({id:'personal_initial',title:'八月随手拍',source:'upload',date:personal[0].date,photos:personal});albums.push(...travelAlbums,demo);savePhotoAlbums(albums);}
   const existingIds=new Set(albums.map(album=>album.id));travelAlbums.forEach(album=>{if(!existingIds.has(album.id))albums.push(album);});
-  const extraPhotos=[...personal,...travelAlbums.flatMap(album=>album.photos||[])];
-  const allPhotos=[],seen=new Set();
-  [...albums.flatMap(album=>album.photos||[]),...extraPhotos].forEach(photo=>{const key=String(photo.src||'');if(!key||seen.has(key))return;seen.add(key);allPhotos.push({...photo,id:'all_'+photoAssetId(key)});});
-  const latest=allPhotos.map(photo=>photo.date||'').sort().reverse()[0]||localCalendarDate();
-  return [{id:'courtyard_all',title:'小院的所有照片',source:'aggregate',date:latest,photos:allPhotos},...albums];
+  const courtyardScenes=[
+    ['小院 · 晴天','assets/estate/panorama.webp'],['小院 · 清晨','assets/estate/panorama_morning.webp'],['小院 · 阴天','assets/estate/panorama_overcast.webp'],
+    ['小院 · 雨天','assets/estate/panorama_rain.webp'],['小院 · 雪天','assets/estate/panorama_snow.webp'],['小院 · 雾天','assets/estate/panorama_fog.webp'],
+    ['公告板','assets/news/noticeboard.webp'],['树洞','assets/estate/heart_hollow.webp'],['照片墙','assets/photos/photo_wall.webp'],
+    ['卧室 · 白天','assets/interior/bedroom_day.webp'],['卧室 · 夜晚','assets/interior/bedroom_night.webp'],['成长田','assets/plants/orchard_field.jpg'],
+    ['成长田 · 春','assets/plants/orchard_spring.jpg'],['成长田 · 夏','assets/plants/orchard_summer.jpg'],['成长田 · 秋','assets/plants/orchard_autumn.jpg'],
+    ['成长田 · 冬','assets/plants/orchard_winter.jpg'],['出发旅行','assets/travel/travel_postcard.webp']
+  ].map(([caption,src])=>({id:'scene_'+photoAssetId(src),src,caption,date:''}));
+  return [{id:'courtyard_all',title:'小院的所有照片',source:'aggregate',date:localCalendarDate(),photos:courtyardScenes},...albums];
 }
 
 function savePhotoAlbums(albums){
