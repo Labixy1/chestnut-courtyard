@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#75604a" />
+<link rel="manifest" href="../manifest.webmanifest" />
+<title>🛏️ 卧室</title>
+<script src="../core/runtime-config.js"></script>
+<script src="../core/runtime.js"></script>
+<script src="../core/data.js"></script>
+<script src="../core/memory.js"></script>
+<script src="../logger.js"></script>
+<script src="../core/pwa.js" defer></script>
+<script src="../core/butler_widget.js" defer></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"PingFang SC","Hiragino Sans GB",serif;min-height:100vh;overflow:hidden;
+     background:linear-gradient(180deg,#f0dcc0,#e6c9a6);display:flex;align-items:center;justify-content:center}
+  .back{position:fixed;left:18px;top:16px;color:#6b4b2e;text-decoration:none;font-size:14px;z-index:10;
+     background:rgba(255,255,255,.6);padding:6px 12px;border-radius:20px}
+  /* 房间 */
+  .room{position:relative;width:100vw;height:100vh;
+     background:linear-gradient(180deg,#e9cfa8 0%,#e9cfa8 58%,#c99a68 58%,#bd8d5b 100%);
+     border-radius:0;box-shadow:none;overflow:hidden}
+  /* 若有生成图铺底 */
+  .room-bg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;transition:opacity .45s ease}
+  #bg-night{opacity:0}
+  .room.lights-off #bg-day{opacity:0}
+  .room.lights-off #bg-night{opacity:1}
+  .room.has-bg .window,
+  .room.has-bg .lamp-cord,
+  .room.has-bg .lamp,
+  .room.has-bg .pull,
+  .room.has-bg .rug,
+  .room.has-bg .bed,
+  .room.has-bg .plushies{display:none}
+  /* 窗 */
+  .window{position:absolute;left:7%;top:12%;width:150px;height:120px;background:linear-gradient(180deg,#bfe0e8,#dff0e6);
+     border:10px solid #b98a5e;border-radius:10px;z-index:2;box-shadow:inset 0 0 0 2px #fff}
+  .window:before,.window:after{content:"";position:absolute;background:#b98a5e}
+  .window:before{left:50%;top:0;bottom:0;width:6px;transform:translateX(-50%)}
+  .window:after{top:50%;left:0;right:0;height:6px;transform:translateY(-50%)}
+  /* 拉绳灯 */
+  .lamp-cord{position:absolute;right:22%;top:0;width:3px;height:90px;background:#8a6b45;z-index:3}
+  .lamp{position:absolute;right:calc(22% - 30px);top:88px;width:66px;height:40px;background:#e8b04d;
+     border-radius:50% 50% 46% 46%;z-index:3;box-shadow:0 0 40px 12px rgba(232,176,77,.5)}
+  .pull{position:absolute;right:calc(22% - 2px);top:128px;width:6px;height:26px;background:#c9a24d;border-radius:4px;z-index:3;cursor:pointer}
+  /* 挂毯/毛毯 */
+  .rug{position:absolute;left:50%;bottom:6%;transform:translateX(-50%);width:60%;height:14%;
+     background:repeating-linear-gradient(90deg,#c98a6a 0 18px,#d89b7a 18px 36px);border-radius:40px;z-index:2;opacity:.9}
+  /* 床 */
+  .bed{position:absolute;right:6%;bottom:14%;width:44%;height:34%;z-index:4}
+  .mattress{position:absolute;bottom:0;width:100%;height:60%;background:#cf9d6e;border-radius:14px}
+  .quilt{position:absolute;bottom:22%;width:100%;height:52%;
+     background:linear-gradient(135deg,#e6b4a0,#d98f88);border-radius:18px;
+     box-shadow:inset 0 6px 0 rgba(255,255,255,.25)}
+  .pillow{position:absolute;bottom:52%;left:8%;width:30%;height:26%;background:#f6efdd;border-radius:14px}
+  /* 布娃娃堆 */
+  .plushies{position:absolute;bottom:34%;left:44%;display:flex;gap:6px;z-index:5}
+  .plush{width:38px;height:44px;border-radius:20px 20px 16px 16px;position:relative;box-shadow:0 3px 6px rgba(0,0,0,.2)}
+  .plush.bear{background:#b98a5e}
+  .plush.bunny{background:#e9d9c3}
+  .plush.frog{background:#8fb46a}
+  .plush:before,.plush:after{content:"";position:absolute;top:-8px;width:14px;height:14px;border-radius:50%;background:inherit}
+  .plush:before{left:2px} .plush:after{right:2px}
+  .plush .face{position:absolute;top:16px;left:0;right:0;text-align:center;font-size:11px;color:#3c2b1c}
+  .caption{position:absolute;left:0;right:0;bottom:10px;text-align:center;color:#6b4b2e;font-size:13px;z-index:9;opacity:.8}
+  .light-zone,.memory-shelf{position:absolute;z-index:6;border:0;background:transparent}
+  .light-zone{cursor:pointer}
+  .memory-shelf{cursor:default}
+  .light-zone:focus-visible,.memory-shelf:focus-visible{outline:2px solid rgba(255,246,214,.75);outline-offset:4px}
+  .light-zone:after{content:attr(data-on);position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+     padding:6px 12px;border-radius:999px;background:rgba(48,34,18,.56);color:#fff8e8;font-size:13px;
+     white-space:nowrap;opacity:0;transition:opacity .15s ease,transform .15s ease;box-shadow:0 8px 18px rgba(28,18,8,.2);
+     backdrop-filter:blur(5px)}
+  .room.lights-off .light-zone:after{content:attr(data-off)}
+  .light-zone:hover:after{opacity:1;transform:translate(-50%,-50%) scale(1.04)}
+  .light-bedside{left:2.7%;top:57.5%;width:10%;height:16%}
+  .light-wall{left:38%;top:48%;width:4.4%;height:7%}
+  .light-desk{left:52.6%;top:51.2%;width:5.2%;height:10%}
+  .memory-shelf{left:50%;top:20%;width:32%;height:42%}
+</style>
+</head>
+<body>
+<a class="back" href="../index.html">← 回小院</a>
+<div class="room" id="room">
+  <img class="room-bg" id="bg-day" src="../assets/interior/bedroom_day.png" alt="" onerror="this.remove()" />
+  <img class="room-bg" id="bg-night" src="../assets/interior/bedroom_night.png" alt="" onerror="this.remove()" />
+  <button class="light-zone light-bedside" aria-label="关灯" data-on="关灯" data-off="开灯" title="开关灯"></button>
+  <button class="light-zone light-wall" aria-label="关灯" data-on="关灯" data-off="开灯" title="开关灯"></button>
+  <button class="light-zone light-desk" aria-label="关灯" data-on="关灯" data-off="开灯" title="开关灯"></button>
+  <button class="memory-shelf" id="memory-shelf" aria-label="书墙"></button>
+  <div class="window"></div>
+  <div class="lamp-cord"></div>
+  <div class="lamp" id="lamp"></div>
+  <div class="pull" id="pull" title="拉一下"></div>
+  <div class="rug"></div>
+  <div class="bed">
+    <div class="mattress"></div>
+    <div class="quilt"></div>
+    <div class="pillow"></div>
+  </div>
+  <div class="plushies">
+    <div class="plush bear"><div class="face">•ᴥ•</div></div>
+    <div class="plush bunny"><div class="face">•ω•</div></div>
+    <div class="plush frog"><div class="face">◡ᴥ◡</div></div>
+  </div>
+</div>
+<script>
+  const room = document.getElementById('room');
+  const bgDay = document.getElementById('bg-day');
+  const bgNight = document.getElementById('bg-night');
+  const lightZones = document.querySelectorAll('.light-zone');
+  function enableGeneratedRoom(){
+    if(bgDay && bgDay.naturalWidth) room.classList.add('has-bg');
+  }
+  bgDay.addEventListener('load', enableGeneratedRoom);
+  if(bgDay.complete) enableGeneratedRoom();
+
+  let on = true;
+  function setLight(nextOn){
+    on = nextOn;
+    room.classList.toggle('lights-off', !on);
+    lightZones.forEach(zone=>{
+      zone.setAttribute('aria-label', on ? '关灯' : '开灯');
+      zone.title = on ? '关灯' : '开灯';
+    });
+  }
+  lightZones.forEach(zone=>zone.addEventListener('click',()=>setLight(!on)));
+
+  const lamp = document.getElementById('lamp');
+  document.getElementById('pull').addEventListener('click',()=>{
+    on = !on;
+    setLight(on);
+    lamp.style.boxShadow = on ? '0 0 40px 12px rgba(232,176,77,.5)' : 'none';
+    lamp.style.background = on ? '#e8b04d' : '#9c8a5e';
+  });
+  let shelfClicks = 0;
+  let shelfTimer = 0;
+  document.getElementById('memory-shelf').addEventListener('click',()=>{
+    shelfClicks += 1;
+    clearTimeout(shelfTimer);
+    if(shelfClicks >= 3){
+      location.href = 'memory_nook.html';
+      return;
+    }
+    shelfTimer = setTimeout(()=>{ shelfClicks = 0; }, 1400);
+  });
+  setLight(true);
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "name": "organize-checklist",
+  "description": "把输入的任务条目整理为带稳定 id、顺序和 pending 状态的结构化清单。",
+  "arguments": {
+    "type": "object",
+    "required": ["items"],
+    "properties": {
+      "items": {
+        "type": "array",
+        "description": "待整理的任务条目。可传字符串，或包含 title/text/name/content 的对象。",
+        "items": {
+          "oneOf": [
+            { "type": "string" },
+            { "type": "number" },
+            { "type": "object" }
+          ]
+        }
+      }
+    }
+  },
+  "entrypoint": "scripts/run.py",
+  "permission": "normal",
+  "timeout": 10
+}

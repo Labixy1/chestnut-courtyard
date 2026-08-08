@@ -1,0 +1,11 @@
+name = "cozy-estate-preview"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+[vars]
+ALLOW_UNAUTHENTICATED = "true"
+
+[assets]
+directory = "../dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"

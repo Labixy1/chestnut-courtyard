@@ -1,0 +1,14 @@
+name = "cozy-estate"
+main = "worker.js"
+compatibility_date = "2026-08-01"
+
+# The public build is deliberately read-only and contains no private state.
+# Private APIs remain unavailable until Access, KV, R2 and secrets are bound.
+[vars]
+ALLOW_UNAUTHENTICATED = "true"
+PUBLIC_READ_ONLY = "true"
+
+[assets]
+directory = "../dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"

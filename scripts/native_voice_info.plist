@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleIdentifier</key>
+  <string>local.cozy-estate.voice</string>
+  <key>CFBundleExecutable</key>
+  <string>CozyEstateVoice</string>
+  <key>CFBundleName</key>
+  <string>栗壳小院语音输入</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>LSUIElement</key>
+  <true/>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>用于把你对阿栗说的话转换成留言文字。</string>
+  <key>NSSpeechRecognitionUsageDescription</key>
+  <string>用于把你对阿栗说的话转换成留言文字。</string>
+</dict>
+</plist>

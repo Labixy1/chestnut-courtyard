@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#75604a" />
+<link rel="manifest" href="../manifest.webmanifest" />
+<title>我的记忆档案 · 密阁</title>
+<script src="../core/runtime-config.js"></script>
+<script src="../core/runtime.js"></script>
+<script src="../core/data.js"></script>
+<script src="../core/memory.js"></script>
+<script src="../logger.js"></script>
+<script src="../core/pwa.js" defer></script>
+<script src="../core/butler_widget.js" defer></script>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",serif;overflow:hidden;
+     color:#f7ead0;background:#17120e}
+  .room{position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;
+     background:
+       radial-gradient(circle at 50% 34%,rgba(196,139,72,.24),rgba(23,18,14,0) 36%),
+       linear-gradient(135deg,#2c1c14,#15100d 62%,#0f0c0a)}
+  .back{position:fixed;left:18px;top:16px;z-index:3;color:#f7ead0;text-decoration:none;font-size:14px;
+     background:rgba(255,246,214,.12);border:1px solid rgba(255,246,214,.22);padding:7px 13px;
+     border-radius:999px;backdrop-filter:blur(6px)}
+  .panel{width:min(1040px,88vw);max-height:86vh;overflow:auto;border-radius:20px;padding:30px 32px;
+     background:rgba(52,35,24,.72);border:1px solid rgba(255,226,176,.18);
+     box-shadow:0 30px 80px rgba(0,0,0,.42), inset 0 0 0 1px rgba(255,255,255,.04);
+     backdrop-filter:blur(10px)}
+  h1{font-size:24px;margin-bottom:8px;color:#fff3d7}
+  .lead{font-size:14px;line-height:1.8;color:rgba(247,234,208,.76);margin-bottom:24px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+  .card{border-radius:18px;background:rgba(255,246,222,.08);border:1px solid rgba(255,226,176,.14);
+     padding:16px 18px;min-height:128px}
+  .card h2{font-size:15px;margin-bottom:10px;color:#ffe8ba}
+  .card p{font-size:13px;line-height:1.7;color:rgba(247,234,208,.76)}
+  .memory-section{margin-top:18px}
+  .memory-section h2{font-size:16px;color:#ffe8ba;margin-bottom:10px}
+  .memory-list{display:grid;gap:10px}
+  .memory-row{border-radius:16px;background:rgba(255,246,222,.07);border:1px solid rgba(255,226,176,.12);
+     padding:12px 14px}
+  .memory-row h3{font-size:13px;color:#fff2d2;margin-bottom:5px}
+  .memory-row p{font-size:12px;line-height:1.65;color:rgba(247,234,208,.72)}
+  .memory-meta{font-size:11px;color:rgba(247,234,208,.46);margin-top:5px}
+  .source-pills{display:flex;gap:8px;flex-wrap:wrap}
+  .source-pills span{font-size:12px;border-radius:999px;padding:6px 10px;background:rgba(255,226,176,.12);
+     color:rgba(255,236,196,.78)}
+  .seal{margin-top:20px;font-size:12px;color:rgba(247,234,208,.52)}
+  .permission-room{display:flex;align-items:center;gap:18px;margin:0 0 22px;padding:17px 18px;border-radius:16px;background:rgba(219,168,89,.12);border:1px solid rgba(255,218,155,.2)}
+  .permission-copy{min-width:0;flex:1}.permission-copy h2{font-size:15px;color:#ffe8ba;margin-bottom:5px}.permission-copy p{font-size:12px;line-height:1.6;color:rgba(247,234,208,.68)}
+  .permission-state{font-size:11px;color:#d9bb83;margin-top:5px}.permission-switch{position:relative;display:inline-block;width:48px;height:27px;flex:0 0 auto}.permission-switch input{position:absolute;opacity:0}.permission-slider{position:absolute;inset:0;border-radius:999px;background:#5b4c40;border:1px solid rgba(255,235,198,.2);cursor:pointer;transition:.2s}.permission-slider:before{content:"";position:absolute;width:21px;height:21px;left:2px;top:2px;border-radius:50%;background:#f2e4c8;transition:.2s}.permission-switch input:checked+.permission-slider{background:#b18542}.permission-switch input:checked+.permission-slider:before{transform:translateX(21px)}
+  .memory-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.memory-toolbar h2{margin:0}.memory-refresh{border:1px solid rgba(255,226,176,.18);background:rgba(255,246,222,.08);color:#ffe8ba;border-radius:999px;padding:6px 11px;cursor:pointer;font-size:11px}
+  .memory-actions{display:flex;gap:6px;margin-top:8px}.memory-actions button{border:1px solid rgba(255,226,176,.15);background:rgba(255,246,222,.08);color:rgba(247,234,208,.72);border-radius:999px;padding:4px 8px;font-size:10px;cursor:pointer}.memory-actions button.danger{color:#edb8a4}
+  .preference-row{border-left:2px solid rgba(215,177,109,.5)}.preference-row.candidate{border-left-color:rgba(151,183,197,.55)}
+  .preference-status{display:inline-block;margin-left:6px;padding:2px 6px;border-radius:999px;background:rgba(215,177,109,.14);color:#e8c98f;font-size:9px;vertical-align:1px}.preference-status.candidate{background:rgba(151,183,197,.13);color:#b9d2dc}
+  .task-row{display:grid;grid-template-columns:1fr auto;gap:8px}.task-status{font-size:10px;color:#d9bb83}.empty{font-size:12px;color:rgba(247,234,208,.55)}
+  .archive-summary{display:flex;align-items:center;gap:22px;margin:0 0 20px;padding:12px 0 16px;border-bottom:1px solid rgba(255,226,176,.12)}
+  .archive-count strong{display:block;font-size:19px;color:#fff0ca}.archive-count span{display:block;margin-top:2px;font-size:10px;color:rgba(247,234,208,.48)}
+  .profile-document{padding:2px 2px 18px;max-width:820px}.profile-section{margin-bottom:20px}.profile-section h2{font-size:12px;color:#d9b978;margin-bottom:7px}.profile-section p{font-size:14px;line-height:1.9;color:rgba(255,241,213,.82)}.profile-meta{padding-top:10px;border-top:1px solid rgba(255,226,176,.09);font-size:10px;color:rgba(247,234,208,.38)}
+  .distill-control{display:flex;align-items:center;gap:14px;margin:2px 0 12px;padding:13px 14px;border-radius:14px;background:rgba(255,246,222,.055);border:1px solid rgba(255,226,176,.1)}.distill-copy{min-width:0;flex:1}.distill-copy h2{font-size:13px;color:#ffe8ba;margin-bottom:4px}.distill-copy p{font-size:10px;line-height:1.6;color:rgba(247,234,208,.52)}.distill-button{border:1px solid rgba(255,226,176,.16);background:rgba(211,170,96,.13);color:#f1d7a4;border-radius:8px;padding:7px 11px;font-size:10px;cursor:pointer;white-space:nowrap}.distill-button:disabled{cursor:default;opacity:.42}
+  .workspace-intro{display:flex;align-items:end;justify-content:space-between;gap:16px;margin:0 0 10px}.workspace-intro h2{font-size:16px;color:#ffe8ba}.workspace-intro p{font-size:10px;color:rgba(247,234,208,.48)}
+  .status-tabs{display:inline-flex;gap:3px;padding:3px;border-radius:9px;background:rgba(18,13,10,.28);border:1px solid rgba(255,226,176,.09)}.status-tab{border:0;border-radius:6px;background:transparent;color:rgba(247,234,208,.54);padding:6px 11px;font-size:10px;cursor:pointer}.status-tab.active{background:rgba(214,171,94,.17);color:#ffe9bd}
+  .memory-workspace{display:grid;grid-template-columns:210px minmax(0,1fr);gap:14px;align-items:start}
+  .category-panel{position:sticky;top:0;border-radius:14px;background:rgba(18,13,10,.24);border:1px solid rgba(255,226,176,.1);padding:10px;max-height:62vh;overflow:auto}
+  .category-title{display:flex;align-items:center;justify-content:space-between;padding:3px 4px 9px;font-size:12px;color:#e8cc98}
+  .category-add{width:25px;height:25px;border:0;border-radius:7px;background:rgba(255,235,198,.1);color:#f5ddb0;cursor:pointer;font-size:17px;line-height:25px}
+  .category-list{display:grid;gap:4px}.category-chip{width:100%;display:flex;align-items:center;gap:8px;border:0;border-radius:9px;background:transparent;color:rgba(247,234,208,.66);padding:8px 9px;text-align:left;cursor:pointer;font-size:11px}
+  .category-chip:hover{background:rgba(255,246,222,.06)}.category-chip.active{background:rgba(214,171,94,.17);color:#ffe9bd}.category-chip b{margin-left:auto;font-size:10px;font-weight:500;opacity:.62}
+  .category-tools{margin-top:10px;padding-top:9px;border-top:1px solid rgba(255,226,176,.09);display:grid;gap:6px}.category-tools button{border:0;background:transparent;color:rgba(247,234,208,.5);font-size:10px;text-align:left;cursor:pointer;padding:3px 5px}.category-tools button:hover{color:#f7dfb3}
+  .cards-panel{min-width:0}.cards-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:10px}.cards-head h2{margin:0;font-size:16px}.cards-head span{font-size:10px;color:rgba(247,234,208,.48)}
+  .card-groups{display:grid;gap:18px}.card-group-title{display:flex;align-items:center;gap:7px;margin-bottom:8px;font-size:12px;color:#e8cc98}.card-group-title span{font-size:9px;padding:2px 6px;border-radius:999px;background:rgba(255,231,188,.1);color:rgba(247,234,208,.58)}
+  .memory-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.memory-card{min-width:0;border-radius:13px;background:rgba(255,246,222,.065);border:1px solid rgba(255,226,176,.11);padding:12px 13px}.memory-card.candidate{border-style:dashed;background:rgba(151,183,197,.055)}
+  .memory-card-top{display:flex;align-items:center;gap:7px}.memory-kind{font-size:9px;color:#d9bb83;background:rgba(217,187,131,.1);padding:2px 6px;border-radius:999px}.memory-card h3{min-width:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;color:#fff0d0}.memory-card p{font-size:11px;line-height:1.65;color:rgba(247,234,208,.67);margin-top:7px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}.memory-evidence{font-size:9px;color:rgba(247,234,208,.4);margin-top:7px}.memory-card .memory-actions{flex-wrap:wrap}.memory-card select{max-width:130px;border:1px solid rgba(255,226,176,.13);background:#35261c;color:#dfc79b;border-radius:7px;padding:3px 5px;font-size:9px}
+  .card-more{position:relative;margin-left:auto;flex:0 0 auto}.card-more summary{list-style:none;width:24px;height:24px;display:grid;place-items:center;border-radius:6px;color:rgba(247,234,208,.46);cursor:pointer;font-size:15px}.card-more summary::-webkit-details-marker{display:none}.card-more summary:hover,.card-more[open] summary{background:rgba(255,246,222,.08);color:#f2d8a6}.card-more-menu{position:absolute;right:0;top:28px;z-index:6;width:152px;padding:8px;border-radius:9px;background:#302219;border:1px solid rgba(255,226,176,.16);box-shadow:0 12px 30px rgba(0,0,0,.34)}.card-more-menu label{display:block;font-size:9px;color:rgba(247,234,208,.48);margin-bottom:6px}.card-more-menu select{display:block;width:100%;max-width:none;margin-top:4px}.card-more-menu button{display:block;width:100%;border:0;background:transparent;color:rgba(247,234,208,.66);padding:6px 5px;text-align:left;font-size:10px;cursor:pointer}.card-more-menu button:hover{background:rgba(255,246,222,.06)}.card-more-menu button.danger{color:#dca997}.remember-button{margin-top:8px;border:1px solid rgba(205,173,111,.22);background:rgba(205,173,111,.12);color:#efd8a9;border-radius:7px;padding:5px 9px;font-size:10px;cursor:pointer}
+  .suggestion-row{display:flex;align-items:center;gap:8px;border-radius:11px;background:rgba(151,183,197,.06);padding:9px 10px;margin-bottom:7px;font-size:10px;color:#bdd1d8}.suggestion-row b{color:#d7e6ea}.suggestion-row span{margin-left:auto;color:rgba(189,209,216,.55)}
+  .quiet-details{margin-top:14px;border-top:1px solid rgba(255,226,176,.1)}.quiet-details summary{list-style:none;display:flex;align-items:center;gap:8px;padding:13px 2px;color:rgba(247,234,208,.58);font-size:11px;cursor:pointer}.quiet-details summary::-webkit-details-marker{display:none}.quiet-details summary span{margin-left:auto;color:rgba(247,234,208,.38)}.quiet-details summary:after{content:"+";font-size:15px;color:rgba(247,234,208,.4)}.quiet-details[open] summary:after{content:"−"}.details-content{padding:0 2px 10px}.details-content .memory-section:first-child{margin-top:4px}.details-content .permission-room{margin:2px 0 8px}
+  @media(max-width:820px){.memory-workspace{grid-template-columns:1fr}.category-panel{position:static;max-height:none}.category-list{display:flex;overflow:auto}.category-chip{min-width:max-content;width:auto}.memory-card-grid{grid-template-columns:1fr}.workspace-intro{align-items:start;flex-direction:column;gap:3px}}
+  @media(max-width:700px){.panel{width:100vw;max-height:100vh;height:100vh;border-radius:0;padding:70px 18px 24px}.permission-room{align-items:flex-start}.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<main class="room">
+  <a class="back" href="bedroom.html">← 回卧室</a>
+  <section class="panel">
+    <h1>我的记忆档案</h1>
+    <p class="lead">阿栗根据与你相处时确认的记忆自动整理，并随着新的了解持续更新。</p>
+    <article class="profile-document"><div id="profile-sections"></div><div class="profile-meta" id="profile-meta"></div></article>
+    <details class="quiet-details" id="observation-details"><summary>观察中的线索 <span id="candidate-summary-count"></span></summary><div class="details-content"><div class="memory-card-grid" id="candidate-preview"></div></div></details>
+    <details class="quiet-details" id="memory-items-details"><summary>查看记忆条目 <span id="active-summary-count"></span></summary><div class="details-content"><section class="memory-workspace">
+      <aside class="category-panel">
+        <div class="category-title"><span>记忆分类</span><button class="category-add" title="新建分类" onclick="createCategory()">+</button></div>
+        <div class="category-list" id="category-list"></div>
+        <div class="category-tools" id="category-tools"></div>
+      </aside>
+      <div class="cards-panel">
+        <div class="cards-head"><h2 id="cards-title">全部记忆</h2><span id="cards-count"></span></div>
+        <div id="category-suggestions"></div>
+        <div class="memory-card-grid" id="visible-cards"></div>
+      </div>
+    </section></div></details>
+    <details class="quiet-details" id="sealed-section"><summary>封存密库 <span id="sealed-summary-count"></span></summary><div class="details-content"><div class="memory-list" id="sealed-memory"></div></div></details>
+    <details class="quiet-details" id="memory-log-details"><summary>记忆日志与系统记录</summary><div class="details-content">
+      <section class="memory-section"><h2>证据来源</h2><div class="source-pills" id="source-pills"></div></section>
+      <section class="memory-section"><h2>操作卷宗</h2><div class="memory-list" id="task-list"></div></section>
+      <section class="memory-section"><div class="memory-toolbar"><h2>系统骨架</h2><span class="task-status" id="skill-health"></span></div><div class="source-pills" id="skill-list"></div></section>
+    </div></details>
+    <details class="quiet-details" id="system-settings-details"><summary>系统设置</summary><div class="details-content"><section class="distill-control">
+      <div class="distill-copy"><h2>AI 记忆整理</h2><p id="distill-status">正在读取整理状态……</p></div><button class="distill-button" id="distill-undo" onclick="undoDistillation()" style="display:none">撤销上次</button><button class="distill-button" id="distill-button" onclick="runDistillation()">立即整理</button>
+    </section><section class="permission-room">
+      <div class="permission-copy"><h2>掌院权限</h2><p>开启后，阿栗可以修改页面、系统逻辑、Prompt、Skill、密阁布局和记忆结构。每次修改仍会自动快照、验证并留下卷宗。</p><div class="permission-state" id="permission-state">正在读取权限……</div></div>
+      <label class="permission-switch" title="掌院权限"><input id="steward-toggle" type="checkbox" onchange="toggleSteward(this.checked)"><span class="permission-slider"></span></label>
+    </section></div></details>
+    <div class="seal">入口：卧室书墙连续点击三下。</div>
+  </section>
+</main>
+<script>
+function esc(str){
+  return String(str || '').replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function sourceName(source){
+  return ({
+    heart_hollow:'树洞', orchard:'智慧果园', blackboard:'黑板',
+    noticeboard:'公告板', travel:'出发旅行', photo_wall:'照片墙', butler:'阿栗任务',
+    private_wing:'密阁', memory_nook:'密阁'
+  })[source] || source || '未知';
+}
+const API_ORIGIN = location.protocol === 'file:' ? 'http://127.0.0.1:8766' : '';
+let NOOK_MEMORY = null;
+let NOOK_DISTILLATION = null;
+let ACTIVE_CATEGORY = 'all';
+function api(path,payload){
+  return fetch(API_ORIGIN+path,payload===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).then(async response=>{const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'请求失败');return data;});
+}
+function categoryName(id){const found=(NOOK_MEMORY?.categories||[]).find(item=>item.id===id);return found?.name||'其他';}
+function cardKind(kind){return ({fact:'事实',preference:'偏好',experience:'经历',goal:'目标',project:'项目',routine:'习惯',insight:'洞察'})[kind]||'记忆';}
+function sealedRow(item){
+  return '<article class="memory-row"><h3>'+esc(sourceName(item.source))+' · 封存</h3><p>'+esc(item.summary||item.content)+'</p><div class="memory-meta">'+esc((item.date||'')+' '+(item.time||''))+'</div><div class="memory-actions"><button class="danger" onclick="forgetMemory(\''+esc(item.id)+'\')">忘记</button></div></article>';
+}
+function cardRow(item){
+  const candidate=item.status==='candidate';
+  const options=(NOOK_MEMORY?.categories||[]).filter(category=>category.status==='active').map(category=>'<option value="'+esc(category.id)+'"'+(category.id===item.category_id?' selected':'')+'>'+esc(category.name)+'</option>').join('');
+  const statusAction=candidate?'':'<button onclick="cardAction(\''+esc(item.id)+'\',\'card_candidate\')">移到待确认</button>';
+  const menu='<details class="card-more"><summary title="管理这条记忆">⋯</summary><div class="card-more-menu"><label>分类<select onchange="moveCardCategory(\''+esc(item.id)+'\',this.value)">'+options+'</select></label>'+statusAction+'<button onclick="cardAction(\''+esc(item.id)+'\',\'card_reject\')">忽略</button><button class="danger" onclick="forgetMemory(\''+esc(item.id)+'\')">彻底忘记</button></div></details>';
+  return '<article class="memory-card '+(candidate?'candidate':'')+'"><div class="memory-card-top"><span class="memory-kind">'+esc(cardKind(item.kind))+'</span><h3 title="'+esc(item.title||item.statement)+'">'+esc(item.title||item.statement)+'</h3>'+menu+'</div><p>'+esc(item.statement||item.summary)+'</p><div class="memory-evidence">'+esc(categoryName(item.category_id))+'</div>'+(candidate?'<button class="remember-button" onclick="cardAction(\''+esc(item.id)+'\',\'card_activate\')">立即记住</button>':'')+'</article>';
+}
+function setCategory(id){ACTIVE_CATEGORY=id;renderMemoryNook();}
+function renderMemoryNook(){
+  const memory=NOOK_MEMORY||{};
+  const cards=(memory.cards||[]).filter(item=>!['rejected','superseded'].includes(item.status)&&item.sensitivity!=='sealed');
+  const categories=(memory.categories||[]).filter(item=>item.status==='active');
+  const activeTotal=cards.filter(item=>item.status==='active').length;
+  const candidateTotal=cards.filter(item=>item.status==='candidate').length;
+  const activeCards=cards.filter(item=>item.status==='active');
+  const candidateCards=cards.filter(item=>item.status==='candidate');
+  const selected=ACTIVE_CATEGORY==='all'?activeCards:activeCards.filter(item=>item.category_id===ACTIVE_CATEGORY);
+  const sealed=memory.sealed||[];
+  const events=memory.events||[];
+  const profile=memory.profile||{};
+  const sections=profile.sections||[];
+  document.getElementById('profile-sections').innerHTML=sections.length?sections.map(section=>'<section class="profile-section"><h2>'+esc(section.title)+'</h2><p>'+esc(section.text)+'</p></section>').join(''):'<section class="profile-section"><p>'+esc(profile.summary||'阿栗还没有足够确定的记忆。')+'</p></section>';
+  const profileSource=profile.generator==='ai_distillation'?'AI 已整理':'规则档案';
+  document.getElementById('profile-meta').textContent='根据 '+activeTotal+' 条已确认记忆整理 · '+profileSource+' · '+String(profile.generated_at||'').slice(0,16).replace('T',' ');
+  document.getElementById('candidate-summary-count').textContent=candidateTotal+' 条';
+  document.getElementById('active-summary-count').textContent=activeTotal+' 条';
+  document.getElementById('candidate-preview').innerHTML=candidateCards.length?candidateCards.map(cardRow).join(''):'<div class="empty">暂时没有观察中的线索。</div>';
+  const countFor=id=>id==='all'?activeCards.length:activeCards.filter(item=>item.category_id===id).length;
+  document.getElementById('category-list').innerHTML='<button class="category-chip '+(ACTIVE_CATEGORY==='all'?'active':'')+'" onclick="setCategory(\'all\')">全部<b>'+activeCards.length+'</b></button>'+categories.filter(category=>countFor(category.id)>0).map(category=>'<button class="category-chip '+(ACTIVE_CATEGORY===category.id?'active':'')+'" onclick="setCategory(\''+esc(category.id)+'\')">'+esc(category.name)+'<b>'+countFor(category.id)+'</b></button>').join('');
+  const current=categories.find(item=>item.id===ACTIVE_CATEGORY);
+  document.getElementById('category-tools').innerHTML=current&&!current.system?'<button onclick="renameCategory(\''+esc(current.id)+'\')">重命名当前分类</button><button onclick="mergeCategory(\''+esc(current.id)+'\')">合并到其他分类</button><button onclick="deleteCategory(\''+esc(current.id)+'\')">删除当前分类</button>':'';
+  document.getElementById('cards-title').textContent=current?current.name:'全部记忆';
+  document.getElementById('cards-count').textContent=selected.length+' 张卡片';
+  document.getElementById('visible-cards').innerHTML=selected.length?selected.map(cardRow).join(''):'<div class="empty">这里暂时没有内容。</div>';
+  const suggestions=memory.category_suggestions||[];
+  document.getElementById('category-suggestions').innerHTML=suggestions.length?suggestions.map(item=>'<div class="suggestion-row"><b>'+esc(item.name)+'</b><span>'+esc(item.evidence_count||0)+' / '+esc(memory.policy?.auto_category_min_cards||3)+' 条依据</span></div>').join(''):'';
+  document.getElementById('sealed-memory').innerHTML=sealed.length?sealed.slice(0,30).map(sealedRow).join(''):'<article class="memory-row"><p>还没有封存记忆。</p></article>';
+  document.getElementById('sealed-summary-count').textContent=sealed.length+' 条';
+  const counts={};events.forEach(event=>{counts[event.source||'unknown']=(counts[event.source||'unknown']||0)+1;});
+  document.getElementById('source-pills').innerHTML=Object.keys(counts).map(key=>'<span>'+esc(sourceName(key))+' '+counts[key]+'</span>').join('')||'<span>暂无行为</span>';
+}
+async function loadNook(){
+  try{
+    const [permissionData,memoryData,taskData,skillData,distillData] = await Promise.all([api('/api/permissions'),api('/api/memory'),api('/api/tasks'),api('/api/skills'),api('/api/memory/distillation')]);
+    const enabled=!!permissionData.permissions.steward_mode;
+    document.getElementById('steward-toggle').checked=enabled;
+    document.getElementById('permission-state').textContent=enabled?'已永久开启 · 关闭前持续有效':'当前关闭 · 阿栗只能执行普通功能';
+    document.getElementById('sealed-section').style.display=enabled?'block':'none';
+    NOOK_MEMORY=memoryData.memory;NOOK_DISTILLATION=distillData.distillation||{};renderMemoryNook();renderDistillation();renderTasks(taskData.tasks||[]);renderSkills((skillData.skills&&skillData.skills.tools)||[],(skillData.skills&&skillData.skills.health)||{});
+  }catch(error){
+    document.getElementById('permission-state').textContent='本地服务未连接，暂时不能修改权限';renderMemoryNook();renderTasks([]);
+  }
+}
+function renderDistillation(){
+  const state=NOOK_DISTILLATION||{};const running=['queued','running'].includes(state.status);const button=document.getElementById('distill-button');button.disabled=running;button.textContent=running?'整理中…':'立即整理';
+  const undo=document.getElementById('distill-undo');undo.style.display=state.recent_runs?.length?'inline-block':'none';
+  const labels={completed:'上次整理已完成',failed:'上次整理失败',queued:'等待开始整理',running:'阿栗正在整理记忆档案',restored:'已恢复整理前档案',idle:'尚未进行 AI 整理'};
+  const time=String(state.last_success||state.last_run||'').slice(0,16).replace('T',' ');const provider=state.provider?' · '+state.provider:'';
+  document.getElementById('distill-status').textContent=(labels[state.status]||'等待自动整理')+(time?' · '+time:'')+provider+(state.last_error?' · '+state.last_error:'');
+}
+async function runDistillation(){
+  const button=document.getElementById('distill-button');button.disabled=true;button.textContent='整理中…';document.getElementById('distill-status').textContent='阿栗正在整理记忆档案，你可以离开这个页面。';
+  try{await api('/api/memory/distill',{force:true});pollDistillation();}catch(error){button.disabled=false;button.textContent='立即整理';document.getElementById('distill-status').textContent='没有开始整理：'+error.message;}
+}
+async function pollDistillation(){
+  try{const result=await api('/api/memory/distillation');NOOK_DISTILLATION=result.distillation||{};renderDistillation();if(NOOKENABLED(NOOK_DISTILLATION)){setTimeout(pollDistillation,1500);}else{await loadNook();}}
+  catch(error){document.getElementById('distill-status').textContent='暂时无法读取整理状态：'+error.message;}
+}
+function NOOKENABLED(state){return state&&['queued','running'].includes(state.status);}
+async function undoDistillation(){
+  const runId=NOOK_DISTILLATION?.recent_runs?.[0]?.id;if(!runId||!confirm('恢复到上次 AI 整理前的记忆档案吗？'))return;
+  try{await api('/api/memory/distill/undo',{run_id:runId});await loadNook();}catch(error){alert(error.message);}
+}
+async function toggleSteward(enabled){
+  const state=document.getElementById('permission-state');state.textContent=enabled?'正在开启……':'正在关闭……';
+  try{await api('/api/permissions',{steward_mode:enabled});await loadNook();window.CozyButler?.refreshStatus();}
+  catch(error){document.getElementById('steward-toggle').checked=!enabled;state.textContent='没有修改成功：'+error.message;}
+}
+async function moveMemory(id,layer){try{await api('/api/memory/action',{action:'move',id,layer});await loadNook();}catch(error){alert(error.message);}}
+async function setPreference(id,action){try{await api('/api/memory/action',{action,id});await loadNook();}catch(error){alert(error.message);}}
+async function cardAction(id,action){try{await api('/api/memory/action',{action,id});await loadNook();}catch(error){alert(error.message);}}
+async function moveCardCategory(id,categoryId){try{await api('/api/memory/action',{action:'card_move_category',id,category_id:categoryId});await loadNook();}catch(error){alert(error.message);}}
+async function createCategory(){const name=prompt('新分类叫什么？');if(!name)return;try{const result=await api('/api/memory/action',{action:'category_create',name});ACTIVE_CATEGORY=result.category?.id||'all';await loadNook();}catch(error){alert(error.message);}}
+async function renameCategory(id){const current=(NOOK_MEMORY?.categories||[]).find(item=>item.id===id);const name=prompt('新的分类名称',current?.name||'');if(!name||name===current?.name)return;try{await api('/api/memory/action',{action:'category_rename',id,name});await loadNook();}catch(error){alert(error.message);}}
+async function mergeCategory(id){const choices=(NOOK_MEMORY?.categories||[]).filter(item=>item.id!==id&&item.status==='active');const names=choices.map(item=>item.name).join('、');const name=prompt('合并到哪个分类？\n'+names);if(!name)return;const target=choices.find(item=>item.name===name||item.id===name);if(!target){alert('没有找到这个分类');return;}try{await api('/api/memory/action',{action:'category_merge',id,target_id:target.id});ACTIVE_CATEGORY=target.id;await loadNook();}catch(error){alert(error.message);}}
+async function deleteCategory(id){if(!confirm('删除这个分类吗？其中卡片会移到“其他”。'))return;try{await api('/api/memory/action',{action:'category_delete',id});ACTIVE_CATEGORY='general';await loadNook();}catch(error){alert(error.message);}}
+async function forgetMemory(id){if(!confirm('确定彻底忘记这条记忆吗？'))return;try{const result=await api('/api/memory/action',{action:'forget',id});const forgotten=new Set(result.forgotten_ids||[id]);const local=JSON.parse(localStorage.getItem('cozy_memory_events')||'[]').filter(item=>!forgotten.has(String(item.id)));localStorage.setItem('cozy_memory_events',JSON.stringify(local));window.CozyButler?.persistLocal(['cozy_memory_events']);await loadNook();}catch(error){alert(error.message);}}
+function renderTasks(tasks){
+  const box=document.getElementById('task-list');
+  box.innerHTML=tasks.length?tasks.slice(0,20).map(task=>{const raw=String(task.message||task.instruction||'').replace(/\s+/g,' ').trim();const excerpt=raw.length>260?raw.slice(0,260)+'…':raw;const status=({completed:'已完成',running:'进行中',failed:'失败'})[task.status]||task.status;return '<article class="memory-row task-row"><div><h3>'+esc(task.title||task.kind)+'</h3><p>'+esc(excerpt)+'</p><div class="memory-meta">'+esc(task.updated_at||task.started_at||'')+(task.snapshot_id?' · 快照 '+esc(task.snapshot_id):'')+'</div>'+(task.snapshot_id?'<div class="memory-actions"><button onclick="undoSnapshot(\''+esc(task.snapshot_id)+'\')">撤销这次系统修改</button></div>':'')+'</div><span class="task-status">'+esc(status)+'</span></article>';}).join(''):'<article class="memory-row"><p>还没有系统操作卷宗。</p></article>';
+}
+function renderSkills(skills,health){const box=document.getElementById('skill-list');box.innerHTML=skills.length?skills.map(skill=>'<span title="'+esc(skill.description||'')+'">'+esc(skill.name)+'</span>').join(''):'<span>还没有注册 Skill</span>';document.getElementById('skill-health').textContent=health&&health.summary?health.summary:'尚未验证';}
+async function undoSnapshot(snapshotId){if(!confirm('确定恢复这个快照吗？它之后的系统文件修改会被覆盖。'))return;try{await api('/api/tasks/undo',{snapshot_id:snapshotId});location.reload();}catch(error){alert(error.message);}}
+loadNook();
+</script>
+</body>
+</html>

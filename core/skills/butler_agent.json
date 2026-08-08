@@ -1,0 +1,146 @@
+{
+  "name": "阿栗工具管家",
+  "description": "根据主人的自然语言选择并执行小院工具，执行完成后返回可核验结果。",
+  "tools": [
+    {
+      "name": "parse_and_archive",
+      "description": "抓取网页正文，用 AI 总结、分类并收入栗夹。用户提供链接并要求解析、整理或归档时使用。",
+      "arguments": {"url": "完整网页链接", "category": "可选，优先从模型与技术/产品与实践/行业动态/学术研究中选择"}
+    },
+    {
+      "name": "archive_from_knowledge",
+      "description": "把周报或知识库里已经存在的文章收入栗夹。",
+      "arguments": {"query": "标题或关键词", "category": "可选，优先从模型与技术/产品与实践/行业动态/学术研究中选择"}
+    },
+    {
+      "name": "add_read_later",
+      "description": "把网页链接或知识库文章加入待读。",
+      "arguments": {"query": "链接、标题或关键词"}
+    },
+    {
+      "name": "move_archive",
+      "description": "修改栗夹里资料的分类。",
+      "arguments": {"query": "标题或链接关键词", "category": "新分类"}
+    },
+    {
+      "name": "remove_archive",
+      "description": "从栗夹移出资料。",
+      "arguments": {"query": "标题或链接关键词"}
+    },
+    {
+      "name": "add_watch_topic",
+      "description": "记录下周资讯希望关注的主题或总结方向。",
+      "arguments": {"topic": "具体关注方向"}
+    },
+    {
+      "name": "add_source",
+      "description": "增加以后周报巡逻时需要关注的媒体或网站。",
+      "arguments": {"name": "媒体名称", "url": "媒体网址，可选"}
+    },
+    {
+      "name": "add_toolbox_item",
+      "description": "把一个真实工具加入工具箱分类。",
+      "arguments": {"title": "工具名称", "category": "分类", "purpose": "用途", "key_capabilities": "关键能力数组", "use_cases": "使用场景数组", "example": "使用例子", "url": "官方地址"}
+    },
+    {
+      "name": "add_tool_from_link",
+      "description": "解析工具官网或提到工具的资讯链接，找到官方地址并生成完整工具卡。",
+      "arguments": {"url": "工具官网或资讯链接", "instruction": "主人对分类或用途的补充要求，可选"}
+    },
+    {
+      "name": "manage_toolbox_item",
+      "description": "移动、修改或删除工具箱里的工具。",
+      "arguments": {"action": "move/update/remove", "query": "工具名称", "category": "新分类，可选", "use_when": "新用途，可选"}
+    },
+    {
+      "name": "manage_trip",
+      "description": "新建、更新、结束或删除一段旅行，并持久化到旅行页。",
+      "arguments": {"action": "create/update/complete/remove", "id": "旅程 id，更新时需要", "place": "地点", "start": "出发日期", "end": "回家日期", "summary": "摘要"}
+    },
+    {
+      "name": "manage_growth_seed",
+      "description": "在智慧果园新增、更新、收成或删除成长种子。",
+      "arguments": {"action": "create/update/resolve/remove", "id": "种子 id，更新时需要", "text": "困惑或成长方向", "reflection": "收成感想，可选"}
+    },
+    {
+      "name": "manage_knowledge_topic",
+      "description": "新增、持续更新、移动或删除成长田知识专题；相关问题应合并进已有专题而不是生成孤立卡片。",
+      "arguments": {"action": "upsert/move/remove", "id": "专题 id，可选", "title": "稳定的专题名称", "category": "分类", "summary": "综合摘要", "entities": "产品或概念数组", "question": "本次问题", "answer": "本次结论"}
+    },
+    {
+      "name": "run_weekly_report",
+      "description": "立即联网抓取信息源并重新生成本周完整周报。",
+      "arguments": {}
+    },
+    {
+      "name": "system_status",
+      "description": "检查阿栗、周报、记忆、旅行和果园的数据状态。",
+      "arguments": {}
+    },
+    {
+      "name": "generate_media",
+      "description": "调用真实图片或视频模型生成素材。图片支持 Seedream 和 GPT Image，视频支持 Seedance；可能产生 API 费用，只在主人明确要求时调用。",
+      "arguments": {"kind": "image 或 video", "provider": "seedream/openai/seedance", "prompt": "完整提示词", "size": "图片尺寸", "ratio": "视频比例", "duration": "视频秒数", "generate_audio": "是否生成声音"}
+    },
+    {
+      "name": "check_media_task",
+      "description": "查询持久化的图片或 Seedance 视频生成任务，并在视频完成后保存文件。",
+      "arguments": {"id": "生成任务 id"}
+    },
+    {
+      "name": "search_knowledge",
+      "description": "查询本周周报、历史资料、栗夹和工具箱后回答问题。",
+      "arguments": {"query": "查询关键词"}
+    },
+    {
+      "name": "manage_notice_category",
+      "description": "新增、重命名或删除公告板和栗夹的自定义分类。",
+      "arguments": {"action": "create/rename/delete", "category": "当前分类名称", "target": "重命名后的名称，可选"}
+    },
+    {
+      "name": "remember_memory",
+      "description": "把主人明确要求记住的内容放入长期或封存记忆。",
+      "arguments": {"content": "完整内容", "summary": "简短摘要", "layer": "long 或 sealed"}
+    },
+    {
+      "name": "remember_preference",
+      "description": "记录主人明确表达的稳定偏好，并立即用于后续对话和执行默认值。",
+      "arguments": {"statement": "主人明确表达的偏好原意"}
+    },
+    {
+      "name": "manage_preference",
+      "description": "确认、降为候选、拒绝或忘记一条偏好。",
+      "arguments": {"action": "confirm/candidate/reject/forget", "id": "偏好 id"}
+    },
+    {
+      "name": "manage_memory_card",
+      "description": "确认、降为候选、忽略、移动或忘记一张记忆卡片。候选卡片不会影响执行。",
+      "arguments": {"action": "activate/candidate/reject/move/forget", "id": "卡片 id", "category_id": "移动目标分类 id，可选"}
+    },
+    {
+      "name": "manage_memory_category",
+      "description": "管理密阁记忆分类。主人明确要求时直接创建；阿栗推断的新分类先建议，三张相关卡片后才自动启用。",
+      "arguments": {"action": "create/suggest/rename/merge/delete", "id": "分类 id", "name": "分类名称", "target_id": "合并目标分类 id", "related_card_ids": "相关卡片 id 列表"}
+    },
+    {
+      "name": "forget_memory",
+      "description": "按关键词删除主人明确要求忘记的记忆。",
+      "arguments": {"query": "要忘记的内容或记忆标识"}
+    },
+    {
+      "name": "search_memory",
+      "description": "查询与当前问题相关的短期、长期记忆；封存记忆需要掌院权限和主人明确要求。",
+      "arguments": {"query": "查询内容", "include_sealed": "是否读取封存记忆"}
+    },
+    {
+      "name": "modify_system",
+      "description": "修改栗壳小院页面、提示词、业务逻辑、记忆架构或项目文件，并自动快照和验证。需要掌院权限。",
+      "arguments": {"instruction": "需要完成的具体系统修改"}
+    },
+    {
+      "name": "build_skill",
+      "description": "现有能力不足时创建、测试并注册一个新的可执行 Skill。需要掌院权限。",
+      "arguments": {"name": "英文 Skill 名称", "purpose": "能力目标", "example": "一个具体使用示例"}
+    }
+  ]
+}
