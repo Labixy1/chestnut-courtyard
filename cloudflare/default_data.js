@@ -1,0 +1,29 @@
+export const DEFAULT_DATA = Object.freeze({
+  estate_state: {xp: 0, streak: 0, level: "新来的住客", travel: {history: []}, wall_photos: []},
+  heart_hollow: {entries: [], settings: {}},
+  private_wing: {plates: [], diary: [], glass_case: {content: "", next_modifiable: ""}},
+  manifest: {items: [
+    {id: "tool-openai", type: "toolbox", title: "OpenAI", source: "starter", tags: ["模型", "API"], category: "模型与技术", purpose: "调用文本与多模态模型", url: "https://platform.openai.com/"},
+    {id: "tool-codex", type: "toolbox", title: "Codex", source: "starter", tags: ["编程", "Agent"], category: "产品与实践", purpose: "阅读、修改并验证代码项目", url: "https://developers.openai.com/codex/"},
+    {id: "tool-figma", type: "toolbox", title: "Figma", source: "starter", tags: ["原型", "设计"], category: "产品与实践", purpose: "设计界面与交互原型", url: "https://www.figma.com/"}
+  ]},
+  notice_reports: {version: 1, updated_at: "", reports: []},
+  butler_sources: {
+    sources: [
+      {id: "openai", name: "OpenAI News", url: "https://openai.com/news/", feed: "", category: "模型与技术", priority: 5, enabled: true},
+      {id: "anthropic", name: "Anthropic News", url: "https://www.anthropic.com/news", feed: "", category: "模型与技术", priority: 5, enabled: true},
+      {id: "google-ai", name: "Google AI", url: "https://blog.google/technology/ai/", feed: "", category: "模型与技术", priority: 4, enabled: true}
+    ],
+    categories: ["模型与技术", "产品与实践", "行业动态", "学术研究"],
+    watch_topics: [], exclude_keywords: []
+  },
+  butler_state: {version: 2, updated_at: "", chest: [], read_later: [], watch_topics: [], sources: [], toolbox: [], task_log: [], custom_categories: []},
+  daily_questions: {version: 1, items: [], updated_at: ""},
+  permissions: {steward_mode: false, permanent: true, scope: "project", enabled_at: null, updated_at: ""},
+  automation_state: {version: 1, last_check: "", jobs: {}},
+  local_state: {version: 1, updated_at: "", values: {}},
+  weather_cache: {version: 1, updated_at: "", location: {}, current: {}},
+  generation_tasks: {version: 1, items: []},
+  tasks: {version: 1, tasks: []},
+  audit_log: {version: 1, events: []}
+});

@@ -1,4 +1,4 @@
-name = "cozy-estate-api"
+name = "chestnut-courtyard-owner"
 main = "worker.js"
 compatibility_date = "2026-08-01"
 
@@ -11,18 +11,23 @@ COZY_GLM_MODEL = "glm-4.7-flash"
 COZY_QWEN_MODEL = "qwen3.7-flash"
 COZY_SEEDREAM_MODEL = "doubao-seedream-5-0-pro-260628"
 COZY_SEEDANCE_MODEL = "doubao-seedance-2-0-260128"
+COZY_WORKERS_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8"
+PUBLIC_READ_ONLY = "false"
+ALLOW_UNAUTHENTICATED = "false"
+AUTH_MODE = "passcode"
+
+[assets]
+directory = "../dist-owner"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = true
+
+[ai]
+binding = "AI"
 
 [[kv_namespaces]]
 binding = "COZY_STATE"
-id = "REPLACE_WITH_KV_NAMESPACE_ID"
-
-[[r2_buckets]]
-binding = "COZY_PRIVATE"
-bucket_name = "cozy-estate-private"
-
-[[r2_buckets]]
-binding = "COZY_MEDIA"
-bucket_name = "cozy-estate-media"
+id = "f1a5e526ae484fc594639ca78d7ba7ac"
 
 [triggers]
-crons = ["30 15 * * *"]
+crons = ["0 0 */2 * *"]

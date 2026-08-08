@@ -21,7 +21,13 @@ jobs:
         run: python3 scripts/repository_readiness_test.py
       - name: Check page syntax
         run: node scripts/html_syntax_test.js
+      - name: Check cloud worker behavior
+        run: node scripts/cloud_worker_test.mjs
       - name: Build public preview
-        run: python3 scripts/build_cloud.py
+        run: python3 scripts/build_cloud.py --mode preview
       - name: Check preview privacy
         run: python3 scripts/cloud_privacy_test.py
+      - name: Build owner app
+        run: python3 scripts/build_cloud.py --mode owner
+      - name: Check owner privacy and runtime
+        run: python3 scripts/cloud_owner_test.py

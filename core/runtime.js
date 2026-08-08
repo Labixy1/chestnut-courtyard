@@ -20,7 +20,10 @@
     const bundled=window.COZY&&window.COZY[dataKey];
     if(source==='bundle'||location.protocol==='file:')return clone(bundled===undefined?fallback:bundled);
     try{
-      const response=await fetch(path,{headers:{'accept':'application/json'}});
+      const target=source==='remote'
+        ? apiBase+'/api/data?key='+encodeURIComponent(dataKey)
+        : path;
+      const response=await fetch(target,{headers:{'accept':'application/json'}});
       if(!response.ok)throw new Error('HTTP '+response.status);
       return await response.json();
     }catch(error){

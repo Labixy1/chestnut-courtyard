@@ -8,12 +8,12 @@
 
 ## 0. 铁律（违反即算失败）
 
-1. ❌ 不要引入 Next.js / Vite / React 构建 / Docker / 数据库 / 登录 / 鉴权 / npm install。
+1. ❌ 不要引入 Next.js / Vite / React 构建 / Docker / 传统数据库 / npm install。主人云端只允许现有的无依赖 Worker + KV + Secret 登录边界。
 2. ✅ 只用原生 HTML + CSS + ES6 JS。可选 CDN 引入 Vue/Svelte，但**不准装依赖**。
-3. ✅ 所有持久数据存 `core/` 下的 JSON；图片存 `assets/`，用 `manifest.json` 索引。
+3. ✅ 本地持久数据存 `core/` 下的 JSON；主人云端私人状态存绑定的 KV，图片存 `assets/` 或启用后的私有 R2。
 4. ✅ 归档脚本用 **Python 标准库**（不装包），不要用 Node。
 5. ✅ **双击 `index.html`（file://）必须能跑**。这是硬指标，见第 3 节。
-6. ✅ AI 能力由 `scripts/cozy_server.py` 调用本机 Codex，或在设置 `OPENAI_API_KEY` 后调用 Responses API；前端不得保存密钥。
+6. ✅ 本地 AI 由 `scripts/cozy_server.py` 调用本机 Codex / 模型 API；云端由 Worker 调用 Workers AI 或已配置供应商。前端不得保存密钥。
 7. ✅ 树洞与密阁是封存区：普通权限永不读取原文；掌院权限开启后，也只有主人明确要求时才能按任务最小范围读取。
 8. ✅ 系统修改必须经过掌院权限、快照、验证和审计；普通内容操作不需要掌院权限。
 

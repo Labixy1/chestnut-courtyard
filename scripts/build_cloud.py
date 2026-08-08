@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Build a privacy-filtered Cloudflare Pages directory."""
+"""Build privacy-filtered public or owner Cloudflare assets."""
 
 from __future__ import annotations
 
+import argparse
 import json
 import shutil
 import subprocess
@@ -12,9 +13,6 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DIST = ROOT / "dist"
-
-
 def copy_tree(source, destination, excluded=(), max_bytes=None):
     excluded = set(excluded)
     for path in source.rglob("*"):
@@ -43,11 +41,11 @@ def public_seed():
     return json.loads(path.read_text(encoding="utf-8"))["files"]
 
 
-def optimize_preview_assets():
+def optimize_assets(destination):
     """Reduce cloud copies only; local high-resolution originals stay untouched."""
     if sys.platform != "darwin" or not shutil.which("sips"):
         return
-    for path in (DIST / "assets").rglob("*.png"):
+    for path in (destination / "assets").rglob("*.png"):
         if path.stat().st_size <= 4_800_000:
             continue
         target = 640 if path.name == "butler_dog.png" else 1920
@@ -55,18 +53,21 @@ def optimize_preview_assets():
                        capture_output=True, text=True, check=True)
 
 
-def main():
-    if DIST.exists():
-        shutil.rmtree(DIST)
-    DIST.mkdir()
+def build(mode="preview", output=None):
+    if mode not in {"preview", "owner"}:
+        raise ValueError("mode must be preview or owner")
+    destination = Path(output).resolve() if output else ROOT / ("dist-owner" if mode == "owner" else "dist")
+    if destination.exists():
+        shutil.rmtree(destination)
+    destination.mkdir()
     for name in ("index.html", "logger.js", "manifest.webmanifest", "sw.js"):
-        shutil.copy2(ROOT / name, DIST / name)
-    copy_tree(ROOT / "pages", DIST / "pages")
-    copy_tree(ROOT / "assets", DIST / "assets", excluded={"uploads", "generated", "hollow"}, max_bytes=24 * 1024 * 1024)
-    optimize_preview_assets()
-    (DIST / "core").mkdir()
+        shutil.copy2(ROOT / name, destination / name)
+    copy_tree(ROOT / "pages", destination / "pages")
+    copy_tree(ROOT / "assets", destination / "assets", excluded={"uploads", "generated", "hollow"}, max_bytes=24 * 1024 * 1024)
+    optimize_assets(destination)
+    (destination / "core").mkdir()
     for name in ("butler_widget.js", "memory.js", "runtime.js", "pwa.js"):
-        shutil.copy2(ROOT / "core" / name, DIST / "core" / name)
+        shutil.copy2(ROOT / "core" / name, destination / "core" / name)
     seed = public_seed()
     estate = deepcopy(seed["estate_state.json"])
     public_bundle = {
@@ -80,25 +81,37 @@ def main():
         "daily_questions": deepcopy(seed["daily_questions.json"]),
     }
     body = "/* Cloud build: private room data is intentionally excluded. */\nwindow.COZY = "
-    (DIST / "core/data.js").write_text(body + json.dumps(public_bundle, ensure_ascii=False, indent=2) + ";\n", encoding="utf-8")
-    runtime_config = {
-        "mode": "preview", "appName": "栗壳小院 · 公开预览",
-        "apiBase": "", "dataSource": "bundle", "allowWrites": False,
-        "instanceId": "public-preview",
-    }
-    (DIST / "core/runtime-config.js").write_text(
+    (destination / "core/data.js").write_text(body + json.dumps(public_bundle, ensure_ascii=False, indent=2) + ";\n", encoding="utf-8")
+    runtime_config = ({
+        "mode": "preview", "appName": "栗壳小院 · 公开预览", "apiBase": "",
+        "dataSource": "bundle", "allowWrites": False, "instanceId": "public-preview",
+    } if mode == "preview" else {
+        "mode": "owner", "appName": "栗壳小院", "apiBase": "",
+        "dataSource": "remote", "allowWrites": True, "instanceId": "owner-cloud",
+    })
+    (destination / "core/runtime-config.js").write_text(
         "window.COZY_RUNTIME_CONFIG = " + json.dumps(runtime_config, ensure_ascii=False, indent=2) + ";\n",
         encoding="utf-8",
     )
-    (DIST / "_headers").write_text(
+    microphone = "()" if mode == "preview" else "(self)"
+    (destination / "_headers").write_text(
         "/*\n"
         "  X-Content-Type-Options: nosniff\n"
         "  Referrer-Policy: no-referrer\n"
         "  X-Frame-Options: DENY\n"
-        "  Permissions-Policy: camera=(), geolocation=()\n",
+        f"  Permissions-Policy: camera=(), microphone={microphone}, geolocation=()\n"
+        "  Cache-Control: private, no-store\n",
         encoding="utf-8",
     )
-    print(f"Cloudflare Pages bundle ready: {DIST}")
+    print(f"Cloudflare {mode} bundle ready: {destination}")
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", choices=("preview", "owner"), default="preview")
+    parser.add_argument("--output")
+    args = parser.parse_args()
+    build(args.mode, args.output)
 
 
 if __name__ == "__main__":

@@ -1,35 +1,48 @@
 # Cloudflare deployment
 
-The local Python service remains the full steward runtime. Cloudflare provides
-an owner-only online runtime for conversation, event logging, and media
-generation.
+Two deployments share the same source but never share owner data.
 
-1. Create a private GitHub repository and connect it to Cloudflare Pages.
-2. Use `python3 scripts/build_cloud.py` as the build command and `dist` as the
-   output directory.
-3. Protect the Pages project with Cloudflare Access and set `OWNER_EMAIL`.
-4. Bind `COZY_STATE` (KV), `COZY_PRIVATE` (private R2), and `COZY_MEDIA` (R2).
-5. Add API secrets in Cloudflare, never in GitHub:
-   `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `GLM_API_KEY`, `QWEN_API_KEY`, and
-   `ARK_API_KEY` as needed.
-6. Set actual model IDs through the `COZY_*_MODEL` variables when an account
-   exposes a different model name.
+## Owner app
 
-The 23:30 scheduled handler currently records a tick but does not distill
-memory. Distillation is deliberately paused until the memory policy is agreed.
-
-## Public read-only deployment
-
-Build and verify the privacy-filtered bundle before deploying it:
+The owner Worker serves `dist-owner/`, runs before every static asset request,
+and requires a signed HttpOnly passcode session. The passcode and session key
+are Worker secrets; personal state lives in `COZY_STATE` KV. Cloudflare Access
+can replace the passcode mode later without changing the frontend.
 
 ```sh
-python3 scripts/build_cloud.py
+python3 scripts/build_cloud.py --mode owner
+python3 scripts/cloud_owner_test.py
+node scripts/cloud_worker_test.mjs
+cd cloudflare
+wrangler deploy --config wrangler.toml
+```
+
+Required secrets:
+
+- `OWNER_PASSCODE`
+- `SESSION_SECRET`
+
+Optional model secrets, never committed to GitHub:
+
+- `OPENAI_API_KEY`
+- `DEEPSEEK_API_KEY`
+- `GLM_API_KEY`
+- `QWEN_API_KEY` or `DASHSCOPE_API_KEY`
+- `ARK_API_KEY`
+
+When no external text key is configured, the Worker falls back to the bound
+Cloudflare Workers AI model. R2 is optional. Until the account enables it,
+event logs fall back to bounded KV storage and media uploads remain local-only.
+
+## Public preview
+
+```sh
+python3 scripts/build_cloud.py --mode preview
 python3 scripts/cloud_privacy_test.py
 cd cloudflare
 wrangler deploy --config wrangler.public.toml
 ```
 
-`wrangler.public.toml` publishes only the filtered `dist/` bundle and sets
-`PUBLIC_READ_ONLY=true`, so every write request is rejected. It does not bind
-private storage or API secrets. Keep the full owner runtime local until
-Cloudflare Access, KV, R2 and secret bindings are configured.
+The preview publishes only `dist/`, uses the starter seed, and rejects every
+write. It has no owner KV, model secret, memory, tree-hole data, private-room
+data, uploads, logs, or owner photos.

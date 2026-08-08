@@ -1,7 +1,9 @@
 .DS_Store
 .env
+.dev.vars*
 .wrangler/
 dist/
+dist-owner/
 *.zip
 core/logs/
 core/runtime/

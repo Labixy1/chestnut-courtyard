@@ -22,21 +22,23 @@
 - `scripts/media_service.py`：图片落盘、Seedance 异步任务状态和生成文件持久化。
 - `scripts/event_ledger.py` / `logger.js`：与记忆分离的 append-only 操作流水，默认不记录留言正文。
 - `scripts/run_skill.py`：点火式 CLI，一次执行一个已注册工具后退出。
-- `cloudflare/worker.js`：云端同源 API、Cloudflare Access 校验、KV 任务状态及 R2 日志/媒体存储。
-- `scripts/build_cloud.py`：生成排除树洞、密阁和运行数据的 `dist/` Pages 发布包。
+- `cloudflare/worker.js`：云端同源 API、小院口令或 Cloudflare Access 校验、KV 私人状态、Workers AI 及可选 R2 存储。
+- `cloudflare/state.js`：云端数据、任务、记忆卡片和权限的统一 KV 适配层。
+- `scripts/build_cloud.py`：分别生成公开只读 `dist/` 与主人专用 `dist-owner/`；两者都只携带空白种子。
 
 ## 双运行时
 
 - 本地运行时是完整掌院环境：Python 服务、本机 Codex、文件快照、动态 Skill、语音和全部房间数据。
-- 云端运行时是主人专用的轻量环境：Pages + Worker + 外部模型 API。它不能直接修改本机系统文件。
+- 云端运行时是主人专用的轻量环境：Worker 静态资产 + KV + Workers AI / 外部模型 API。它不能直接修改本机系统文件。
 - `file://` 仍回退 `core/data.js`；HTTP/HTTPS 页面统一调用同源 `/api/*`。
-- GitHub 只保存程序和公开场景素材。密钥放 Cloudflare Secret，事件和生成文件放私有 R2，运行状态放 KV。
+- GitHub 只保存程序、公开场景素材和空白种子。口令与模型密钥放 Cloudflare Secret，私人状态和非封存记忆放 KV；R2 启用后再承接日志和生成文件。
 
 ## API
 
 GET：
 
 - `/api/status`：AI 连接、工具数量和掌院权限。
+- `/api/data`：主人版按数据区域读取 KV；公开版不可写。
 - `/api/providers`：文本、图片和视频供应商的配置状态及模型 ID，不返回密钥。
 - `/api/media/tasks`：生成任务列表或单个任务状态。
 - `/api/health`：必要文件、JSON、AI、周报和权限健康状态。
@@ -47,6 +49,7 @@ GET：
 POST：
 
 - `/api/assistant`：全局阿栗 Agent。
+- `/api/auth/login` / `/api/auth/logout`：建立或清除 HttpOnly 主人会话。
 - `/api/room`：果园、树洞、黑板和旅行专用对话。
 - `/api/parse`：抓取、AI 摘要、分类并归档网页。
 - `/api/media/upload`：照片墙、旅行照片和树洞埋藏影像。
@@ -103,4 +106,4 @@ python3 scripts/run_skill.py generate_media --json '{"kind":"image","provider":"
 
 `scripts/install_autostart.py` 安装 macOS LaunchAgent `com.cozy-estate.butler`，监听 `127.0.0.1:8766`。日志位于 `core/logs/`。自动任务幂等：已有本周周报时不覆盖，同一周手动刷新时按周 id 更新，历史周不受影响。记忆蒸馏每天 23:30 检查一次，或累计至少 4 张变化卡片后在后台运行；普通请求不等待蒸馏完成。
 
-云端记忆蒸馏仍保持关闭；当前蒸馏只在本地完整运行时执行，直到云端封存边界与数据范围通过单独审查。
+云端蒸馏只读取普通事件与生效卡片，树洞等 sealed 事件使用独立键保存且不进入提示词；本地完整运行时仍保留更严格的证据校验、差异和回滚能力。

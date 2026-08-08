@@ -13,8 +13,11 @@ GitHub 只保存程序、公开素材、内置 Skill 和 `core/defaults/instance
 ```bash
 python3 scripts/privacy_scan.py
 python3 scripts/repository_readiness_test.py
-python3 scripts/build_cloud.py
+python3 scripts/build_cloud.py --mode preview
 python3 scripts/cloud_privacy_test.py
+python3 scripts/build_cloud.py --mode owner
+python3 scripts/cloud_owner_test.py
+node scripts/cloud_worker_test.mjs
 ```
 
 公开预览构建只读取公开种子，不读取当前实例的 `core/*.json`。PWA 文件 `manifest.webmanifest` 和 `sw.js` 允许通过浏览器把小院安装成独立应用。
@@ -90,7 +93,7 @@ python3 scripts/service_smoke_test.py
 
 ## Cloudflare
 
-`python3 scripts/build_cloud.py` 会生成隐私过滤后的 `dist/`。部署步骤、KV/R2 绑定和 Secret 清单见 `cloudflare/README.md`。Cloudflare Access 必须先限制为主人邮箱；树洞、密阁、运行日志和 API Key 不进入 GitHub。云端记忆蒸馏仍保持关闭，直到单独完成封存边界与云端数据范围审查。
+`python3 scripts/build_cloud.py --mode preview` 生成公开只读的 `dist/`；`--mode owner` 生成主人专用的 `dist-owner/`。主人版由同源 Worker 提供口令登录、KV 私人状态、阿栗对话、网页解析和非封存记忆档案，口令与模型密钥只存 Cloudflare Secret。公开构建和主人构建都只携带空白种子，树洞、密阁、运行日志和 API Key 不进入 GitHub。R2 尚未在当前 Cloudflare 账户启用，因此云端照片上传与生成媒体持久化暂时关闭；本地完整版本不受影响。
 
 ## 数据位置
 
@@ -107,4 +110,4 @@ python3 scripts/service_smoke_test.py
 
 ## 运行要求
 
-项目不使用 npm、前端框架、数据库、Docker 或登录系统。只需要现代浏览器、Python 3 和本机 Codex；也可通过 `OPENAI_API_KEY` 让本地服务调用 OpenAI Responses API。
+项目不使用 npm、前端框架、数据库或 Docker。本地完整版本只需要现代浏览器、Python 3 和本机 Codex；主人云端版本使用无依赖 Worker、KV 和 HttpOnly 口令会话，也可配置 OpenAI、DeepSeek、GLM、Qwen、Seedream 与 Seedance。
