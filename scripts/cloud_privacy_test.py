@@ -23,8 +23,11 @@ def main() -> None:
     assert bundle["heart_hollow"].get("entries") == []
     assert bundle["private_wing"].get("plates") == []
     runtime_config = (DIST / "core/runtime-config.js").read_text(encoding="utf-8")
-    assert '"mode": "preview"' in runtime_config
-    assert '"allowWrites": false' in runtime_config
+    assert '"mode": "interview"' in runtime_config
+    assert '"allowWrites": true' in runtime_config
+    assert (DIST / "core/mobile.js").is_file()
+    assert "core/mobile.js" in (DIST / "index.html").read_text(encoding="utf-8")
+    assert "panorama_mobile.webp" in (DIST / "sw.js").read_text(encoding="utf-8")
     forbidden = [
         DIST / "core/local_state.json", DIST / "core/memory", DIST / "core/tasks.json",
         DIST / "core/audit_log.json", DIST / "assets/photos/uploads",

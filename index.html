@@ -4,7 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#75604a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="栗壳小院" />
 <link rel="manifest" href="manifest.webmanifest" />
+<link rel="apple-touch-icon" href="assets/app/icon-192.png" />
 <title>栗壳小院</title>
 <script src="core/runtime-config.js"></script>
 <script src="core/runtime.js"></script>
@@ -13,6 +17,7 @@
 <script src="logger.js"></script>
 <script src="core/pwa.js" defer></script>
 <script src="core/butler_widget.js" defer></script>
+<script src="core/mobile.js" defer></script>
 <style>
   :root{
     --sky1:#f3e6d0; --sky2:#e8d7c3; --grass1:#bcd39a; --grass2:#a3c17d;
@@ -199,8 +204,12 @@
   #butler .row{margin:4px 0;color:#6b5949}
   #butler .row b{color:var(--ink)}
 
-  .title{position:absolute;right:18px;top:14px;z-index:8;font-size:13px;color:#7d6a55;
+  .estate-top-actions{position:absolute;right:18px;top:14px;z-index:8;display:flex;align-items:center;justify-content:flex-end;gap:6px;max-width:calc(100vw - 36px)}
+  .title{position:static;font-size:13px;color:#7d6a55;
      background:rgba(247,239,225,.7);padding:4px 12px;border-radius:20px}
+  .demo-controls{display:flex;align-items:center;gap:5px}.demo-controls[hidden]{display:none}.demo-control{height:29px;border:1px solid rgba(255,246,214,.25);border-radius:8px;background:rgba(42,34,24,.42);color:#fff8e8;padding:0 9px;font:11px inherit;cursor:pointer;box-shadow:0 8px 22px rgba(24,18,10,.18);backdrop-filter:blur(8px)}.demo-control:hover{background:rgba(42,34,24,.62)}.demo-control:disabled{opacity:.55;cursor:wait}.demo-control.ai-active{background:rgba(62,103,69,.72);border-color:rgba(198,235,194,.36)}
+  .demo-dialog{position:fixed;inset:0;z-index:120;display:none;place-items:center;padding:18px;background:rgba(35,27,20,.48);backdrop-filter:blur(5px)}.demo-dialog.show{display:grid}.demo-dialog-card{width:min(390px,100%);background:#fffaf1;border:1px solid rgba(101,72,45,.16);border-radius:12px;padding:22px;color:#49392d;box-shadow:0 24px 70px rgba(35,24,16,.34)}.demo-dialog-head{display:flex;align-items:start;justify-content:space-between;gap:12px}.demo-dialog-head h2{font-size:18px}.demo-dialog-head button{width:30px;height:30px;border:0;border-radius:50%;background:#f0e3d2;color:#715d49;cursor:pointer}.demo-dialog-card p{font-size:12px;line-height:1.7;color:#806d5c;margin:8px 0 14px}.demo-password-wrap{position:relative}.demo-password-wrap input{width:100%;height:42px;border:1px solid rgba(101,72,45,.22);border-radius:9px;background:#fff;padding:0 44px 0 12px;font:13px inherit;color:#49392d;outline:none}.demo-password-wrap button{position:absolute;right:3px;top:3px;width:36px;height:36px;border:0;background:transparent;color:#786451;cursor:pointer}.demo-dialog-actions{display:flex;gap:8px;margin-top:12px}.demo-dialog-actions button{flex:1;height:38px;border:0;border-radius:9px;background:#775d45;color:#fffaf1;font:12px inherit;cursor:pointer}.demo-dialog-actions button.secondary{background:#e9dbca;color:#624f3d}.demo-dialog-status{min-height:18px;margin-top:9px;font-size:11px;color:#9c5e4f}.demo-guide-list{display:grid;gap:10px;margin:14px 0}.demo-guide-step{display:grid;grid-template-columns:24px 1fr;gap:9px;align-items:start}.demo-guide-step b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#e7d7bd;color:#6f563f;font-size:11px}.demo-guide-step span{font-size:12px;line-height:1.6;color:#665342}
+  @media(max-width:760px){.estate-top-actions{align-items:flex-end;flex-direction:column}.demo-controls{max-width:min(92vw,360px);overflow:auto}.demo-control{white-space:nowrap}.title{align-self:flex-end}}
 
   /* ---------- 弹层（工具箱 / 照片预览） ---------- */
   .overlay{position:fixed;inset:0;z-index:20;background:rgba(60,43,28,.42);display:none;
@@ -543,6 +552,23 @@
   .photo-album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}.photo-album-tile{position:relative;min-height:230px;border:0;padding:0;background:transparent;color:#fff;text-align:left}.photo-album-cover{position:relative;display:block;width:100%;height:184px;border:0;padding:0;border-radius:7px;overflow:hidden;background:rgba(255,255,255,.12);box-shadow:0 14px 34px rgba(0,0,0,.2);cursor:pointer}.photo-album-cover img{position:static;width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s ease}.photo-album-tile:hover .photo-album-cover img{transform:scale(1.025)}.photo-album-title{display:block;font-size:14px;font-weight:650;margin-top:10px}.photo-album-meta{display:flex;justify-content:space-between;gap:8px;margin-top:4px;color:rgba(255,255,255,.62);font-size:10px}.photo-date-mark{color:#bfe4f5;background:rgba(100,174,210,.13);border-radius:999px;padding:2px 7px}.photo-album-move{position:absolute;right:7px;top:7px;z-index:2;display:flex;gap:4px}.photo-album-move button{width:27px;height:27px;border:0;border-radius:7px;background:rgba(24,22,21,.56);color:#fff;cursor:pointer}.photo-album-add{height:184px;border:1px dashed rgba(255,255,255,.42);border-radius:7px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:38px;font-weight:200;color:rgba(255,255,255,.72)}
   .photo-album-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px}.photo-album-toolbar h2{font-size:20px;margin:0 auto 0 0}.photo-album-toolbar .danger{color:#ffd4cd}.photo-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;align-items:stretch}.photo-detail-item{position:relative;display:grid;grid-template-rows:220px 74px;height:294px;margin:0;min-width:0;overflow:hidden;border-radius:8px;background:rgba(24,22,20,.52);box-shadow:0 10px 26px rgba(0,0,0,.16)}.photo-detail-item img{position:static;width:100%;height:220px;min-width:0;object-fit:contain;border-radius:8px 8px 0 0;display:block;background:rgba(244,240,234,.12)}.photo-detail-item figcaption{position:static;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:1fr auto;align-items:center;column-gap:8px;row-gap:3px;min-width:0;height:74px;margin:0;padding:8px 9px;background:rgba(28,25,23,.88);font-size:11px;line-height:1.4;color:rgba(255,255,255,.86)}.photo-detail-item figcaption>span:first-child{grid-row:1/3;min-width:0;overflow:hidden;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}.photo-detail-item .photo-date-mark{grid-column:2;grid-row:1;white-space:nowrap;justify-self:end}.photo-detail-controls{grid-column:2;grid-row:2;margin-left:0;display:flex;justify-content:flex-end;gap:3px}.photo-detail-controls button{width:25px;height:25px;border:0;border-radius:6px;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}.photo-detail-controls button:hover{background:rgba(255,255,255,.2)}.photo-wall-status{font-size:11px;color:#d6edf7;min-height:16px;margin-top:10px}
   @media(max-width:620px){.tool-card{grid-template-rows:none;height:auto}.photo-library{padding:62px 14px 30px}.photo-library-head{align-items:flex-start;flex-direction:column}.photo-album-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.photo-album-cover,.photo-album-add{height:132px}.photo-album-tile{min-height:178px}.photo-detail-grid{grid-template-columns:1fr}.photo-detail-item{grid-template-rows:210px 74px;height:284px}.photo-detail-item img{height:210px}}
+  @media(max-width:760px){
+    body{height:100dvh;min-height:100dvh;background:#243229}
+    .stage-wrap,.stage{width:100vw;height:100dvh}.stage{padding-bottom:var(--mobile-nav-h,62px)}
+    #estate-bg{height:calc(100% - var(--mobile-nav-h,62px));object-position:center center}
+    .stage:after{content:"";position:absolute;inset:0 0 var(--mobile-nav-h,62px);z-index:3;pointer-events:none;background:linear-gradient(180deg,rgba(22,25,20,.23),transparent 23%,transparent 64%,rgba(24,25,21,.28))}
+    .stage.has-panorama .spot,.stage.has-panorama #wall{display:none}
+    .stage.has-panorama #butler{left:12px;top:max(12px,env(safe-area-inset-top));z-index:9;max-width:calc(100vw - 112px);padding:6px 9px}
+    .stage.has-panorama #butler .butler-name{max-width:150px}.stage.has-panorama #butler .butler-weather{max-width:190px}
+    .estate-top-actions{right:12px;top:max(12px,env(safe-area-inset-top));z-index:9;max-width:calc(100vw - 24px)}
+    .title{font-size:11px;padding:5px 9px}.demo-controls{width:min(360px,calc(100vw - 24px));justify-content:flex-end}.demo-control{height:30px;font-size:10px}
+    .overlay{z-index:60;padding:0 0 var(--mobile-nav-h,62px);align-items:stretch}.panel{width:100vw;max-width:none;max-height:none;height:calc(100dvh - var(--mobile-nav-h,62px));padding:18px 15px;border-radius:0}.panel.scene-panel{height:calc(100dvh - var(--mobile-nav-h,62px))}
+    .notice-board-large{padding:18px 14px 28px}.notice-board-heading{align-items:flex-start}.notice-board-large h2{font-size:19px;line-height:1.35;margin-bottom:8px}.notice-tabs{display:flex;overflow:auto;flex-wrap:nowrap;padding-bottom:3px}.notice-tabs button{flex:0 0 auto;white-space:nowrap}.notice-layout{grid-template-columns:1fr}.notice-sidebar{order:2}.notice-content{order:1}.report-card{padding:12px}.report-actions{align-items:flex-start;flex-wrap:wrap}
+    .blackboard-panel{padding:0}.blackboard-app{width:100%;height:100%;display:block;overflow:auto}.bb-side{position:sticky;top:0;z-index:2;padding:14px 46px 12px 14px}.bb-side>p{display:none}.bb-actions{display:flex;gap:6px;overflow:auto}.bb-actions button{flex:0 0 auto;padding:8px 11px;font-size:11px}.bb-direction-box{display:none}.bb-main{padding:18px 15px 34px;overflow:visible}.bb-question h3{font-size:18px;line-height:1.62}.bb-answer-box{min-height:145px;padding:13px}.bb-comparison{grid-template-columns:1fr}
+    .photo-library{height:calc(100dvh - var(--mobile-nav-h,62px));padding-bottom:30px}.photo-wall-cover{padding-bottom:12vh}
+    .toolbox-panel{height:calc(100dvh - var(--mobile-nav-h,62px))}
+    .demo-dialog{z-index:130}
+  }
   .source-tag{display:inline-block;font-size:11px;border-radius:999px;padding:3px 8px;background:#ead7c2;color:#6b4b2e;margin-bottom:6px}
 </style>
 </head>
@@ -551,7 +577,7 @@
   <div class="stage" id="stage">
     <!-- 若存在整幅生成图则铺底，否则用 CSS 场景 -->
     <img id="estate-bg" alt="" fetchpriority="high" decoding="async" />
-    <script>(function(){var scenes={sunny:'assets/estate/panorama.webp',morning:'assets/estate/panorama_morning.webp',snow:'assets/estate/panorama_snow.webp',rain:'assets/estate/panorama_rain.webp',overcast:'assets/estate/panorama_overcast.webp',fog:'assets/estate/panorama_fog.webp'};var last=localStorage.getItem('cozy_estate_scene')||((new Date()).getHours()>=5&&(new Date()).getHours()<10?'morning':'sunny');document.getElementById('estate-bg').src=scenes[last]||scenes.sunny;})();</script>
+    <script>(function(){var mobile=matchMedia('(max-width:760px)').matches,suffix=mobile?'_mobile':'',scenes={sunny:'assets/estate/panorama'+suffix+'.webp',morning:'assets/estate/panorama_morning'+suffix+'.webp',snow:'assets/estate/panorama_snow'+suffix+'.webp',rain:'assets/estate/panorama_rain'+suffix+'.webp',overcast:'assets/estate/panorama_overcast'+suffix+'.webp',fog:'assets/estate/panorama_fog'+suffix+'.webp'};var last=localStorage.getItem('cozy_estate_scene')||((new Date()).getHours()>=5&&(new Date()).getHours()<10?'morning':'sunny');document.getElementById('estate-bg').src=scenes[last]||scenes.sunny;})();</script>
 
     <div class="sky">
       <div class="cloud" style="width:70px;height:26px;left:18%;top:12%"></div>
@@ -573,7 +599,7 @@
       <div class="row"><b>今日一步 · </b><span id="b-tip">——</span></div>
       <div class="row"><b>黑板题型 · </b><span id="b-quiz">——</span></div>
     </div>
-    <div class="title">栗壳小院</div>
+    <div class="estate-top-actions"><div class="title">栗壳小院</div><div class="demo-controls" id="demo-controls" hidden><button class="demo-control" id="demo-reset" onclick="resetDemoEstate()">一键重置</button><button class="demo-control" id="demo-guide" onclick="loadDemoGuide()">引导示例</button><button class="demo-control" id="demo-ai" onclick="openDemoActivation()">激活阿栗</button></div></div>
 
     <!-- 公告板 -->
     <button class="spot noticeboard" data-pan-x="16" data-pan-y="55" data-pan-w="9" data-pan-h="26" onclick="openNotice()">
@@ -660,6 +686,7 @@
 <div class="overlay" id="overlay" onclick="if(event.target===this)closeOverlay()">
   <div class="panel" id="panel"></div>
 </div>
+<div class="demo-dialog" id="demo-dialog" onclick="if(event.target===this)closeDemoActivation()" aria-hidden="true"><div class="demo-dialog-card"><div class="demo-dialog-head"><h2>演示版 · 阿栗开关</h2><button onclick="closeDemoActivation()" aria-label="关闭">×</button></div><p id="demo-dialog-copy">只有主人可以开启或关闭。开启后，访客可以临时体验阿栗，私人小院的数据不会出现在这里。</p><div class="demo-password-wrap"><input id="demo-passcode" type="password" autocomplete="current-password" placeholder="输入主人管理口令" aria-label="主人管理口令"><button id="demo-eye" onclick="toggleDemoPasscode()" aria-label="显示口令" title="显示口令">◉</button></div><div class="demo-dialog-actions"><button onclick="setDemoAi(true)">开启 8 小时</button><button class="secondary" onclick="setDemoAi(false)">立即关闭</button></div><div class="demo-dialog-status" id="demo-dialog-status"></div></div></div>
 
 <script>
 function localCalendarDate(){
@@ -2754,6 +2781,11 @@ const ESTATE_SCENES = {
   fog:'assets/estate/panorama_fog.webp'
 };
 
+function estateSceneSrc(scene){
+  const desktop=ESTATE_SCENES[scene]||ESTATE_SCENES.sunny;
+  return matchMedia('(max-width:760px)').matches?desktop.replace(/\.webp$/, '_mobile.webp'):desktop;
+}
+
 function localTimeScene(){
   const hour = new Date().getHours();
   return hour >= 5 && hour < 10 ? 'morning' : 'sunny';
@@ -2766,29 +2798,41 @@ function sceneWeatherTitle(data){
   return [location.city, current.condition].filter(Boolean).join(' · ')+temperature;
 }
 
+let estateSceneRequestId = 0;
 function applyEstateScene(scene, weatherData){
   const img = document.getElementById('estate-bg');
   const stage = document.getElementById('stage');
-  const src = ESTATE_SCENES[scene] || ESTATE_SCENES.sunny;
+  const src = estateSceneSrc(scene);
   if(!img || !stage) return;
+  const requestId = ++estateSceneRequestId;
   const weatherTitle = sceneWeatherTitle(weatherData);
   updateButlerClock(weatherData);
-  stage.dataset.scene = scene;
-  localStorage.setItem('cozy_estate_scene',scene);
   stage.dataset.weather = (weatherData && weatherData.current && weatherData.current.condition) || '晴天';
   if(weatherTitle){
     const title = document.querySelector('.title');
     if(title) title.title = weatherTitle+' · 场景会随当地天气自动更新';
   }
-  if(img.getAttribute('src') === src) return;
+  if(img.getAttribute('src') === src){
+    stage.dataset.scene = scene;
+    localStorage.setItem('cozy_estate_scene',scene);
+    return;
+  }
+  stage.dataset.sceneLoading = scene;
   const preload = new Image();
   preload.onload = ()=>{
+    if(requestId !== estateSceneRequestId) return;
     img.style.opacity = '.72';
     img.src = src;
     img.alt = weatherTitle ? '栗壳小院，'+weatherTitle : '栗壳小院';
+    stage.dataset.scene = scene;
+    delete stage.dataset.sceneLoading;
+    localStorage.setItem('cozy_estate_scene',scene);
     requestAnimationFrame(()=>requestAnimationFrame(()=>{ img.style.opacity = '1'; }));
   };
-  preload.onerror = ()=>{ stage.dataset.scene = 'sunny'; };
+  preload.onerror = ()=>{
+    if(requestId !== estateSceneRequestId) return;
+    delete stage.dataset.sceneLoading;
+  };
   preload.src = src;
 }
 
@@ -2814,7 +2858,6 @@ function updateButlerClock(weatherData){
 }
 
 function initWeatherScene(){
-  applyEstateScene(localTimeScene(), null);
   updateButlerClock(null);
   setInterval(()=>updateButlerClock(null),60*1000);
   if(window.CozyRuntime && window.CozyRuntime.readOnly)return;
@@ -2824,8 +2867,58 @@ function initWeatherScene(){
     if(document.visibilityState === 'visible') refreshEstateWeather();
   });
 }
+
+function clearDemoBrowserState(){
+  const keep = new Set(['cozy_estate_scene']);
+  Object.keys(localStorage).forEach(key=>{ if(key.startsWith('cozy_')&&!keep.has(key)) localStorage.removeItem(key); });
+}
+function setDemoButtonsBusy(active){document.querySelectorAll('.demo-control').forEach(button=>{button.disabled=active;});}
+async function refreshDemoActivation(){
+  if(window.CozyRuntime?.mode!=='interview')return;
+  const button=document.getElementById('demo-ai');
+  try{
+    const data=await cozyApi('/api/demo/status',undefined,8000),active=Boolean(data.activation?.active);
+    button?.classList.toggle('ai-active',active);
+    if(button){button.textContent=active?'阿栗已激活':'激活阿栗';button.title=active?'点击输入主人口令，可关闭阿栗':'点击输入主人口令，临时开放阿栗';}
+    window.dispatchEvent(new CustomEvent('cozy:demo-activation',{detail:data.activation||{active:false}}));
+    return data.activation;
+  }catch(_error){if(button)button.textContent='阿栗未连接';return {active:false};}
+}
+async function resetDemoEstate(){
+  const button=document.getElementById('demo-reset');setDemoButtonsBusy(true);if(button)button.textContent='重置中…';
+  try{await cozyApi('/api/demo/reset',{},20000);clearDemoBrowserState();location.reload();}
+  catch(error){setDemoButtonsBusy(false);if(button)button.textContent='一键重置';openPanel('<h2>重置没有完成</h2><p class="sub">'+escapeNotice(error.message)+'</p>');}
+}
+async function loadDemoGuide(){
+  const button=document.getElementById('demo-guide');setDemoButtonsBusy(true);if(button)button.textContent='准备示例…';
+  try{await cozyApi('/api/demo/seed',{},20000);clearDemoBrowserState();sessionStorage.setItem('cozy_demo_show_guide','1');location.reload();}
+  catch(error){setDemoButtonsBusy(false);if(button)button.textContent='引导示例';openPanel('<h2>示例没有载入</h2><p class="sub">'+escapeNotice(error.message)+'</p>');}
+}
+function showDemoGuide(){
+  openPanel('<div class="demo-guide"><h2>从这三处认识栗壳小院</h2><p class="sub">示例数据已经装好，你可以自由修改，最后用右上角“一键重置”恢复。</p><div class="demo-guide-list"><div class="demo-guide-step"><b>1</b><span>打开公告板，看阿栗怎样把 AI 动态整理成产品判断。</span></div><div class="demo-guide-step"><b>2</b><span>进入黑板回答一道题，查看批改、参考答案和相关资料。</span></div><div class="demo-guide-step"><b>3</b><span>去智慧果园，把多轮提问沉淀成可以复习的知识专题。</span></div></div><button class="bb-submit" onclick="closeOverlay();openNotice()">从公告板开始</button></div>');
+}
+function openDemoActivation(){
+  const dialog=document.getElementById('demo-dialog'),input=document.getElementById('demo-passcode'),status=document.getElementById('demo-dialog-status');
+  if(status)status.textContent='';if(input)input.value='';dialog?.classList.add('show');dialog?.setAttribute('aria-hidden','false');setTimeout(()=>input?.focus(),40);
+}
+function closeDemoActivation(){const dialog=document.getElementById('demo-dialog');dialog?.classList.remove('show');dialog?.setAttribute('aria-hidden','true');}
+function toggleDemoPasscode(){const input=document.getElementById('demo-passcode'),button=document.getElementById('demo-eye');if(!input)return;const visible=input.type==='text';input.type=visible?'password':'text';if(button){button.title=visible?'显示口令':'隐藏口令';button.setAttribute('aria-label',button.title);}input.focus();}
+async function setDemoAi(enabled){
+  const input=document.getElementById('demo-passcode'),status=document.getElementById('demo-dialog-status'),buttons=document.querySelectorAll('.demo-dialog-actions button'),passcode=input?.value||'';
+  if(!passcode){if(status)status.textContent='请先输入主人管理口令。';input?.focus();return;}
+  buttons.forEach(button=>{button.disabled=true;});if(status)status.textContent=enabled?'正在开放阿栗…':'正在关闭阿栗…';
+  try{const data=await cozyApi('/api/demo/activation',{passcode,enabled,hours:8},12000);if(status)status.textContent=data.activation?.active?'阿栗已开放 8 小时。':'阿栗已经关闭。';await refreshDemoActivation();setTimeout(closeDemoActivation,650);}
+  catch(error){if(status)status.textContent=error.message;}
+  finally{buttons.forEach(button=>{button.disabled=false;});}
+}
+function initDemoControls(){
+  if(window.CozyRuntime?.mode!=='interview')return;
+  const controls=document.getElementById('demo-controls');if(controls)controls.hidden=false;refreshDemoActivation();
+  if(sessionStorage.getItem('cozy_demo_show_guide')==='1'){sessionStorage.removeItem('cozy_demo_show_guide');CORE_READY.then(showDemoGuide);}
+}
 initPanorama();
 if(typeof Image !== 'undefined' && typeof setInterval === 'function') initWeatherScene();
+initDemoControls();
 </script>
 </body>
 </html>

@@ -3,6 +3,7 @@
   const RUNTIME=window.CozyRuntime||{mode:'dev',readOnly:false,apiBase:location.protocol==='file:'?'http://127.0.0.1:8766':''};
   const API_ORIGIN=RUNTIME.apiBase;
   const HISTORY_KEY=RUNTIME.mode==='preview'?'cozy_preview_butler_history':'cozy_global_butler_history';
+  const RUNNING_TASK_TIMEOUT=3*60*1000;
   const STATE_KEYS=['cozy_blackboard_answers','cozy_blackboard_directions','cozy_orchard_seeds','cozy_orchard_topics','cozy_orchard_garden','cozy_orchard_backpack','cozy_orchard_growth_events','cozy_orchard_chat_sessions','cozy_notice_requests','cozy_trips','cozy_trip_reflections','cozy_heart_entries','cozy_heart_deleted_entries','cozy_hollow_buried_media','cozy_memory_events','cozy_global_butler_history','cozy_toolbox_local_items','cozy_notice_links','cozy_notice_chest','cozy_butler_watch_topics','cozy_butler_local_sources','cozy_photo_albums','cozy_courtyard_hidden_scenes'];
   let busy=false;
   let activeDictation=null;
@@ -21,7 +22,9 @@
         if(isLegacyIntro(item.text)||isProfilePermissionError(item.text))return false;
         return !(item.role==='owner'&&isProfilePermissionError(items[index+1]?.text));
       });
-      if(cleaned.length!==items.length)localStorage.setItem(HISTORY_KEY,JSON.stringify(cleaned));
+      let changed=cleaned.length!==items.length;
+      cleaned.forEach(item=>{if(item.status==='completed'&&(item.tools||[]).some(tool=>tool&&!tool.ok)){item.role='failed';item.status='failed';changed=true;}});
+      if(changed)localStorage.setItem(HISTORY_KEY,JSON.stringify(cleaned));
       return cleaned;
     }catch(e){return [];}
   }
@@ -43,6 +46,21 @@
       if((localStorage.getItem(HISTORY_KEY)||'')!==previousHistory)render();
       window.dispatchEvent(new CustomEvent('cozy:state-synced'));
     }catch(e){}
+  }
+  async function reconcileRunningTasks(){
+    if(RUNTIME.readOnly)return;
+    const items=history(),running=items.filter(item=>item.status==='running'||(item.status==='failed'&&String(item.text||'').startsWith('无法执行：任务没有在限定时间内')));if(!running.length)return;
+    try{
+      const data=await api('/api/tasks',undefined,10000),tasks=Array.isArray(data.tasks)?data.tasks:[];
+      running.forEach(item=>{
+        const started=Date.parse(item.date||''),ownerIndex=items.indexOf(item)-1,ownerText=ownerIndex>=0&&items[ownerIndex]?.role==='owner'?String(items[ownerIndex].text||''):'';
+        const task=tasks.find(candidate=>ownerText&&String(candidate.instruction||'')===ownerText);
+        if(task&&task.status==='completed'){item.role='butler';item.status='completed';item.text=task.message||'已经完成。';item.tools=task.tool_results||[];item.date=task.updated_at||new Date().toISOString();}
+        else if(task&&task.status==='failed'){item.role='failed';item.status='failed';item.text='无法执行：'+(task.message||'系统修改没有完成。');item.tools=task.tool_results||[];item.date=task.updated_at||new Date().toISOString();}
+        else if(!task&&Number.isFinite(started)&&Date.now()-started>RUNNING_TASK_TIMEOUT){item.role='failed';item.status='failed';item.text='无法执行：没有找到仍在运行的任务，已停止等待。';item.date=new Date().toISOString();}
+      });
+      save(items);render();
+    }catch(_error){let changed=false;running.forEach(item=>{const started=Date.parse(item.date||'');if(item.status==='running'&&Number.isFinite(started)&&Date.now()-started>RUNNING_TASK_TIMEOUT){item.role='failed';item.status='failed';item.text='无法执行：任务没有在限定时间内完成，已停止等待。';item.date=new Date().toISOString();changed=true;}});if(changed)save(items);render();}
   }
   async function persistLocal(keys){
     if(RUNTIME.readOnly)return;
@@ -153,7 +171,8 @@
       input.placeholder='公开预览只展示功能，不保存或处理私人内容';input.disabled=true;sendButton.disabled=true;micButton.disabled=true;
       setHint('体验模式开放后，访客会获得独立的临时空间。');
     }
-    render();refreshStatus();syncLocalState();if(!RUNTIME.readOnly)setInterval(syncLocalState,60000);
+    render();refreshStatus();syncLocalState().finally(reconcileRunningTasks);if(!RUNTIME.readOnly)setInterval(syncLocalState,60000);
+    window.addEventListener('cozy:demo-activation',refreshStatus);
   }
   function open(){document.querySelector('.cozy-butler-drawer')?.classList.add('open');document.getElementById('cozy-butler-input')?.focus();refreshStatus();}
   function close(){if(butlerDictation?.isActive())butlerDictation.stop();document.querySelector('.cozy-butler-drawer')?.classList.remove('open');}
@@ -170,13 +189,14 @@
   function shortGreeting(){const hour=new Date().getHours();if(hour<11)return '早上好，今天想先做什么？';if(hour<18)return '下午好，想让我先做什么？';return '晚上好，今天想从哪里开始？';}
   function render(){const box=document.getElementById('cozy-butler-messages');if(!box)return;box.innerHTML='';const items=history();if(!items.length){append('butler',shortGreeting());return;}const label=document.createElement('div');label.className='cozy-butler-history-label';label.textContent='最近 '+Math.min(items.length,40)+' 条记录';box.appendChild(label);items.slice(-40).forEach(item=>append(item.role,item.text,item.tools,item));}
   function setHomepageStatus(status,label){const badge=document.querySelector('#butler .butler-online-state');if(!badge)return;badge.className='butler-online-state '+status;badge.textContent=label;}
-  async function refreshStatus(){const launcher=document.querySelector('.cozy-butler-launcher');if(RUNTIME.readOnly){launcher?.classList.remove('online','steward');setHomepageStatus('','预览');setState('公开预览 · 不读取私人数据');return;}try{const data=await api('/api/status');launcher?.classList.add('online');launcher?.classList.toggle('steward',!!data.steward_mode);setHomepageStatus('online','在线');setState(data.steward_mode?'掌院权限已开启 · 永久':'普通权限 · 已连接');}catch(e){launcher?.classList.remove('online','steward');setHomepageStatus('offline','未连接');setState('服务未连接');}}
+  function setComposeLocked(locked,message){const input=document.getElementById('cozy-butler-input'),send=document.querySelector('.cozy-butler-send'),mic=document.querySelector('.cozy-butler-mic');if(input){input.disabled=locked;input.placeholder=locked?(message||'阿栗暂未开放体验'):'告诉阿栗要做什么……';}if(send)send.disabled=locked;if(mic)mic.disabled=locked;}
+  async function refreshStatus(){const launcher=document.querySelector('.cozy-butler-launcher');if(RUNTIME.readOnly){launcher?.classList.remove('online','steward');setHomepageStatus('','预览');setState('公开预览 · 不读取私人数据');return;}try{const data=await api('/api/status');if(data.demo&&!data.demo.active){launcher?.classList.remove('online','steward');setHomepageStatus('','待开放');setState('演示版 · 阿栗暂未激活');setComposeLocked(true,'主人开放体验后即可和阿栗聊天');return;}setComposeLocked(false);launcher?.classList.add('online');launcher?.classList.toggle('steward',!!data.steward_mode);setHomepageStatus('online',data.demo?'体验中':'在线');setState(data.demo?'演示体验已开放':(data.steward_mode?'掌院权限已开启 · 永久':'普通权限 · 已连接'));}catch(e){launcher?.classList.remove('online','steward');setHomepageStatus('offline','未连接');setState('服务未连接');}}
   async function send(){
     if(busy||butlerDictation?.isActive())return;const input=document.getElementById('cozy-butler-input'),button=document.querySelector('.cozy-butler-send'),mic=document.querySelector('.cozy-butler-mic'),text=(input?.value||'').trim();if(!text){setHint('先告诉阿栗一件事。');return;}
     busy=true;if(button)button.disabled=true;if(mic)mic.disabled=true;if(input)input.value='';const items=history(),startedAt=new Date().toISOString(),taskId='local_'+Date.now().toString(36);items.push({role:'owner',text,date:startedAt});items.push({role:'running',status:'running',taskId,text:'阿栗正在执行这件事，离开后回来也可以继续查看。',date:startedAt});save(items);render();setState('正在执行');setHint('任务已经记录，可以放心离开这个页面。');
     if(window.CozyMemory)CozyMemory.add({source:'butler',type:'owner_command',layer:'short',weight:2,content:text,summary:'交给阿栗：'+text.slice(0,100)});
-    try{const data=await api('/api/assistant',{message:text,context:{page:location.pathname,title:document.title,conversation:items.filter(item=>item.role!=='running').slice(-8)}});const runningIndex=items.findIndex(item=>item.taskId===taskId);if(runningIndex>=0)items.splice(runningIndex,1);const tools=data.tool_results||[],failed=data.ok===false||tools.some(item=>!item.ok),status=failed?'failed':'completed';items.push({role:failed?'failed':'butler',status,text:data.reply,tools,date:new Date().toISOString()});save(items);render();if(tools.length)await syncLocalState();setState(failed?'执行失败':'执行成功');setHint(failed?'修改没有生效，失败原因和执行记录已保留。':(needsRefresh(tools)?'系统修改已完成，点击回复里的“刷新后生效”。':(tools.length?'执行结果已保存。':'已回复。')));window.dispatchEvent(new CustomEvent('cozy:butler-complete',{detail:data}));}
-    catch(error){const runningIndex=items.findIndex(item=>item.taskId===taskId);if(runningIndex>=0)items.splice(runningIndex,1);items.push({role:'failed',status:'failed',text:'没有完成：'+error.message,date:new Date().toISOString()});save(items);render();setState('执行失败');setHint('失败原因已保留，可以修改指令后重试。');}
+    try{const data=await api('/api/assistant',{message:text,context:{page:location.pathname,title:document.title,conversation:items.filter(item=>item.role!=='running').slice(-8)}},RUNNING_TASK_TIMEOUT);const runningIndex=items.findIndex(item=>item.taskId===taskId);if(runningIndex>=0)items.splice(runningIndex,1);const tools=data.tool_results||[],failed=data.ok===false||tools.some(item=>!item.ok),status=failed?'failed':'completed';items.push({role:failed?'failed':'butler',status,text:data.reply,tools,date:new Date().toISOString()});save(items);render();if(tools.length)await syncLocalState();setState(failed?'执行失败':'执行成功');setHint(failed?'修改没有生效，失败原因和执行记录已保留。':(needsRefresh(tools)?'系统修改已完成，点击回复里的“刷新后生效”。':(tools.length?'执行结果已保存。':'已回复。')));window.dispatchEvent(new CustomEvent('cozy:butler-complete',{detail:data}));}
+    catch(error){const runningIndex=items.findIndex(item=>item.taskId===taskId);if(runningIndex>=0)items.splice(runningIndex,1);const timedOut=error?.name==='AbortError';items.push({role:'failed',status:'failed',text:timedOut?'无法执行：任务超过 3 分钟仍未完成，已停止等待。':'无法执行：'+error.message,date:new Date().toISOString()});save(items);render();setState('执行失败');setHint('修改没有生效，失败原因已保留。');}
     finally{busy=false;if(button)button.disabled=false;if(mic)mic.disabled=false;setTimeout(refreshStatus,3500);}
   }
   window.CozyButler={open,close,send,refreshStatus,api,persistLocal,syncLocalState,createDictation};

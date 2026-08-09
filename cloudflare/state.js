@@ -3,6 +3,7 @@ import {DEFAULT_DATA} from "./default_data.js";
 export const DATA_KEYS = new Set(Object.keys(DEFAULT_DATA));
 const clone = value => JSON.parse(JSON.stringify(value));
 const now = () => new Date().toISOString();
+const MEMORY_EXPORT_KEYS = ["memory:events", "memory:sealed", "memory:profile", "memory:categories", "memory:overrides", "memory:distillation"];
 
 export function requireState(env) {
   if (!env.COZY_STATE) throw new Error("COZY_STATE KV 尚未绑定");
@@ -24,10 +25,116 @@ export async function readData(env, key) {
   return readState(env, `data:${key}`, DEFAULT_DATA[key]);
 }
 
+async function archiveDataVersion(env, key, value, revision) {
+  if (!env.COZY_PRIVATE && !env.COZY_BACKUP) return false;
+  const stamp = now();
+  const objectKey = `state-versions/${key}/${stamp.replace(/[:.]/g, "-")}-${crypto.randomUUID().slice(0, 8)}.json`;
+  const archived = JSON.stringify({key, revision, archived_at: stamp, value});
+  if (env.COZY_PRIVATE) {
+    await env.COZY_PRIVATE.put(objectKey, archived, {
+      httpMetadata: {contentType: "application/json; charset=utf-8"},
+      customMetadata: {dataKey: key, revision: String(revision)}
+    });
+  } else {
+    await env.COZY_BACKUP.put(objectKey, archived);
+  }
+  await writeState(env, "backup:status", {ok: true, storage: env.COZY_PRIVATE ? "r2" : "backup-kv", last_backup_at: stamp, last_key: key, last_revision: revision});
+  return true;
+}
+
 export async function writeData(env, key, value) {
   if (!DATA_KEYS.has(key)) throw new Error("不支持的数据区域");
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("数据格式不正确");
-  return writeState(env, `data:${key}`, value);
+  const metaKey = `data-meta:${key}`;
+  const previous = await readState(env, metaKey, {revision: 0});
+  const revision = Number(previous.revision || 0) + 1;
+  await writeState(env, `data:${key}`, value);
+  await writeState(env, metaKey, {revision, updated_at: now()});
+  if (env.COZY_PRIVATE || env.COZY_BACKUP) {
+    try { await archiveDataVersion(env, key, value, revision); }
+    catch (error) {
+      await writeState(env, "backup:status", {ok: false, storage: "r2", last_error_at: now(), error: String(error.message || error).slice(0, 300)});
+    }
+  }
+  return value;
+}
+
+export async function backupStatus(env) {
+  const status = await readState(env, "backup:status", null);
+  const storage = env.COZY_PRIVATE ? "r2" : env.COZY_BACKUP ? "backup-kv" : "kv-only";
+  return status || {ok: false, storage, message: storage === "kv-only" ? "备份存储尚未绑定，当前只有 KV 主库" : "尚未生成备份"};
+}
+
+export async function exportCloudState(env) {
+  const dataEntries = await Promise.all([...DATA_KEYS].map(async key => [key, await readData(env, key)]));
+  const memoryEntries = await Promise.all(MEMORY_EXPORT_KEYS.map(async key => [key, await readState(env, key, null)]));
+  return {
+    version: 1,
+    exported_at: now(),
+    data: Object.fromEntries(dataEntries),
+    memory: Object.fromEntries(memoryEntries.filter(([, value]) => value != null))
+  };
+}
+
+export async function importCloudState(env, payload) {
+  const input = payload && typeof payload === "object" ? payload : {};
+  const data = input.data && typeof input.data === "object" ? input.data : {};
+  const memory = input.memory && typeof input.memory === "object" ? input.memory : {};
+  const imported = [];
+  for (const key of DATA_KEYS) {
+    if (data[key] && typeof data[key] === "object" && !Array.isArray(data[key])) {
+      await writeData(env, key, data[key]);
+      imported.push(key);
+    }
+  }
+  for (const key of MEMORY_EXPORT_KEYS) {
+    if (memory[key] != null) {
+      await writeState(env, key, memory[key]);
+      imported.push(key);
+    }
+  }
+  await writeState(env, "sync:last_import", {at: now(), imported});
+  return {ok: true, imported, imported_at: now()};
+}
+
+async function clearRuntimeState(env) {
+  await Promise.all([
+    writeState(env, "memory:events", []), writeState(env, "memory:sealed", []),
+    writeState(env, "memory:profile", null), writeState(env, "memory:categories", []),
+    writeState(env, "memory:overrides", {}), writeState(env, "memory:distillation", {status: "idle", recent_runs: []}),
+    writeState(env, "tasks:index", []), writeState(env, "automation:status", {last_check: "", jobs: {}})
+  ]);
+}
+
+export async function resetDemoState(env) {
+  for (const key of DATA_KEYS) await writeData(env, key, clone(DEFAULT_DATA[key]));
+  await clearRuntimeState(env);
+  await writeState(env, "demo:last_reset", {at: now()});
+  return {ok: true, reset_at: now()};
+}
+
+export async function seedDemoState(env) {
+  await resetDemoState(env);
+  const estate = clone(DEFAULT_DATA.estate_state);
+  estate.xp = 36;
+  estate.level = "刚认识小院";
+  estate.travel.history = [{id: "demo_trip", place: "杭州西湖", date: "2026-08-02", line: "傍晚沿湖走了一圈，重新注意到生活里的节奏。", file: "assets/travel/travel_postcard.webp", photos: []}];
+  const reports = {version: 1, updated_at: now(), reports: [{
+    id: "demo_report", generated_at: now(), week_start: "2026-08-03", week_end: "2026-08-09", focus_title: "AI 产品正在从回答问题转向完成任务",
+    hot_items: [{id: "demo_news", title: "Agent 产品开始重视权限、记忆与结果验证", category: "产品与实践", media: "引导示例", published_at: "2026-08-09", original_summary: "示例资讯，用于体验公告板交互。", ai_summary: "真正影响产品体验的已经不只是模型回答质量，还包括工具权限、长期记忆、失败恢复和结果验证是否形成闭环。", link: "https://example.com/agent-product"}],
+    sections: [], insights: ["能力越强，越需要明确权限边界和可追溯状态。"], advice: ["先选一个高频任务，把输入、执行、验证和失败恢复完整跑通，再扩展能力。"]
+  }]};
+  const questions = {version: 1, updated_at: now(), items: [{id: "demo_question", date: "2026-08-09", title: "Agent 权限边界", type: "Agent", question: "如果一个 AI 助手可以修改产品数据，你会怎样设计授权、确认和回滚机制？", standard_points: ["按风险拆分权限", "高风险操作二次确认", "保留审计与快照", "失败后可回滚"]}]};
+  const localState = {version: 1, updated_at: now(), values: {
+    cozy_orchard_seeds: [{id: "demo_seed", text: "AI 产品的记忆与权限怎样协同", category: "AI 产品系统", stage: 2, wateredDates: []}],
+    cozy_notice_requests: [], cozy_blackboard_answers: []
+  }};
+  await Promise.all([
+    writeData(env, "estate_state", estate), writeData(env, "notice_reports", reports),
+    writeData(env, "daily_questions", questions), writeData(env, "local_state", localState)
+  ]);
+  await writeState(env, "demo:last_seed", {at: now()});
+  return {ok: true, seeded_at: now()};
 }
 
 export async function mergeLocalState(env, values) {

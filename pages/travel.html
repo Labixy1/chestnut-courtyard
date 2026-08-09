@@ -4,7 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#75604a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="栗壳小院" />
 <link rel="manifest" href="../manifest.webmanifest" />
+<link rel="apple-touch-icon" href="../assets/app/icon-192.png" />
 <title>🧳 旅行</title>
 <script src="../core/runtime-config.js"></script>
 <script src="../core/runtime.js"></script>
@@ -13,6 +17,7 @@
 <script src="../logger.js"></script>
 <script src="../core/pwa.js" defer></script>
 <script src="../core/butler_widget.js" defer></script>
+<script src="../core/mobile.js" defer></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:"PingFang SC","Hiragino Sans GB",serif;min-height:100vh;
@@ -97,7 +102,8 @@
   .trip-insight{margin:10px 2px 0;padding:9px 10px;border-radius:14px;background:rgba(231,246,252,.72);
      color:#4e7283;font-size:12px;line-height:1.55}
   @media(max-width:900px){.travel-layout{grid-template-columns:1fr}.reflection-panel{max-width:none}.polaroids{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}.trip-form{grid-template-columns:1fr 1fr}.trip-form input:first-child{grid-column:1/-1}}
-  @media(max-width:560px){.travel-stage{padding:22px 14px 42px}.travel-header,.travel-shell{width:100%}.trip-form{grid-template-columns:1fr}.trip-form input:first-child{grid-column:auto}.polaroids{grid-template-columns:1fr}.trip-card{min-height:0}.reflection-actions{grid-template-columns:40px 1fr}.reflection-actions button:last-child{grid-column:1/-1}.travel-records-head{align-items:flex-start;flex-direction:column;gap:3px}.trip-editor-fields{grid-template-columns:1fr}.trip-editor-fields input:first-child,.trip-editor-fields textarea{grid-column:auto}.trip-editor-photos,.trip-detail-gallery{grid-template-columns:repeat(2,1fr)}.trip-detail-copy{grid-template-columns:1fr}}
+  @media(max-width:760px){.back{display:none}.travel-stage{height:calc(100dvh - var(--mobile-nav-h,62px));padding-bottom:32px}.trip-editor,.trip-detail{bottom:var(--mobile-nav-h,62px);padding:0;align-items:stretch}.trip-editor-card,.trip-detail-card{width:100%;max-height:none;height:100%;border-radius:0;padding:16px}.trip-editor-actions{position:sticky;bottom:0;padding:10px 0 2px;background:#f8fcfd}}
+  @media(max-width:560px){.travel-stage{padding:18px 14px 30px}.travel-header,.travel-shell{width:100%}.travel-header{margin-bottom:12px}.travel-header h1{font-size:17px}.lead{font-size:11px;line-height:1.55}.trip-form{grid-template-columns:1fr}.trip-form input:first-child{grid-column:auto}.polaroids{grid-template-columns:1fr}.trip-card{min-height:0}.reflection-actions{grid-template-columns:40px 1fr}.reflection-actions button:last-child{grid-column:1/-1}.travel-records-head{align-items:flex-start;flex-direction:column;gap:3px}.trip-editor-fields{grid-template-columns:1fr}.trip-editor-fields input:first-child,.trip-editor-fields textarea{grid-column:auto}.trip-editor-photos,.trip-detail-gallery{grid-template-columns:repeat(2,1fr)}.trip-detail-copy{grid-template-columns:1fr}.reflection-panel{padding:13px}.trip-detail-gallery img{aspect-ratio:1/1}.trip-detail-head h2{font-size:17px}}
   .travel-status{width:100%;min-height:18px;margin:-9px 0 0;color:#496a79;font-size:12px;text-align:center}
 </style>
 </head>

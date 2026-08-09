@@ -4,7 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#75604a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="栗壳小院" />
 <link rel="manifest" href="../manifest.webmanifest" />
+<link rel="apple-touch-icon" href="../assets/app/icon-192.png" />
 <title>树洞</title>
 <script src="../core/runtime-config.js"></script>
 <script src="../core/runtime.js"></script>
@@ -13,6 +17,7 @@
 <script src="../logger.js"></script>
 <script src="../core/pwa.js" defer></script>
 <script src="../core/butler_widget.js" defer></script>
+<script src="../core/mobile.js" defer></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:"PingFang SC","Hiragino Sans GB",serif;min-height:100vh;
@@ -113,7 +118,11 @@
   .memory-mode{display:inline-flex;padding:2px 6px;border-radius:999px;font-size:9px;background:#e6d6b7;color:#745835}.memory-mode.dialogue{background:#d7e2d2;color:#4f6b4d}
   .memory-item .echo-line{color:#5f7d47;margin-top:4px}
   .memory-actions{display:flex;gap:6px;margin-top:7px}.memory-actions button{border:0;border-radius:999px;background:rgba(105,88,65,.09);color:#806b53;padding:4px 8px;font:9px inherit;cursor:pointer}.memory-actions button.danger{color:#9a655d}.memory-editor{display:grid;gap:7px}.memory-editor textarea{width:100%;min-height:72px;box-sizing:border-box;border:1px solid rgba(91,70,48,.18);border-radius:8px;background:rgba(255,255,255,.72);color:#4a3b2b;padding:8px;font:12px/1.6 inherit;resize:vertical}.memory-editor label{font-size:9px;color:#927d64}
-  @media(max-width:720px){.history-wrap{left:10px;right:10px;bottom:10px;height:82vh;grid-template-columns:1fr}.buried-wrap{max-height:58%;border-right:0;border-bottom:1px solid rgba(74,59,43,.14)}.buried-thumb{height:200px}.history-main{padding:16px}.live-transcript{top:34%;width:82vw;font-size:15px}}
+  @media(max-width:760px){
+    body{padding-bottom:var(--mobile-nav-h,62px)}.back{display:none}.hollow-stage{height:calc(100dvh - var(--mobile-nav-h,62px));padding:12px}.hollow-stage:before{background-position:center center}
+    .talk-btn{bottom:16%}.talk-status{bottom:25%}.tree-reply{bottom:31%;width:88vw;font-size:14px}.tree-reply.dialogue{font-size:13px}.hollow-mode{bottom:4%}.quiet-type{right:12px;bottom:12px}.quiet-type[open]{left:12px;right:12px;bottom:12px}.quiet-type[open] summary{margin-left:auto;width:max-content}.composer{width:100%;margin-top:7px;padding:11px}.composer textarea{min-height:74px;max-height:150px;font-size:13px}.composer button{font-size:12px}
+    .history-wrap{position:fixed;left:0;right:0;top:0;bottom:var(--mobile-nav-h,62px);height:auto;border-radius:0;grid-template-columns:1fr;grid-template-rows:minmax(220px,56%) minmax(0,44%)}.buried-wrap{max-height:none;border-right:0;border-bottom:1px solid rgba(74,59,43,.14);padding:18px 14px}.buried-thumb{height:min(34vh,280px)}.history-main{padding:14px;overflow:auto}.history-close{position:fixed;top:max(10px,env(safe-area-inset-top));right:10px}.live-transcript{top:32%;width:86vw;font-size:15px}
+  }
 </style>
 </head>
 <body>

@@ -163,4 +163,57 @@ assert.match(result.body.error, /15 分钟/);
 const readOnly = await payload(await request("/api/local-state", {values: {x: 1}}, {...baseEnv, PUBLIC_READ_ONLY: "true"}));
 assert.equal(readOnly.status, 403);
 
-console.log("cloud worker test ok: auth; KV; memory; model fallback; blackboard AI; grading; scheduled report path; read-only guard");
+const demoKv = new MemoryKV();
+const demoEnv = {
+  ...aiEnv, COZY_STATE: demoKv, DEMO_MODE: "true", PUBLIC_READ_ONLY: "false",
+  DEMO_ADMIN_PASSCODE: "demo-owner", SESSION_SECRET: "demo-session-secret"
+};
+result = await payload(await request("/api/demo/status", undefined, demoEnv));
+assert.equal(result.body.activation.active, false);
+result = await payload(await request("/api/blackboard/today", undefined, demoEnv));
+assert.equal(result.status, 403);
+result = await payload(await request("/api/demo/seed", {}, demoEnv));
+assert.equal(result.status, 200);
+result = await payload(await request("/api/data?key=estate_state", undefined, demoEnv));
+assert.equal(result.body.level, "刚认识小院");
+result = await payload(await request("/api/demo/reset", {}, demoEnv));
+assert.equal(result.status, 200);
+result = await payload(await request("/api/data?key=estate_state", undefined, demoEnv));
+assert.equal(result.body.level, "新来的住客");
+result = await payload(await request("/api/demo/activation", {passcode: "wrong", enabled: true}, demoEnv));
+assert.equal(result.status, 401);
+result = await payload(await request("/api/demo/activation", {passcode: "demo-owner", enabled: true}, demoEnv));
+assert.equal(result.body.activation.active, true);
+result = await payload(await request("/api/blackboard/today", undefined, demoEnv));
+assert.equal(result.status, 200);
+result = await payload(await request("/api/demo/activation", {passcode: "demo-owner", enabled: false}, demoEnv));
+assert.equal(result.body.activation.active, false);
+result = await payload(await request("/api/room", {room: "orchard", message: "测试"}, demoEnv));
+assert.equal(result.status, 403);
+
+const syncEnv = {...baseEnv, ALLOW_UNAUTHENTICATED: "false", AUTH_MODE: "passcode", SYNC_SECRET: "sync-secret", SESSION_SECRET: "sync-session", OWNER_PASSCODE: "owner"};
+const syncRequest = (path, body) => handleRequest(new Request(`https://owner.example${path}`, {
+  method: body === undefined ? "GET" : "POST",
+  headers: {"content-type": "application/json", "x-cozy-sync-key": "sync-secret"},
+  body: body === undefined ? undefined : JSON.stringify(body)
+}), syncEnv);
+result = await payload(await syncRequest("/api/sync/import", {data: {estate_state: {xp: 9, streak: 0, level: "云端住客", travel: {history: []}, wall_photos: []}}}));
+assert.equal(result.status, 200);
+result = await payload(await syncRequest("/api/sync/export"));
+assert.equal(result.body.data.estate_state.level, "云端住客");
+result = await payload(await syncRequest("/api/backup/status"));
+assert.equal(result.body.backup.storage, "kv-only");
+const backupKv = new MemoryKV();
+const backedSyncEnv = {...syncEnv, COZY_BACKUP: backupKv};
+const backedRequest = (path, body) => handleRequest(new Request(`https://owner.example${path}`, {
+  method: body === undefined ? "GET" : "POST", headers: {"content-type": "application/json", "x-cozy-sync-key": "sync-secret"},
+  body: body === undefined ? undefined : JSON.stringify(body)
+}), backedSyncEnv);
+result = await payload(await backedRequest("/api/sync/import", {data: {estate_state: {xp: 10, streak: 0, level: "已备份", travel: {history: []}, wall_photos: []}}}));
+assert.equal(result.status, 200);
+assert.ok([...backupKv.values.keys()].some(key => key.startsWith("state-versions/estate_state/")));
+result = await payload(await backedRequest("/api/backup/run", {}));
+assert.equal(result.body.backup.storage, "backup-kv");
+assert.ok([...backupKv.values.keys()].some(key => key.startsWith("full-snapshots/")));
+
+console.log("cloud worker test ok: auth; KV; memory; model fallback; demo reset/seed/AI gate; cloud sync; backup status");

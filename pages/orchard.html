@@ -4,7 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#55653d" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="栗壳小院" />
 <link rel="manifest" href="../manifest.webmanifest" />
+<link rel="apple-touch-icon" href="../assets/app/icon-192.png" />
 <title>成长田</title>
 <script src="../core/runtime-config.js"></script>
 <script src="../core/runtime.js"></script>
@@ -13,6 +17,7 @@
 <script src="../logger.js"></script>
 <script src="../core/pwa.js" defer></script>
 <script src="../core/butler_widget.js" defer></script>
+<script src="../core/mobile.js" defer></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
@@ -90,7 +95,13 @@
   .drawer-head>div{flex:1;min-width:0}.topic-section{margin-top:13px}.topic-section h4{margin-bottom:7px;font-size:11px;color:#55705a}.topic-section p{font-size:11px;line-height:1.7;color:#5d6d60}.topic-table-wrap{overflow:auto;border:1px solid #e2eadf;border-radius:8px}.topic-table{width:100%;border-collapse:collapse;font-size:11px}.topic-table th,.topic-table td{padding:8px;text-align:left;vertical-align:top;border-bottom:1px solid #edf1eb;line-height:1.55}.topic-table th{background:#f3f7f0;color:#66796a;font-weight:650}.topic-table tr:last-child td{border-bottom:0}.plot-status{padding:18px;overflow:auto}.growth-track{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin:16px 0 7px}.growth-track i{height:7px;border-radius:4px;background:#dfe8dc}.growth-track i.done{background:#95b88d}.growth-labels{display:flex;justify-content:space-between;font-size:9px;color:#819083}.nourish-card{margin-top:18px;padding:13px;border-radius:10px;background:#f2f6ee}.nourish-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px}.nourish-head h3{font-size:11px;color:#55705a}.nourish-head strong{font-size:12px;color:#54705a}.nourish-summary{margin-top:4px;font-size:10px;line-height:1.55;color:#78857a}.nutrient-list{display:grid;gap:7px;margin-top:11px}.nutrient-item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:8px;padding:8px 9px;border-radius:8px;background:rgba(255,255,255,.72);border:1px solid rgba(111,144,104,.1)}.nutrient-source{padding:2px 5px;border-radius:5px;background:#e3eedf;color:#668069;font-size:8px;white-space:nowrap}.nutrient-copy{min-width:0}.nutrient-copy b{display:block;font-size:10px;line-height:1.45;color:#536457;font-weight:600;overflow-wrap:anywhere}.nutrient-copy small{display:block;margin-top:2px;font-size:8px;color:#919b92}.nutrient-points{font-size:10px;font-weight:650;color:#6f8a70;white-space:nowrap}.nutrient-more{margin-top:8px;font-size:9px;color:#89958b}.plot-care-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:15px}.plot-care-actions button{height:40px;border:1px solid rgba(111,144,104,.22);border-radius:9px;background:#edf5e9;color:#42604a;font-size:11px;font-weight:650;cursor:pointer}.plot-care-actions .plot-harvest{background:#9fbd96;color:#294b32;border-color:transparent}.plot-care-actions button:hover:not(:disabled){filter:brightness(.97)}.plot-care-actions button:disabled{opacity:.4;cursor:default}
   .toast{position:fixed;right:20px;top:70px;z-index:30;width:max-content;max-width:min(300px,calc(100vw - 40px));padding:9px 12px 9px 30px;border:1px solid rgba(255,247,220,.28);border-radius:10px;background:rgba(245,239,218,.9);color:#52613d;font-size:11px;line-height:1.45;box-shadow:0 10px 28px rgba(23,27,14,.16);backdrop-filter:blur(12px);opacity:0;transform:translateY(-5px);pointer-events:none;transition:.2s ease}.toast:before{content:"✓";position:absolute;left:11px;top:8px;font-size:12px;font-weight:700;color:#718255}.toast.is-note:before{content:"·";font-size:22px;line-height:10px;color:#a6854e}.toast.show{opacity:1;transform:translateY(0)}
   .reveal{position:fixed;inset:0;z-index:28;display:none;place-items:center;background:rgba(28,24,16,.42);backdrop-filter:blur(5px)}.reveal.show{display:grid}.reveal-card{width:min(330px,calc(100vw - 40px));padding:26px 24px;text-align:center;background:#fff9eb;color:#493927;border:1px solid rgba(114,82,45,.14);border-radius:16px;box-shadow:0 24px 80px rgba(24,18,10,.34);animation:revealIn .5s ease}.reveal-mark{width:58px;height:58px;margin:0 auto 14px;border-radius:50%;display:grid;place-items:center;background:#e9d7aa;color:#78603a}.reveal-mark svg{width:28px;height:28px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.reveal-card h2{font-family:"STKaiti","KaiTi",serif;font-size:21px}.reveal-card p{margin-top:7px;font-size:11px;line-height:1.7;color:#78654d}.reveal-card button{margin-top:16px;border:0;border-radius:9px;background:#746246;color:#fff;padding:9px 18px;cursor:pointer}@keyframes revealIn{from{opacity:0;transform:scale(.82)}to{opacity:1;transform:scale(1)}}
-  @media(max-width:760px){.orchard-stage{min-height:560px}.plot{width:28%;height:21%}.soil{height:52px}.plant{bottom:34px;transform:translateX(-50%) scale(.78)}.plant.sprout{transform:translateX(-50%) scale(.38)}.plant.leafy{transform:translateX(-50%) scale(.58)}.plot-copy{bottom:-18px}.plot-copy strong{font-size:10px}.plot-copy small{display:none}.caption{bottom:14px}.caption h1{font-size:20px}.caption p{max-width:260px;font-size:10px}.field-tools{right:12px;top:12px;gap:6px}.icon-control{width:39px;height:39px}.toast{right:12px;top:61px}.drawer,.seed-panel,.knowledge-panel,.plot-panel{left:8px;right:8px;top:62px;bottom:8px;width:auto;border-radius:12px}.seed-layout{grid-template-columns:1fr}.chat-history{display:flex;gap:6px;overflow-x:auto;border-right:0;border-bottom:1px solid rgba(112,139,105,.13);padding:7px}.chat-history-head{flex:0 0 auto}.chat-history-item{flex:0 0 125px;margin:0}.seed-scroll{min-height:0}.topic-table{min-width:520px}}
+  @media(max-width:760px){
+    body{padding-bottom:var(--mobile-nav-h,62px)}.back{display:none}.orchard-stage{height:calc(100dvh - var(--mobile-nav-h,62px));min-height:500px}.orchard-bg{object-position:center center}
+    .plot{width:28%;height:21%}.soil{height:52px}.plant{bottom:34px;transform:translateX(-50%) scale(.78)}.plant.sprout{transform:translateX(-50%) scale(.38)}.plant.leafy{transform:translateX(-50%) scale(.58)}.plot-copy{bottom:-18px}.plot-copy strong{font-size:10px}.plot-copy small{display:none}
+    .caption{left:15px;bottom:12px;width:calc(100vw - 30px)}.caption h1{font-size:18px}.caption p{max-width:240px;font-size:10px}.field-tools{right:12px;top:max(12px,env(safe-area-inset-top));gap:6px}.icon-control{width:39px;height:39px}.batch-care-menu{right:0;left:auto;transform:none}.toast{right:12px;top:61px}
+    .drawer,.seed-panel,.knowledge-panel,.plot-panel{left:0;right:0;top:0;bottom:var(--mobile-nav-h,62px);width:auto;border:0;border-radius:0;max-height:none}.drawer-head{padding:12px 14px}.drawer-body,.knowledge-scroll,.plot-status{padding:13px 14px 24px}
+    .seed-layout{grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);min-height:0}.chat-history{display:flex;gap:6px;max-height:58px;overflow-x:auto;border-right:0;border-bottom:1px solid rgba(112,139,105,.13);padding:6px 9px}.chat-history-head{flex:0 0 auto}.chat-history-item{flex:0 0 112px;margin:0;padding:6px 8px}.chat-history-item small{display:none}.seed-scroll{min-height:0;padding:10px 12px 8px}.chat-examples{margin-top:2px}.chat-thread{padding:9px 1px;gap:8px}.chat-message{max-width:92%;font-size:12px}.seed-panel textarea{min-height:72px;max-height:112px;font-size:13px}.seed-panel textarea::placeholder{font-size:12px}.topic-table{min-width:520px}
+  }
   @media(max-width:390px){#backpack-list{grid-template-columns:1fr}.harvest-card{min-height:220px}}
 </style>
 </head>
@@ -148,7 +159,7 @@
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <script>
-  const GARDEN_KEY='cozy_orchard_garden',BACKPACK_KEY='cozy_orchard_backpack',EVENTS_KEY='cozy_orchard_growth_events',PENDING_HARVEST_KEY='cozy_orchard_pending_harvest',CHAT_KEY='cozy_orchard_chat_sessions',KNOWLEDGE_SEEN_KEY='cozy_orchard_topics_seen_at',BACKPACK_SEEN_KEY='cozy_orchard_backpack_seen_at';
+  const GARDEN_KEY='cozy_orchard_garden',BACKPACK_KEY='cozy_orchard_backpack',EVENTS_KEY='cozy_orchard_growth_events',PENDING_HARVEST_KEY='cozy_orchard_pending_harvest',CHAT_KEY='cozy_orchard_chat_sessions',KNOWLEDGE_SEEN_KEY='cozy_orchard_topics_seen_at',BACKPACK_SEEN_KEY='cozy_orchard_backpack_seen_at',UNREAD_BASELINE_VERSION_KEY='cozy_orchard_unread_baseline_v2';
   const STAGES=['buried','germinating','sprout','young','leafy','bloom','fruiting'];
   const STAGE_THRESHOLDS=[0,3,6,9,13,17,22];
   const STAGE_LABELS={buried:'种子安静着',germinating:'正在萌动',sprout:'刚刚探头',young:'长出新叶',leafy:'枝叶舒展',bloom:'悄悄开花',fruiting:'可以收成'};
@@ -176,6 +187,7 @@
   function itemFreshness(item){const direct=Date.parse(item?.updatedAt||item?.harvestedAt||item?.createdAt||'');if(Number.isFinite(direct))return direct;const match=String(item?.id||'').match(/(\d{10,})/);if(match)return Number(match[1]);const dated=Date.parse(item?.date||'');return Number.isFinite(dated)?dated:0;}
   function latestFreshness(items){return items.reduce((latest,item)=>Math.max(latest,itemFreshness(item)),0);}
   function markSeen(key,items){const latest=latestFreshness(items);localStorage.setItem(key,String(latest||Date.now()));}
+  function initializeUnreadBaselines(){const needsReset=localStorage.getItem(UNREAD_BASELINE_VERSION_KEY)!=='2';[[KNOWLEDGE_SEEN_KEY,getKnowledgeTopics()],[BACKPACK_SEEN_KEY,mergePendingHarvest()]].forEach(([key,items])=>{const seen=Number(localStorage.getItem(key)||0);if(!needsReset&&seen>0)return;const latest=latestFreshness(items);localStorage.setItem(key,String(latest||Date.now()));});localStorage.setItem(UNREAD_BASELINE_VERSION_KEY,'2');}
   function blankPlot(index){return{id:'plot_'+(index+1),slot:index,seedId:'',title:'',hint:'',plantType:'',growth:0,stage:'buried',sources:[],eventIds:[],topicIds:[],careCount:0,cycle:0,lastNourishedAt:'',harvestReady:false};}
   function ensureGarden(persist=true){
     let garden=getGarden();
@@ -258,7 +270,7 @@
   document.addEventListener('click',event=>{if(!event.target.closest('.batch-care-wrap'))closeBatchCareMenu();});
   document.addEventListener('keydown',event=>{if(event.key==='Escape')closeBatchCareMenu();});
   window.addEventListener('beforeunload',()=>{if(orchardVoice?.isActive())orchardVoice.stop();});
-  seasonSetup();reconcileTopicPlots();renderGarden(false);renderKnowledgeTopics();renderBackpackCount();setTimeout(()=>{if(!stateSyncSeen)renderGarden(true);},1600);
+  seasonSetup();reconcileTopicPlots();initializeUnreadBaselines();renderGarden(false);renderKnowledgeTopics();renderBackpackCount();setTimeout(()=>{if(!stateSyncSeen)renderGarden(true);},1600);
 </script>
 </body>
 </html>

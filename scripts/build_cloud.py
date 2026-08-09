@@ -89,7 +89,7 @@ def build(mode="preview", output=None):
     copy_tree(ROOT / "assets", destination / "assets", excluded={"uploads", "generated", "hollow"}, max_bytes=24 * 1024 * 1024)
     replacements = optimize_assets(destination)
     (destination / "core").mkdir()
-    for name in ("butler_widget.js", "memory.js", "runtime.js", "pwa.js"):
+    for name in ("butler_widget.js", "memory.js", "runtime.js", "pwa.js", "mobile.js"):
         shutil.copy2(ROOT / "core" / name, destination / "core" / name)
     seed = public_seed()
     estate = deepcopy(seed["estate_state.json"])
@@ -106,8 +106,8 @@ def build(mode="preview", output=None):
     body = "/* Cloud build: private room data is intentionally excluded. */\nwindow.COZY = "
     (destination / "core/data.js").write_text(body + json.dumps(public_bundle, ensure_ascii=False, indent=2) + ";\n", encoding="utf-8")
     runtime_config = ({
-        "mode": "preview", "appName": "栗壳小院 · 公开预览", "apiBase": "",
-        "dataSource": "bundle", "allowWrites": False, "instanceId": "public-preview",
+        "mode": "interview", "appName": "栗壳小院 · 演示体验", "apiBase": "",
+        "dataSource": "remote", "allowWrites": True, "instanceId": "interview-demo",
     } if mode == "preview" else {
         "mode": "owner", "appName": "栗壳小院", "apiBase": "",
         "dataSource": "remote", "allowWrites": True, "instanceId": "owner-cloud",

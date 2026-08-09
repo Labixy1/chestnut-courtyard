@@ -1,7 +1,8 @@
 import {
-  DATA_KEYS, addMemoryEvents, appendButlerItem, memoryAction, memoryContext, memoryState,
-  mergeLocalState, permissions, readData, readState, saveTask, setStewardMode,
-  syncButlerState, tasks, updateTask, writeData, writeState
+  DATA_KEYS, addMemoryEvents, appendButlerItem, backupStatus, exportCloudState, importCloudState,
+  memoryAction, memoryContext, memoryState, mergeLocalState, permissions, readData, readState,
+  resetDemoState, saveTask, seedDemoState, setStewardMode, syncButlerState, tasks,
+  updateTask, writeData, writeState
 } from "./state.js";
 
 const securityHeaders = {
@@ -39,6 +40,11 @@ function jwtBytes(part) {
 }
 
 async function verifyAccess(request, env) {
+  const syncKey = String(request.headers.get("x-cozy-sync-key") || "");
+  if (syncKey && env.SYNC_SECRET && env.SESSION_SECRET) {
+    const [provided, expected] = await Promise.all([hmac(env.SESSION_SECRET, syncKey), hmac(env.SESSION_SECRET, env.SYNC_SECRET)]);
+    if (safeEqual(provided, expected)) return {allowed: true, email: "sync", sync: true};
+  }
   if (env.ALLOW_UNAUTHENTICATED === "true") return {allowed: true, email: "preview"};
   if (env.AUTH_MODE === "passcode") {
     const cookie = String(request.headers.get("cookie") || "").split(";").map(item => item.trim()).find(item => item.startsWith("cozy_session="));
@@ -83,6 +89,67 @@ async function verifyAccess(request, env) {
   } catch (_error) {
     return {allowed: false};
   }
+}
+
+const DEMO_AI_PATHS = new Set([
+  "/api/assistant", "/api/assistant/start", "/api/room", "/api/parse",
+  "/api/toolbox/import", "/api/toolbox/refresh-price", "/api/weekly/run",
+  "/api/media/generate", "/api/media/task/refresh", "/api/memory/distill"
+]);
+
+async function demoActivation(env) {
+  const saved = await readState(env, "demo:activation", {enabled: false, expires_at: 0});
+  const active = Boolean(saved.enabled) && Number(saved.expires_at || 0) > Date.now();
+  return {active, expires_at: active ? Number(saved.expires_at) : 0, updated_at: saved.updated_at || ""};
+}
+
+async function setDemoActivation(env, input) {
+  if (!env.DEMO_ADMIN_PASSCODE || !env.SESSION_SECRET) throw new Error("演示版管理口令尚未配置");
+  const [provided, expected] = await Promise.all([
+    hmac(env.SESSION_SECRET, String(input.passcode || "")),
+    hmac(env.SESSION_SECRET, env.DEMO_ADMIN_PASSCODE)
+  ]);
+  if (!safeEqual(provided, expected)) {
+    const error = new Error("主人口令不正确");
+    error.status = 401;
+    throw error;
+  }
+  const enabled = Boolean(input.enabled);
+  const hours = Math.min(Math.max(Number(input.hours || 8), 1), 24);
+  const value = {enabled, expires_at: enabled ? Date.now() + hours * 60 * 60 * 1000 : 0, updated_at: now()};
+  await writeState(env, "demo:activation", value);
+  return {active: enabled, expires_at: value.expires_at, updated_at: value.updated_at};
+}
+
+async function requireDemoAi(env) {
+  if (env.DEMO_MODE !== "true") return;
+  if (!(await demoActivation(env)).active) {
+    const error = new Error("阿栗尚未开放体验，请给主人确认后再试");
+    error.status = 403;
+    throw error;
+  }
+}
+
+async function createFullBackup(env, reason = "manual") {
+  if (!env.COZY_PRIVATE && !env.COZY_BACKUP) {
+    const error = new Error("备份存储尚未绑定，当前只能使用 KV 主库");
+    error.status = 503;
+    throw error;
+  }
+  const snapshot = await exportCloudState(env);
+  const stamp = now();
+  const key = `full-snapshots/${stamp.slice(0, 10)}/${stamp.replace(/[:.]/g, "-")}-${reason}.json`;
+  if (env.COZY_PRIVATE) {
+    await env.COZY_PRIVATE.put(key, JSON.stringify(snapshot), {
+      httpMetadata: {contentType: "application/json; charset=utf-8"},
+      customMetadata: {reason, exportedAt: snapshot.exported_at}
+    });
+  } else {
+    await env.COZY_BACKUP.put(key, JSON.stringify(snapshot));
+  }
+  const status = {ok: true, storage: env.COZY_PRIVATE ? "r2" : "backup-kv", last_full_backup_at: stamp, object_key: key, reason};
+  await writeState(env, "backup:status", status);
+  return status;
 }
 
 function safeEqual(left, right) {
@@ -785,11 +852,19 @@ export async function handleRequest(request, env, ctx = {}) {
     if (!env.ASSETS) return new Response("Static assets are not configured", {status: 503});
     return env.ASSETS.fetch(request);
   }
-  if (env.PUBLIC_READ_ONLY === "true" && request.method !== "GET") return json({ok: false, error: "公网预览仅供浏览，数据不会写入"}, 403);
+  if (env.PUBLIC_READ_ONLY === "true" && env.DEMO_MODE !== "true" && request.method !== "GET") return json({ok: false, error: "公网预览仅供浏览，数据不会写入"}, 403);
   try {
+    if (request.method === "GET" && url.pathname === "/api/demo/status") {
+      return json({ok: true, demo: env.DEMO_MODE === "true", activation: await demoActivation(env)});
+    }
+    if (request.method === "GET" && url.pathname === "/api/sync/export") {
+      if (!identity.sync && identity.email !== "owner") return json({ok: false, error: "只有主人可以导出云端数据"}, 403);
+      return json(await exportCloudState(env));
+    }
+    if (request.method === "GET" && url.pathname === "/api/backup/status") return json({ok: true, backup: await backupStatus(env)});
     if (request.method === "GET" && url.pathname === "/api/status") {
       const access = env.ALLOW_UNAUTHENTICATED === "true" ? "preview" : "owner";
-      return json({ok: true, service: "cloud", provider: textProvider(env) || "none", text_route: textProviders(env), tools: 8, steward_mode: (await permissions(env)).steward_mode, access, storage: {kv: Boolean(env.COZY_STATE), private_r2: Boolean(env.COZY_PRIVATE), media_r2: Boolean(env.COZY_MEDIA)}});
+      return json({ok: true, service: "cloud", provider: textProvider(env) || "none", text_route: textProviders(env), tools: 8, steward_mode: (await permissions(env)).steward_mode, access, demo: env.DEMO_MODE === "true" ? await demoActivation(env) : null, backup: await backupStatus(env), storage: {kv: Boolean(env.COZY_STATE), backup_kv: Boolean(env.COZY_BACKUP), private_r2: Boolean(env.COZY_PRIVATE), media_r2: Boolean(env.COZY_MEDIA)}});
     }
     if (request.method === "GET" && url.pathname === "/api/providers") return json({ok: true, providers: {
       text: Object.fromEntries(["openai", "deepseek", "glm", "qwen"].map(name => [name, {configured: Boolean(providerConfig(env, name)?.key), model: providerConfig(env, name)?.model}])),
@@ -821,7 +896,10 @@ export async function handleRequest(request, env, ctx = {}) {
     can_build: false, health: {ok: true, summary: "云端内置能力已连接"}}});
     if (request.method === "GET" && url.pathname === "/api/automation") return json({ok: true, automation: await readState(env, "automation:status", {last_check: "", jobs: {}})});
     if (request.method === "GET" && url.pathname === "/api/voice/status") return json({ok: true, active: false, ready: false, phase: "browser_only", transcript: ""});
-    if (request.method === "GET" && url.pathname === "/api/blackboard/today") return json({ok: true, question: await cloudBlackboardQuestion(env, (url.searchParams.get("refresh") || "").slice(0, 32))});
+    if (request.method === "GET" && url.pathname === "/api/blackboard/today") {
+      await requireDemoAi(env);
+      return json({ok: true, question: await cloudBlackboardQuestion(env, (url.searchParams.get("refresh") || "").slice(0, 32))});
+    }
     if (request.method === "GET" && url.pathname === "/api/media/tasks") return json({ok: true, task: await loadGenerationTask(env, url.searchParams.get("id"))});
     if (request.method === "GET" && url.pathname === "/api/media/file") {
       if (!env.COZY_MEDIA) return new Response("Media storage is not enabled", {status: 503});
@@ -832,6 +910,27 @@ export async function handleRequest(request, env, ctx = {}) {
     }
     if (request.method !== "POST") return json({ok: false, error: "接口不存在"}, 404);
     const input = await request.json();
+    if (url.pathname === "/api/demo/activation") {
+      if (env.DEMO_MODE !== "true") return json({ok: false, error: "当前不是演示环境"}, 404);
+      return json({ok: true, activation: await setDemoActivation(env, input)});
+    }
+    if (url.pathname === "/api/demo/reset") {
+      if (env.DEMO_MODE !== "true") return json({ok: false, error: "当前不是演示环境"}, 404);
+      return json(await resetDemoState(env));
+    }
+    if (url.pathname === "/api/demo/seed") {
+      if (env.DEMO_MODE !== "true") return json({ok: false, error: "当前不是演示环境"}, 404);
+      return json(await seedDemoState(env));
+    }
+    if (url.pathname === "/api/sync/import") {
+      if (!identity.sync && identity.email !== "owner") return json({ok: false, error: "只有主人可以导入云端数据"}, 403);
+      return json(await importCloudState(env, input));
+    }
+    if (url.pathname === "/api/backup/run") {
+      if (!identity.sync && identity.email !== "owner") return json({ok: false, error: "只有主人可以创建备份"}, 403);
+      return json({ok: true, backup: await createFullBackup(env, "manual")});
+    }
+    if (DEMO_AI_PATHS.has(url.pathname)) await requireDemoAi(env);
     if (url.pathname === "/api/data") return json({ok: true, value: await writeData(env, String(input.key || ""), input.value)});
     if (url.pathname === "/api/events") return json({ok: true, items: await logEvents(env, input)});
     if (url.pathname === "/api/local-state") return json({ok: true, state: await mergeLocalState(env, input.values || input)});
@@ -895,7 +994,7 @@ export async function handleRequest(request, env, ctx = {}) {
     if (url.pathname === "/api/media/task/refresh") return json({ok: true, task: await refreshVideo(env, input.id)});
     return json({ok: false, error: "接口不存在"}, 404);
   } catch (error) {
-    return json({ok: false, error: String(error.message || error).slice(0, 600)}, 500);
+    return json({ok: false, error: String(error.message || error).slice(0, 600)}, Number(error.status || 500));
   }
 }
 
@@ -908,6 +1007,10 @@ export async function scheduled(_event, env, ctx) {
       status.jobs.notice_report = {status: "completed", last_success: now(), message: `巡报已准备：${report.focus_title}`};
     } catch (error) {
       status.jobs.notice_report = {status: "failed", last_error: now(), message: String(error.message || error).slice(0, 300)};
+    }
+    if (env.COZY_PRIVATE || env.COZY_BACKUP) {
+      try { await createFullBackup(env, "scheduled"); }
+      catch (_error) {}
     }
     await writeState(env, "automation:status", status);
   })();

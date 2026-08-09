@@ -4,7 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="theme-color" content="#75604a" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="栗壳小院" />
 <link rel="manifest" href="../manifest.webmanifest" />
+<link rel="apple-touch-icon" href="../assets/app/icon-192.png" />
 <title>🛏️ 卧室</title>
 <script src="../core/runtime-config.js"></script>
 <script src="../core/runtime.js"></script>
@@ -13,6 +17,7 @@
 <script src="../logger.js"></script>
 <script src="../core/pwa.js" defer></script>
 <script src="../core/butler_widget.js" defer></script>
+<script src="../core/mobile.js" defer></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:"PingFang SC","Hiragino Sans GB",serif;min-height:100vh;overflow:hidden;
@@ -76,6 +81,9 @@
   .light-desk{left:53.2%;top:55.5%;width:5%;height:12%}
   .memory-shelf{left:52%;top:17%;width:33%;height:68%}
   .orchard-door{left:43%;top:29%;width:9%;height:44%;cursor:pointer}
+  @media(max-width:760px){
+    body{padding-bottom:var(--mobile-nav-h,62px)}.back{display:none}.room{height:calc(100dvh - var(--mobile-nav-h,62px))}.room-bg{object-position:center center}.light-wall,.light-desk,.memory-shelf,.orchard-door{display:none}.light-bedside{left:auto;right:14px;top:auto;bottom:14px;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.82);box-shadow:0 8px 24px rgba(81,56,34,.18);backdrop-filter:blur(8px)}.light-bedside:after{content:"☼";display:grid;place-items:center;width:100%;height:100%;color:#765a3c;font-size:20px}.caption{bottom:14px;padding:0 70px 0 14px;text-align:left;font-size:11px}
+  }
 </style>
 </head>
 <body>

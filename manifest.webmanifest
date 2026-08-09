@@ -3,13 +3,22 @@
   "short_name": "栗壳小院",
   "description": "一套可以自托管的私人 AI 小院",
   "lang": "zh-CN",
+  "id": "./",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
+  "orientation": "portrait-primary",
   "background_color": "#f4ead8",
   "theme_color": "#75604a",
+  "categories": ["lifestyle", "productivity"],
   "icons": [
-    {"src": "assets/app/icon-192.png", "sizes": "192x192", "type": "image/png"},
-    {"src": "assets/app/icon-512.png", "sizes": "512x512", "type": "image/png"}
+    {"src": "assets/app/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "assets/app/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+  ],
+  "shortcuts": [
+    {"name": "成长田", "short_name": "成长田", "url": "pages/orchard.html"},
+    {"name": "树洞", "short_name": "树洞", "url": "pages/heart_hollow.html"},
+    {"name": "记忆档案", "short_name": "记忆", "url": "pages/memory_nook.html"}
   ]
 }

@@ -38,6 +38,11 @@ When no external text key is configured, the Worker falls back to the bound
 Cloudflare Workers AI model. R2 is optional. Until the account enables it,
 event logs fall back to bounded KV storage and media uploads remain local-only.
 
+Owner KV is the live cloud source of truth and its data keys have no TTL. The
+separate `COZY_BACKUP` KV keeps immutable per-write versions and scheduled full
+snapshots. A private `COZY_PRIVATE` R2 bucket can replace that backup layer once
+R2 is enabled. `/api/backup/status` always reports which layer is active.
+
 The owner Worker cron runs at 08:00 Asia/Shanghai every two days. It collects
 recent AI news candidates, asks the configured text model to keep only the
 important items, and appends a new `notice_reports` entry. The same pipeline is
@@ -49,7 +54,7 @@ Worker cannot hide that account segment; use a custom domain for a clean public
 address, or change the account's Workers subdomain and accept the resulting
 `worker-name.account-subdomain.workers.dev` format.
 
-## Public preview
+## Interview demo
 
 ```sh
 python3 scripts/build_cloud.py --mode preview
@@ -58,8 +63,10 @@ cd cloudflare
 wrangler deploy --config wrangler.public.toml
 ```
 
-The preview publishes only `dist/`, uses the starter seed, and rejects every
-write. It has no owner KV, model secret, memory, tree-hole data, private-room
+The demo publishes only `dist/` and uses a dedicated KV namespace that never
+shares owner data. Visitors can reset it or load guided sample data. AI routes
+stay closed until the owner toggles them with `DEMO_ADMIN_PASSCODE`; activation
+expires automatically. It has no owner memory, tree-hole data, private-room
 data, uploads, logs, or owner photos.
 
 The shareable preview URL is `https://demo.neuralnode.top`. The generated

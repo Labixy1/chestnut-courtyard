@@ -36,5 +36,9 @@ binding = "AI"
 binding = "COZY_STATE"
 id = "f1a5e526ae484fc594639ca78d7ba7ac"
 
+[[kv_namespaces]]
+binding = "COZY_BACKUP"
+id = "6e1a1d6c02934bf185c01e44046d99b5"
+
 [triggers]
 crons = ["0 0 */2 * *"]

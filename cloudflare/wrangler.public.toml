@@ -7,13 +7,22 @@ routes = [
   { pattern = "demo.neuralnode.top", custom_domain = true }
 ]
 
-# The public build is deliberately read-only and contains no private state.
-# Private APIs remain unavailable until Access, KV, R2 and secrets are bound.
+# The interview build uses an isolated KV namespace. It never shares owner data.
 [vars]
 ALLOW_UNAUTHENTICATED = "true"
-PUBLIC_READ_ONLY = "true"
+PUBLIC_READ_ONLY = "false"
+DEMO_MODE = "true"
+COZY_TEXT_PROVIDER = "workers-ai"
+COZY_WORKERS_AI_MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8"
 
 [assets]
 directory = "../dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
+
+[ai]
+binding = "AI"
+
+[[kv_namespaces]]
+binding = "COZY_STATE"
+id = "8e44a6b1cd834024b2b147f3c2f1eabc"
