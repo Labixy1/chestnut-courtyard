@@ -141,6 +141,25 @@ result = await payload(await handleRequest(new Request("https://owner.example/ap
 assert.equal(result.status, 200);
 assert.equal(result.body.access, "owner");
 
+const limitEnv = {
+  COZY_STATE: new MemoryKV(), ALLOW_UNAUTHENTICATED: "false", AUTH_MODE: "passcode",
+  OWNER_PASSCODE: "栗壳-test", SESSION_SECRET: "test-session-secret-with-enough-entropy"
+};
+for (let attempt = 1; attempt <= 50; attempt += 1) {
+  result = await payload(await handleRequest(new Request("https://owner.example/api/auth/login", {
+    method: "POST", headers: {"content-type": "application/json", "cf-connecting-ip": "127.0.0.50"},
+    body: JSON.stringify({passcode: "wrong"})
+  }), limitEnv));
+  assert.equal(result.status, 401);
+  assert.equal(result.body.remaining_attempts, 50 - attempt);
+}
+result = await payload(await handleRequest(new Request("https://owner.example/api/auth/login", {
+  method: "POST", headers: {"content-type": "application/json", "cf-connecting-ip": "127.0.0.50"},
+  body: JSON.stringify({passcode: "wrong"})
+}), limitEnv));
+assert.equal(result.status, 429);
+assert.match(result.body.error, /15 分钟/);
+
 const readOnly = await payload(await request("/api/local-state", {values: {x: 1}}, {...baseEnv, PUBLIC_READ_ONLY: "true"}));
 assert.equal(readOnly.status, 403);
 

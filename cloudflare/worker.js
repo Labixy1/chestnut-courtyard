@@ -12,6 +12,8 @@ const securityHeaders = {
 };
 const json = (value, status = 200) => new Response(JSON.stringify(value), {status, headers: securityHeaders});
 const now = () => new Date().toISOString();
+const LOGIN_ATTEMPT_LIMIT = 50;
+const LOGIN_BLOCK_MS = 15 * 60 * 1000;
 let accessKeysCache = {issuer: "", expires: 0, keys: []};
 
 const providerConfig = (env, name) => {
@@ -113,14 +115,18 @@ async function login(request, env) {
   const ip = String(request.headers.get("cf-connecting-ip") || "unknown").slice(0, 80);
   const attemptKey = `auth:attempt:${ip}`;
   const attempt = await readState(env, attemptKey, {count: 0, blocked_until: 0});
-  if (Number(attempt.blocked_until || 0) > Date.now()) return json({ok: false, error: "尝试次数过多，请稍后再试"}, 429);
+  const previousCount = Number(attempt.count || 0);
+  if (previousCount >= LOGIN_ATTEMPT_LIMIT && Number(attempt.blocked_until || 0) > Date.now()) {
+    return json({ok: false, error: "尝试次数过多，请在 15 分钟后再试"}, 429);
+  }
   const input = await request.json();
   const inputHash = await hmac(env.SESSION_SECRET, String(input.passcode || ""));
   const expectedHash = await hmac(env.SESSION_SECRET, env.OWNER_PASSCODE);
   if (!safeEqual(inputHash, expectedHash)) {
-    const count = Number(attempt.count || 0) + 1;
-    await writeState(env, attemptKey, {count, blocked_until: count >= 5 ? Date.now() + 15 * 60 * 1000 : 0}, {expirationTtl: 15 * 60});
-    return json({ok: false, error: "口令不正确"}, 401);
+    const count = previousCount + 1;
+    const remaining = Math.max(0, LOGIN_ATTEMPT_LIMIT - count);
+    await writeState(env, attemptKey, {count, blocked_until: count >= LOGIN_ATTEMPT_LIMIT ? Date.now() + LOGIN_BLOCK_MS : 0}, {expirationTtl: 15 * 60});
+    return json({ok: false, error: remaining ? `口令不正确，还可尝试 ${remaining} 次` : "口令不正确，已达到 50 次上限，请在 15 分钟后再试", remaining_attempts: remaining}, 401);
   }
   await writeState(env, attemptKey, {count: 0, blocked_until: 0}, {expirationTtl: 60});
   const payload = encodePayload({sub: "owner", exp: Date.now() + 7 * 24 * 60 * 60 * 1000});
