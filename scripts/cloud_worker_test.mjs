@@ -121,6 +121,11 @@ const privateEnv = {
   COZY_STATE: new MemoryKV(), ALLOW_UNAUTHENTICATED: "false", AUTH_MODE: "passcode",
   OWNER_PASSCODE: "栗壳-test", SESSION_SECRET: "test-session-secret-with-enough-entropy"
 };
+const loginPage = await handleRequest(new Request("https://owner.example/"), privateEnv);
+const loginHtml = await loginPage.text();
+assert.equal(loginPage.status, 401);
+assert.match(loginHtml, /id="toggle-pass"/);
+assert.match(loginHtml, /passcode\.type=visible\?'password':'text'/);
 result = await payload(await handleRequest(new Request("https://owner.example/api/auth/login", {
   method: "POST", headers: {"content-type": "application/json", "cf-connecting-ip": "127.0.0.1"},
   body: JSON.stringify({passcode: "wrong"})
