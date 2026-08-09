@@ -35,8 +35,9 @@ assert.deepEqual(result.body.providers.text_route, []);
 result = await payload(await request("/api/data?key=estate_state"));
 assert.equal(result.body.level, "新来的住客");
 
-result = await payload(await request("/api/local-state", {values: {cozy_orchard_seeds: [{text: "学习评测集"}]}}));
+result = await payload(await request("/api/local-state", {values: {cozy_orchard_seeds: [{text: "学习评测集"}], cozy_blackboard_starred: ["question-key"]}}));
 assert.equal(result.body.state.values.cozy_orchard_seeds[0].text, "学习评测集");
+assert.deepEqual(result.body.state.values.cozy_blackboard_starred, ["question-key"]);
 
 result = await payload(await request("/api/memory/event", {event: {id: "m1", source: "orchard", content: "关注 AI 评测集", summary: "想学习 AI 评测集", weight: 2}}));
 assert.equal(result.body.item.id, "m1");

@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#75604a" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="栗壳小院" />
+<meta name="apple-mobile-web-app-title" content="阿栗" />
 <link rel="manifest" href="../manifest.webmanifest" />
-<link rel="apple-touch-icon" href="../assets/app/icon-192.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="../assets/app/icon-180.png" />
 <title>🛏️ 卧室</title>
 <script src="../core/runtime-config.js"></script>
 <script src="../core/runtime.js"></script>
@@ -20,6 +20,7 @@
 <script src="../core/mobile.js" defer></script>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
+  button,input,textarea,select{font-family:inherit;letter-spacing:0}
   body{font-family:"PingFang SC","Hiragino Sans GB",serif;min-height:100vh;overflow:hidden;
      background:#d7b48f;display:flex;align-items:center;justify-content:center}
   .back{position:fixed;left:18px;top:16px;color:#6b4b2e;text-decoration:none;font-size:14px;z-index:10;
@@ -89,8 +90,8 @@
 <body>
 <a class="back" href="../index.html">← 回小院</a>
 <div class="room" id="room">
-  <img class="room-bg" id="bg-day" src="../assets/interior/bedroom_day.webp" alt="" fetchpriority="high" decoding="async" />
-  <img class="room-bg" id="bg-night" src="../assets/interior/bedroom_night.webp" alt="" decoding="async" />
+  <picture><source media="(max-width:760px)" srcset="../assets/interior/bedroom_day_mobile.webp"><img class="room-bg" id="bg-day" src="../assets/interior/bedroom_day.webp" alt="" fetchpriority="high" decoding="async" /></picture>
+  <picture><source media="(max-width:760px)" srcset="../assets/interior/bedroom_night_mobile.webp"><img class="room-bg" id="bg-night" src="../assets/interior/bedroom_night.webp" alt="" decoding="async" /></picture>
   <button class="light-zone light-bedside" aria-label="关灯" title="关灯"></button>
   <button class="light-zone light-wall" aria-label="关灯" title="关灯"></button>
   <button class="light-zone light-desk" aria-label="关灯" title="关灯"></button>

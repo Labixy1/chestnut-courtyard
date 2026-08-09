@@ -1,11 +1,11 @@
-const CACHE='cozy-shell-v3';
+const CACHE='cozy-shell-v4';
 const SHELL=[
   './','./index.html','./manifest.webmanifest',
   './core/runtime-config.js','./core/runtime.js','./core/data.js','./core/memory.js',
   './core/butler_widget.js','./core/pwa.js','./core/mobile.js','./logger.js',
   './pages/orchard.html','./pages/heart_hollow.html','./pages/travel.html',
   './pages/bedroom.html','./pages/memory_nook.html','./pages/private_wing.html',
-  './assets/app/icon-192.png','./assets/app/icon-512.png',
+  './assets/app/icon-180.png','./assets/app/icon-192.png','./assets/app/icon-512.png',
   './assets/estate/panorama.webp','./assets/estate/panorama_mobile.webp',
   './assets/estate/panorama_morning_mobile.webp','./assets/estate/panorama_snow_mobile.webp',
   './assets/estate/panorama_rain_mobile.webp','./assets/estate/panorama_overcast_mobile.webp',

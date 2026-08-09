@@ -6,10 +6,10 @@
 <meta name="theme-color" content="#75604a" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="栗壳小院" />
+<meta name="apple-mobile-web-app-title" content="阿栗" />
 <link rel="manifest" href="manifest.webmanifest" />
-<link rel="apple-touch-icon" href="assets/app/icon-192.png" />
-<title>栗壳小院</title>
+<link rel="apple-touch-icon" sizes="180x180" href="assets/app/icon-180.png" />
+<title>阿栗</title>
 <script src="core/runtime-config.js"></script>
 <script src="core/runtime.js"></script>
 <script src="core/data.js"></script>
@@ -27,6 +27,7 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   html,body{height:100%}
+  button,input,textarea,select{font-family:inherit;letter-spacing:0}
   body{
     font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",serif;
     background:linear-gradient(180deg,var(--sky1),var(--sky2) 55%,#e2c9ab);
@@ -207,7 +208,7 @@
   .estate-top-actions{position:absolute;right:18px;top:14px;z-index:8;display:flex;align-items:center;justify-content:flex-end;gap:6px;max-width:calc(100vw - 36px)}
   .title{position:static;font-size:13px;color:#7d6a55;
      background:rgba(247,239,225,.7);padding:4px 12px;border-radius:20px}
-  .demo-controls{display:flex;align-items:center;gap:5px}.demo-controls[hidden]{display:none}.demo-control{height:29px;border:1px solid rgba(255,246,214,.25);border-radius:8px;background:rgba(42,34,24,.42);color:#fff8e8;padding:0 9px;font:11px inherit;cursor:pointer;box-shadow:0 8px 22px rgba(24,18,10,.18);backdrop-filter:blur(8px)}.demo-control:hover{background:rgba(42,34,24,.62)}.demo-control:disabled{opacity:.55;cursor:wait}.demo-control.ai-active{background:rgba(62,103,69,.72);border-color:rgba(198,235,194,.36)}
+  .demo-controls{display:flex;align-items:center;gap:5px}.demo-controls[hidden]{display:none}.demo-control{height:29px;border:1px solid rgba(255,246,214,.25);border-radius:8px;background:rgba(42,34,24,.42);color:#fff8e8;padding:0 9px;font-family:inherit;font-size:11px;cursor:pointer;box-shadow:0 8px 22px rgba(24,18,10,.18);backdrop-filter:blur(8px)}.demo-control:hover{background:rgba(42,34,24,.62)}.demo-control:disabled{opacity:.55;cursor:wait}.demo-control.ai-active{background:rgba(62,103,69,.72);border-color:rgba(198,235,194,.36)}
   .demo-dialog{position:fixed;inset:0;z-index:120;display:none;place-items:center;padding:18px;background:rgba(35,27,20,.48);backdrop-filter:blur(5px)}.demo-dialog.show{display:grid}.demo-dialog-card{width:min(390px,100%);background:#fffaf1;border:1px solid rgba(101,72,45,.16);border-radius:12px;padding:22px;color:#49392d;box-shadow:0 24px 70px rgba(35,24,16,.34)}.demo-dialog-head{display:flex;align-items:start;justify-content:space-between;gap:12px}.demo-dialog-head h2{font-size:18px}.demo-dialog-head button{width:30px;height:30px;border:0;border-radius:50%;background:#f0e3d2;color:#715d49;cursor:pointer}.demo-dialog-card p{font-size:12px;line-height:1.7;color:#806d5c;margin:8px 0 14px}.demo-password-wrap{position:relative}.demo-password-wrap input{width:100%;height:42px;border:1px solid rgba(101,72,45,.22);border-radius:9px;background:#fff;padding:0 44px 0 12px;font:13px inherit;color:#49392d;outline:none}.demo-password-wrap button{position:absolute;right:3px;top:3px;width:36px;height:36px;border:0;background:transparent;color:#786451;cursor:pointer}.demo-dialog-actions{display:flex;gap:8px;margin-top:12px}.demo-dialog-actions button{flex:1;height:38px;border:0;border-radius:9px;background:#775d45;color:#fffaf1;font:12px inherit;cursor:pointer}.demo-dialog-actions button.secondary{background:#e9dbca;color:#624f3d}.demo-dialog-status{min-height:18px;margin-top:9px;font-size:11px;color:#9c5e4f}.demo-guide-list{display:grid;gap:10px;margin:14px 0}.demo-guide-step{display:grid;grid-template-columns:24px 1fr;gap:9px;align-items:start}.demo-guide-step b{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#e7d7bd;color:#6f563f;font-size:11px}.demo-guide-step span{font-size:12px;line-height:1.6;color:#665342}
   @media(max-width:760px){.estate-top-actions{align-items:flex-end;flex-direction:column}.demo-controls{max-width:min(92vw,360px);overflow:auto}.demo-control{white-space:nowrap}.title{align-self:flex-end}}
 
@@ -240,10 +241,10 @@
      border:1px solid #e1c6a8;border-radius:12px;background:rgba(255,253,249,.72)}
   .toolbox-import.is-open{display:grid}
   .toolbox-import input{min-width:0;height:40px;border:1px solid #d9b995;border-radius:10px;background:#fffdf9;
-     padding:0 12px;color:#503a29;font:13px inherit;outline:none}
+     padding:0 12px;color:#503a29;font-family:inherit;font-size:13px;outline:none}
   .toolbox-import input:focus{border-color:#9d704c;box-shadow:0 0 0 3px rgba(157,112,76,.12)}
   .toolbox-import button{height:40px;border:0;border-radius:10px;padding:0 15px;background:#765338;color:#fffaf2;
-     font:13px inherit;cursor:pointer;white-space:nowrap}
+     font-family:inherit;font-size:13px;cursor:pointer;white-space:nowrap}
   .toolbox-import button:disabled{opacity:.55;cursor:default}
   .toolbox-import-status{grid-column:1/-1;min-height:16px;font-size:11px;color:#846b56}
   .toolbox-nav{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
@@ -276,7 +277,7 @@
   .tool-price-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px}
   .tool-price-head strong{font-size:12px;color:#5b402c}
   .tool-price-refresh{min-height:28px;border:1px solid #d7b995;border-radius:7px;background:#fffdf8;color:#775537;
-    padding:0 9px;font:700 10px/1 inherit;cursor:pointer}
+    padding:0 9px;font-family:inherit;font-size:10px;font-weight:700;line-height:1;cursor:pointer}
   .tool-price-refresh:hover{background:#f1dfcb}.tool-price-refresh:disabled{opacity:.55;cursor:default}
   .tool-price-summary{margin:0 0 7px;font-size:11px;line-height:1.65;color:#6c523e}
   .tool-price-list{display:grid;gap:5px;margin:0}.tool-price-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;
@@ -398,7 +399,7 @@
   .notice-task-state{font-size:10px;font-weight:650;color:#9b6c3f;white-space:nowrap;padding-top:1px}.notice-task-row.completed .notice-task-state{color:#57825f}.notice-task-row.failed .notice-task-state{color:#a9505c}
   @keyframes noticeTaskPulse{50%{opacity:.45;transform:scale(.75)}}
   .notice-board-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
-  .notice-heading-actions{display:flex;align-items:center;gap:8px}.notice-refresh{width:30px;height:30px;border:1px solid rgba(184,112,128,.2);border-radius:50%;background:rgba(255,255,255,.62);color:#8f5967;font-size:17px;cursor:pointer}.notice-refresh:disabled{opacity:.72;cursor:default}.notice-refresh.running{animation:noticeRefreshSpin 1s linear infinite}@keyframes noticeRefreshSpin{to{transform:rotate(360deg)}}
+  .notice-heading-actions{display:flex;align-items:center;gap:8px}.notice-refresh{height:32px;border:1px solid rgba(184,112,128,.2);border-radius:8px;background:rgba(255,255,255,.62);color:#8f5967;padding:0 12px;font-family:inherit;font-size:11px;font-weight:600;line-height:1;white-space:nowrap;cursor:pointer}.notice-refresh:disabled{opacity:.72;cursor:default}.notice-refresh.running{animation:noticeRefreshPulse 1.25s ease-in-out infinite}@keyframes noticeRefreshPulse{50%{background:#e5eee3;box-shadow:0 0 0 4px rgba(104,143,106,.08)}}
   .butler-connection{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:650;color:#8b5360;
      background:rgba(255,255,255,.68);border:1px solid rgba(184,112,128,.16);border-radius:999px;padding:5px 9px;white-space:nowrap}
   .butler-connection:before{content:"";width:7px;height:7px;border-radius:50%;background:#d3a552;box-shadow:0 0 0 3px rgba(211,165,82,.12)}
@@ -462,6 +463,62 @@
   .category-archive-count{font-size:11px;font-weight:500;color:rgba(104,65,75,.58);margin-left:auto}
   .category-archive-list{padding:0 12px 12px}
   .category-archive-list .report-card{background:rgba(255,255,255,.78)}
+
+  /* Noticeboard: a quiet reading surface instead of nested pink cards. */
+  .notice-scene,.notice-panel{background:#f4f3ee;color:#343833}
+  .notice-board-large{background:#f8f7f3;padding:42px 48px;color:#343833;backdrop-filter:none}
+  .notice-board-large h2{color:#353a35;letter-spacing:0;margin-bottom:4px}
+  .notice-board-large p{color:#626861}
+  .notice-board-heading{padding:0 0 16px;border-bottom:1px solid #dedfd8}
+  .butler-connection{color:#59665c;background:#eef1ec;border-color:#d8ded7;box-shadow:none}
+  .notice-refresh{border-color:#d8dbd5;background:#fff;color:#647267}
+  .notice-tabs{gap:4px;margin:15px 0 26px;padding:4px;width:max-content;max-width:100%;background:#ecece7;border-radius:9px}
+  .notice-tabs button{border:0;background:transparent;color:#686d67;border-radius:6px;padding:7px 13px;font-weight:600}
+  .notice-tabs button.active,.notice-tabs button:hover{background:#fff;color:#3e5142;border-color:transparent;box-shadow:0 1px 4px rgba(45,55,46,.1)}
+  .week-title,.archive-line{color:#747a73}
+  .report-section{margin:28px 0}
+  .report-section h3{gap:9px;padding:0 0 11px;margin:0;border:0;border-bottom:1px solid #dfe0da;border-radius:0;background:transparent;box-shadow:none;color:#3f4840;font-size:16px}
+  .report-section h3:before{width:4px;height:16px;border-radius:2px;background:#728575}
+  .hot-report-section,.dynamic-report-section{padding:0;border:0;border-radius:0;background:transparent}
+  .hot-report-section h3,.dynamic-report-section h3{background:transparent;border-color:#dfe0da;color:#3f4840}
+  .hot-report-section h3:before{background:#9d3d46}
+  .dynamic-report-section h3:before{background:#728575}
+  .brief-list{gap:0}
+  .report-card,.hot-report-section .report-card,.dynamic-report-section .report-card{margin:0;padding:20px 2px;border:0;border-bottom:1px solid #dedfd8;border-radius:0;background:transparent;box-shadow:none}
+  .report-card h4,.hot-report-section .report-card h4,.dynamic-report-section .report-card h4{margin:5px 0 8px;color:#313832;font-size:16px;line-height:1.5}
+  .report-card p{color:#626861;font-size:13px;line-height:1.72}
+  .notice-tag,.hot-report-section .notice-tag,.dynamic-report-section .notice-tag{margin:0 0 4px;padding:0;border:0;border-radius:0;background:transparent;color:#738076;font-size:11px}
+  .hot-report-section .notice-tag,.hot-report-section .hot-label{color:#9d3d46}
+  .notice-analysis{margin-top:12px}
+  .notice-analysis-block{padding:11px 13px;border:0;border-left:3px solid #879b89;border-radius:2px;background:#edf1eb}
+  .notice-analysis-block b{margin-bottom:4px;color:#516454;font-size:11px}
+  .notice-analysis-block p{color:#4f5a51;font-size:13px;line-height:1.68}
+  .report-meta{margin-top:13px;color:#858a83}
+  .report-actions{gap:3px}
+  .source-link,.article-action,.readlater-btn{padding:5px 7px;border:0;border-radius:5px;background:transparent;color:#657368;text-decoration:none}
+  .source-link:hover,.article-action:hover,.readlater-btn:hover{background:#e8ece6;color:#415444}
+  .readlater-btn.is-active{background:#dfe8df;color:#415b46;border-color:transparent}
+  .insight-box,.notice-dialogue{border:1px solid #dddfd8;border-radius:8px;background:#fff;box-shadow:none;color:#3f4941}
+  .insight-box h3,.notice-dialogue h3{color:#3f4941}
+  .notice-dialogue p{color:#6b716b}
+  .notice-dialogue textarea,.notice-form input,.notice-board-large textarea{border-color:#d8dcd5;border-radius:7px;background:#fff;color:#343833}
+  .notice-hints span{border:0;border-radius:5px;background:#edf0eb;color:#647267}
+  .week-card,.category-card,.category-archive{border-color:#dfe0da;border-radius:8px;background:#fff}
+  details.week-card[open]>summary{border-color:#dfe0da;background:#f2f3ef}
+  .category-archive summary,.week-card h3,.category-card h3,.week-focus{color:#465249}
+  @media(max-width:680px){
+    .notice-board-large{padding:18px 18px 88px}
+    .notice-board-heading{display:grid;grid-template-columns:minmax(0,1fr);gap:9px;padding-right:34px}
+    .notice-heading-actions{justify-content:flex-start}
+    .notice-tabs{width:100%;margin:14px 0 22px;padding:3px;overflow-x:auto}
+    .notice-tabs button{flex:1 0 auto;padding:7px 10px;font-size:12px}
+    .report-section{margin:24px 0}
+    .report-card,.hot-report-section .report-card,.dynamic-report-section .report-card{padding:18px 0}
+    .report-card h4,.hot-report-section .report-card h4,.dynamic-report-section .report-card h4{font-size:15px}
+    .notice-analysis-block{padding:10px 11px}
+    .report-actions{gap:2px}
+    .report-actions .source-link,.report-actions .article-action,.report-actions .readlater-btn{padding:6px 7px;color:#5e6e61}
+  }
   .scene-caption{position:absolute;left:22px;bottom:20px;max-width:420px;color:#fff8e8;
      background:rgba(42,34,24,.36);border:1px solid rgba(255,246,214,.22);border-radius:14px;
      padding:14px 16px;box-shadow:0 12px 28px rgba(24,18,10,.2);backdrop-filter:blur(6px)}
@@ -472,11 +529,11 @@
      overflow:hidden;box-shadow:none;background:#fff9ec;
      font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
   .bb-side{padding:30px 24px;background:#ffe49b;border-right:1px solid rgba(190,132,28,.14)}
-  .bb-side h2{font-size:20px;line-height:1.25;margin-bottom:10px;color:#4f3d20;font-weight:780}
-  .bb-side p{font-size:14px;line-height:1.75;color:rgba(79,61,32,.68);margin-bottom:22px}
+  .bb-side h2{font-size:18px;line-height:1.35;margin-bottom:9px;color:#4f3d20;font-weight:700}
+  .bb-side p{font-size:13px;line-height:1.7;color:rgba(79,61,32,.68);margin-bottom:20px}
   .bb-actions{display:grid;gap:10px}
   .bb-actions button{border:1px solid rgba(194,138,35,.18);background:rgba(255,250,232,.72);color:#6f4d19;
-     border-radius:999px;padding:10px 15px;text-align:center;cursor:pointer;font:inherit;font-weight:650;
+     border-radius:999px;padding:9px 14px;text-align:center;cursor:pointer;font-family:inherit;font-size:12px;font-weight:650;
      box-shadow:0 4px 12px rgba(146,96,20,.08)}
   .bb-actions button.active,.bb-actions button:hover{background:#d99524;color:#fffdf4;border-color:#d99524;
      box-shadow:0 8px 18px rgba(181,120,27,.2)}
@@ -485,18 +542,20 @@
   .bb-question .eyebrow{font-size:12px;color:#9b6c26;margin-bottom:10px}
   .bb-question-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
   .bb-question-head .eyebrow{margin:0}
+  .bb-question-tools{display:flex;align-items:center;gap:7px}
   .bb-refresh-question{width:32px;height:32px;display:grid;place-items:center;border:1px solid rgba(143,94,25,.2);border-radius:50%;background:rgba(255,255,255,.62);color:#79521f;cursor:pointer;font-size:18px;line-height:1;transition:background .18s ease,transform .18s ease}
   .bb-refresh-question:hover{background:#fffdf7;transform:rotate(18deg)}
   .bb-refresh-question:disabled{opacity:.5;cursor:wait;transform:none}
-  .bb-question h3{font-size:24px;line-height:1.42;margin-bottom:14px;color:#4f3d20;font-weight:760}
-  .bb-question p{font-size:15px;line-height:1.8;color:rgba(83,54,22,.86);margin:10px 0}
+  .bb-star{width:32px;height:32px;display:grid;place-items:center;border:1px solid rgba(143,94,25,.17);border-radius:50%;background:rgba(255,255,255,.62);color:#a28f70;font-family:inherit;font-size:17px;line-height:1;cursor:pointer;transition:.16s ease}.bb-star:hover{background:#fffdf7;color:#8c7043}.bb-star.active{border-color:rgba(184,139,53,.32);background:#f5e6bd;color:#a7771d}.bb-star:focus-visible{outline:2px solid rgba(101,139,103,.42);outline-offset:2px}
+  .bb-question h3{font-size:21px;line-height:1.5;margin-bottom:14px;color:#4f3d20;font-weight:700}
+  .bb-question p{font-size:14px;line-height:1.75;color:rgba(83,54,22,.86);margin:9px 0}
   .bb-answer-box{width:100%;max-width:720px;min-height:160px;margin-top:18px;border:1px solid rgba(143,94,25,.22);
      background:rgba(255,255,255,.72);color:#4d3214;border-radius:14px;padding:16px 18px;resize:vertical;
-     font:inherit;line-height:1.7;outline:none}
+     font-family:inherit;font-size:14px;line-height:1.7;outline:none}
   .bb-answer-box:focus{border-color:rgba(143,94,25,.46);background:#fffdf8}
   .bb-answer-box:disabled{color:rgba(83,54,22,.68);background:rgba(255,255,255,.46);cursor:not-allowed}
   .bb-submit{margin-top:12px;border:1px solid rgba(111,74,29,.18);background:#7a5424;
-     color:#fff8e8;border-radius:999px;padding:9px 18px;font:inherit;cursor:pointer}
+     color:#fff8e8;border-radius:9px;padding:9px 16px;font-family:inherit;font-size:12px;cursor:pointer}
   .bb-submit:hover{background:#5f3e18}
   .bb-submit:disabled{background:#b9a27e;color:#fff9ec;cursor:not-allowed;box-shadow:none}
   .bb-note{font-size:13px;color:rgba(83,54,22,.62);margin-top:10px}
@@ -513,11 +572,12 @@
   .bb-helper-avatar{width:28px;height:28px;flex:0 0 auto;border-radius:50%;background:url("assets/estate/butler_dog.webp") center/116% no-repeat}
   .bb-helper-head strong{display:block;font-size:13px;color:#60421d}.bb-helper-head small{display:block;margin-top:1px;font-size:10px;color:#987541}
   .bb-helper-chat{display:none;padding:11px 13px 0}.bb-helper-chat.show{display:block}.bb-helper-chat p{margin:0;font-size:13px;line-height:1.7;color:#654a29}
-  .bb-helper-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:11px 13px}.bb-helper-row input{min-width:0;border:1px solid rgba(143,94,25,.18);border-radius:10px;background:rgba(255,255,255,.78);padding:9px 11px;color:#4d3214;outline:none;font:12px inherit}.bb-helper-row button{border:0;border-radius:10px;background:#b47b24;color:#fffaf0;padding:0 13px;cursor:pointer;font:12px inherit}.bb-helper-row button:disabled{opacity:.5;cursor:wait}
+  .bb-helper-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:11px 13px}.bb-helper-row input{min-width:0;border:1px solid rgba(143,94,25,.18);border-radius:9px;background:rgba(255,255,255,.78);padding:9px 11px;color:#4d3214;outline:none;font-family:inherit;font-size:13px}.bb-helper-row button{border:0;border-radius:9px;background:#b47b24;color:#fffaf0;padding:0 13px;cursor:pointer;font-family:inherit;font-size:12px}.bb-helper-row button:disabled{opacity:.5;cursor:wait}
   .bb-score-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.bb-score-item{padding:10px 11px;border-radius:10px;background:rgba(255,249,232,.78)}.bb-score-item b{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#63451f}.bb-score-item p{margin:4px 0 0;font-size:11px;line-height:1.55;color:#85693e}
   .bb-comparison{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
   .bb-comparison .bb-review-card{margin:0}
   .bb-history{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px}
+  .bb-history-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.bb-history-heading h3{margin:0}.bb-history-filter{display:flex;align-items:center;gap:3px;padding:3px;border-radius:8px;background:rgba(106,137,103,.09)}.bb-history-filter button{height:29px;border:0;border-radius:6px;background:transparent;color:#71806e;padding:0 10px;font-family:inherit;font-size:11px;cursor:pointer}.bb-history-filter button.active{background:#fff;color:#4f6b50;font-weight:650;box-shadow:0 1px 4px rgba(55,78,57,.1)}
   .bb-history .category-archive{border:1px solid rgba(143,94,25,.14);border-radius:14px;background:rgba(255,255,255,.58);overflow:hidden}
   .bb-history .category-archive summary{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:13px 15px;cursor:pointer;list-style:none}
   .bb-history .category-archive summary::-webkit-details-marker{display:none}
@@ -528,14 +588,16 @@
   .bb-history-question{padding:10px 12px;border-radius:10px;background:rgba(255,249,232,.72);font-size:13px;line-height:1.75;color:#5d4323}
   .bb-history-state{display:inline-flex;margin-top:8px;padding:3px 8px;border-radius:999px;background:#e6d3a7;color:#735322;font-size:10px}
   .bb-history-state.done{background:#dce6c7;color:#4e6432}
-  .bb-topic-group{border:1px solid rgba(143,94,25,.14);border-radius:14px;background:rgba(255,255,255,.58);overflow:hidden}.bb-topic-group>summary{display:flex;align-items:center;gap:10px;padding:13px 15px;cursor:pointer;list-style:none;color:#5d421e}.bb-topic-group>summary::-webkit-details-marker{display:none}.bb-topic-group>summary strong{font-size:14px}.bb-topic-group>summary:after{content:"+";margin-left:auto;font-size:18px;font-weight:400;color:#9b763d}.bb-topic-group[open]>summary:after{content:"−"}.bb-topic-list{display:grid;gap:9px;padding:0 12px 12px}
-  .bb-history-entry{border:1px solid rgba(143,94,25,.12);border-radius:10px;background:rgba(255,249,232,.72);overflow:hidden}.bb-history-entry>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;list-style:none}.bb-history-entry>summary::-webkit-details-marker{display:none}.bb-history-entry>summary strong{font-size:13px;line-height:1.5;color:#5d4323}.bb-history-entry>summary small{font-size:10px;color:#9b763d}.bb-history-entry-body{padding:0 12px 12px}.bb-history-entry .bb-history-question{padding:8px 0;background:transparent}.bb-history-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0}.bb-redo{border:0;border-radius:8px;background:#7b653e;color:#fff9e9;padding:6px 10px;font:11px inherit;cursor:pointer}
+  .bb-topic-group{border:1px solid rgba(143,94,25,.14);border-radius:14px;background:rgba(255,255,255,.58);overflow:hidden}.bb-topic-group>summary{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:10px;padding:13px 15px;cursor:pointer;list-style:none;color:#5d421e}.bb-topic-group>summary::-webkit-details-marker{display:none}.bb-topic-group>summary strong{min-width:0;font-size:14px}.bb-topic-group>summary .category-archive-count{grid-column:2;justify-self:end;margin-left:0}.bb-topic-group>summary:after{content:"+";grid-column:3;justify-self:end;margin-left:0;font-size:18px;font-weight:400;color:#9b763d}.bb-topic-group[open]>summary:after{content:"−"}.bb-topic-list{display:grid;gap:9px;padding:0 12px 12px}
+  .bb-history-entry{border:1px solid rgba(143,94,25,.12);border-radius:10px;background:rgba(255,249,232,.72);overflow:hidden}.bb-history-entry>summary{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:10px;padding:11px 12px;cursor:pointer;list-style:none}.bb-history-entry>summary::-webkit-details-marker{display:none}.bb-history-entry>summary strong{font-size:13px;line-height:1.5;color:#5d4323}.bb-history-entry>summary small{font-size:10px;color:#9b763d}.bb-history-entry-body{padding:0 12px 12px}.bb-history-entry .bb-history-question{padding:8px 0;background:transparent}.bb-history-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0 2px;padding:8px 0;border-top:1px solid rgba(143,94,25,.1);border-bottom:1px solid rgba(143,94,25,.1)}.bb-history-state{margin:0;padding:0;background:transparent;color:#69805c;font-family:inherit;font-size:11px}.bb-history-state:before{content:"";width:6px;height:6px;margin-right:6px;border-radius:50%;background:#9aab88}.bb-history-state:not(.done){color:#8d7959}.bb-history-state:not(.done):before{background:#c5b28f}.bb-redo{border:1px solid rgba(91,114,79,.2);border-radius:7px;background:#f1f6ed;color:#557052;padding:6px 10px;font-family:inherit;font-size:11px;font-weight:600;cursor:pointer}.bb-redo:hover{background:#e4eee0}
+  .bb-history-entry>summary{grid-template-columns:minmax(0,1fr) auto auto}.bb-history-entry>summary .bb-star{width:27px;height:27px;font-size:14px;grid-column:3}.bb-history-entry>summary small{grid-column:2}.bb-history-empty{padding:24px 12px;border:1px dashed rgba(98,124,88,.2);border-radius:10px;color:#72806f;font-size:12px;text-align:center}
+  .bb-attempt-nav{display:flex;align-items:center;gap:5px;margin:4px 0 8px;padding:7px 0;overflow-x:auto}.bb-attempt-nav>span{flex:0 0 auto;margin-right:4px;font-size:11px;color:#796a52}.bb-attempt-tab{flex:0 0 auto;min-width:30px;height:28px;border:1px solid rgba(98,124,88,.18);border-radius:7px;background:#f7faf4;color:#60765b;font-family:inherit;font-size:11px;line-height:1;cursor:pointer}.bb-attempt-tab.active{border-color:#789273;background:#789273;color:#fff;font-weight:700;box-shadow:none}.bb-attempt-panel[hidden]{display:none}.bb-attempt-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:10px 0 7px}.bb-attempt-head strong{font-size:13px;color:#4f624b}.bb-attempt-head time{font-size:10px;color:#8b9687}.bb-history-result{display:grid;gap:10px}.bb-history-result .bb-review-card{margin:0;border-radius:9px;background:rgba(255,255,255,.76)}.bb-history-result .bb-comparison{margin:0}.bb-history-missing{padding:12px;border:1px dashed rgba(98,124,88,.2);border-radius:9px;color:#74806f;font-size:11px;line-height:1.65}
   .bb-history .card{background:rgba(255,255,255,.66);border-color:rgba(143,94,25,.14);color:#4d3214}
   .bb-history .card p{color:rgba(83,54,22,.68)}
   .bb-direction-box{margin-top:22px;padding-top:18px;border-top:1px solid rgba(143,94,25,.14)}
   .bb-direction-box h4{font-size:14px;color:#6b4618;margin-bottom:7px}.bb-direction-box p{font-size:12px;line-height:1.65;margin:0 0 8px;color:rgba(83,54,22,.65)}
-  .bb-direction-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.bb-direction-row input{min-width:0;border:1px solid rgba(143,94,25,.2);border-radius:12px;background:rgba(255,255,255,.72);padding:10px 12px;font:13px inherit;color:#4d3214;outline:none}.bb-direction-row button{border:0;border-radius:12px;background:#b57c24;color:#fffaf0;padding:0 14px;font:12px inherit;cursor:pointer}.bb-direction-status{min-height:17px;margin-top:7px;font-size:11px;color:#876832}
-  @media (max-width:720px){.blackboard-app{grid-template-columns:1fr}.bb-side{padding:18px}.bb-actions{display:flex;flex-wrap:wrap}.bb-main{padding:22px}.bb-comparison{grid-template-columns:1fr}}
+  .bb-direction-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}.bb-direction-row input{min-width:0;border:1px solid rgba(143,94,25,.2);border-radius:9px;background:rgba(255,255,255,.72);padding:10px 12px;font-family:inherit;font-size:13px;color:#4d3214;outline:none}.bb-direction-row button{border:0;border-radius:9px;background:#668a69;color:#fffaf0;padding:0 14px;font-family:inherit;font-size:12px;cursor:pointer}.bb-direction-status{min-height:17px;margin-top:7px;font-size:11px;color:#876832}
+  @media (max-width:720px){.blackboard-app{grid-template-columns:1fr}.bb-side{padding:18px}.bb-actions{display:flex;flex-wrap:wrap}.bb-main{padding:22px}.bb-comparison{grid-template-columns:1fr}.bb-attempt-nav{margin-left:-2px;margin-right:-2px}.bb-history-entry-body{padding:0 10px 12px}.bb-history-result .bb-review-card{padding:12px}.bb-score-grid{grid-template-columns:1fr}.bb-history-heading{align-items:flex-end}.bb-history-filter button{padding:0 9px}}
   /* 照片预览 */
   .preview-photo{width:200px;height:240px;object-fit:cover;border:6px solid #fff;border-radius:6px;
      box-shadow:0 10px 26px var(--shadow);display:block;margin:0 auto 14px}
@@ -544,11 +606,11 @@
   .photo-wall-scene>.photo-wall-bg{filter:none;opacity:1;transform:none;transition:filter .25s ease,opacity .25s ease,transform .25s ease}
   .photo-wall-scene.library-open>.photo-wall-bg{filter:blur(8px) brightness(.78);opacity:.8;transform:scale(1.025)}
   .photo-wall-cover{position:absolute;inset:0;z-index:2;display:flex;align-items:flex-end;justify-content:center;padding:0 22px 8vh;background:transparent}
-  .photo-wall-enter{min-width:152px;height:44px;border:1px solid #715844;border-radius:9px;background:#4b3a2f;color:#fffaf2;font:14px inherit;cursor:pointer;box-shadow:0 12px 32px rgba(0,0,0,.26)}
+  .photo-wall-enter{min-width:152px;height:44px;border:1px solid #715844;border-radius:9px;background:#4b3a2f;color:#fffaf2;font-family:inherit;font-size:14px;cursor:pointer;box-shadow:0 12px 32px rgba(0,0,0,.26)}
   .photo-wall-enter:hover{background:#3f3028}
   .photo-library{position:absolute;inset:0;z-index:2;overflow:auto;padding:68px clamp(22px,5vw,74px) 42px;color:#fffaf2;background:rgba(28,25,25,.2)}
-  .photo-library-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin:0 0 22px}.photo-library-head h2{font-size:24px;margin:0 0 4px}.photo-library-head p{font-size:12px;color:rgba(255,250,242,.72);margin:0}.photo-library-actions{display:flex;gap:8px}.photo-library-actions button,.photo-album-toolbar button{border:1px solid rgba(255,255,255,.22);border-radius:9px;background:rgba(37,31,28,.46);color:#fffaf2;padding:8px 11px;font:12px inherit;cursor:pointer;backdrop-filter:blur(8px)}
-  .photo-library-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.photo-library-tools button,.photo-library-tools select{height:34px;border:1px solid rgba(255,255,255,.22);border-radius:8px;background:rgba(37,31,28,.46);color:#fffaf2;padding:0 10px;font:11px inherit;cursor:pointer;backdrop-filter:blur(8px)}
+  .photo-library-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin:0 0 22px}.photo-library-head h2{font-size:24px;margin:0 0 4px}.photo-library-head p{font-size:12px;color:rgba(255,250,242,.72);margin:0}.photo-library-actions{display:flex;gap:8px}.photo-library-actions button,.photo-album-toolbar button{border:1px solid rgba(255,255,255,.22);border-radius:9px;background:rgba(37,31,28,.46);color:#fffaf2;padding:8px 11px;font-family:inherit;font-size:12px;cursor:pointer;backdrop-filter:blur(8px)}
+  .photo-library-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.photo-library-tools button,.photo-library-tools select{height:34px;border:1px solid rgba(255,255,255,.22);border-radius:8px;background:rgba(37,31,28,.46);color:#fffaf2;padding:0 10px;font-family:inherit;font-size:11px;cursor:pointer;backdrop-filter:blur(8px)}
   .photo-album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}.photo-album-tile{position:relative;min-height:230px;border:0;padding:0;background:transparent;color:#fff;text-align:left}.photo-album-cover{position:relative;display:block;width:100%;height:184px;border:0;padding:0;border-radius:7px;overflow:hidden;background:rgba(255,255,255,.12);box-shadow:0 14px 34px rgba(0,0,0,.2);cursor:pointer}.photo-album-cover img{position:static;width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s ease}.photo-album-tile:hover .photo-album-cover img{transform:scale(1.025)}.photo-album-title{display:block;font-size:14px;font-weight:650;margin-top:10px}.photo-album-meta{display:flex;justify-content:space-between;gap:8px;margin-top:4px;color:rgba(255,255,255,.62);font-size:10px}.photo-date-mark{color:#bfe4f5;background:rgba(100,174,210,.13);border-radius:999px;padding:2px 7px}.photo-album-move{position:absolute;right:7px;top:7px;z-index:2;display:flex;gap:4px}.photo-album-move button{width:27px;height:27px;border:0;border-radius:7px;background:rgba(24,22,21,.56);color:#fff;cursor:pointer}.photo-album-add{height:184px;border:1px dashed rgba(255,255,255,.42);border-radius:7px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:38px;font-weight:200;color:rgba(255,255,255,.72)}
   .photo-album-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px}.photo-album-toolbar h2{font-size:20px;margin:0 auto 0 0}.photo-album-toolbar .danger{color:#ffd4cd}.photo-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;align-items:stretch}.photo-detail-item{position:relative;display:grid;grid-template-rows:220px 74px;height:294px;margin:0;min-width:0;overflow:hidden;border-radius:8px;background:rgba(24,22,20,.52);box-shadow:0 10px 26px rgba(0,0,0,.16)}.photo-detail-item img{position:static;width:100%;height:220px;min-width:0;object-fit:contain;border-radius:8px 8px 0 0;display:block;background:rgba(244,240,234,.12)}.photo-detail-item figcaption{position:static;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:1fr auto;align-items:center;column-gap:8px;row-gap:3px;min-width:0;height:74px;margin:0;padding:8px 9px;background:rgba(28,25,23,.88);font-size:11px;line-height:1.4;color:rgba(255,255,255,.86)}.photo-detail-item figcaption>span:first-child{grid-row:1/3;min-width:0;overflow:hidden;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}.photo-detail-item .photo-date-mark{grid-column:2;grid-row:1;white-space:nowrap;justify-self:end}.photo-detail-controls{grid-column:2;grid-row:2;margin-left:0;display:flex;justify-content:flex-end;gap:3px}.photo-detail-controls button{width:25px;height:25px;border:0;border-radius:6px;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}.photo-detail-controls button:hover{background:rgba(255,255,255,.2)}.photo-wall-status{font-size:11px;color:#d6edf7;min-height:16px;margin-top:10px}
   @media(max-width:620px){.tool-card{grid-template-rows:none;height:auto}.photo-library{padding:62px 14px 30px}.photo-library-head{align-items:flex-start;flex-direction:column}.photo-album-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.photo-album-cover,.photo-album-add{height:132px}.photo-album-tile{min-height:178px}.photo-detail-grid{grid-template-columns:1fr}.photo-detail-item{grid-template-rows:210px 74px;height:284px}.photo-detail-item img{height:210px}}
@@ -558,18 +620,34 @@
     #estate-bg{height:calc(100% - var(--mobile-nav-h,62px));object-position:center center}
     .stage:after{content:"";position:absolute;inset:0 0 var(--mobile-nav-h,62px);z-index:3;pointer-events:none;background:linear-gradient(180deg,rgba(22,25,20,.23),transparent 23%,transparent 64%,rgba(24,25,21,.28))}
     .stage.has-panorama .spot,.stage.has-panorama #wall{display:none}
+    .stage.has-panorama .spot.noticeboard,.stage.has-panorama .spot.oldtree,.stage.has-panorama .spot.stump,
+    .stage.has-panorama .spot.luggage,.stage.has-panorama .spot.cottage{display:block;z-index:8}
+    .stage.has-panorama .spot.noticeboard{left:82%;top:51%;width:22%;height:15%}
+    .stage.has-panorama .spot.oldtree{left:15%;top:39%;width:25%;height:30%}
+    .stage.has-panorama .spot.stump{left:13%;top:64%;width:22%;height:15%}
+    .stage.has-panorama .spot.luggage{left:50%;top:73%;width:30%;height:15%}
+    .stage.has-panorama .spot.cottage{left:50%;top:48%;width:19%;height:23%}
+    .stage.has-panorama .spot .tag{top:50%;padding:5px 4px;border:0;border-radius:0;background:transparent;color:#e7f7ff;font-size:11px;box-shadow:none;text-shadow:0 1px 2px rgba(20,32,30,.95),0 0 7px rgba(18,34,35,.72);opacity:1;backdrop-filter:none}
+    .stage.has-panorama .spot:hover .tag{background:transparent;color:#f4fbff;text-shadow:0 1px 2px rgba(20,32,30,.98),0 0 9px rgba(166,224,245,.48)}
+    .stage.has-panorama .spot .tag:after{display:none}
+    .stage.has-panorama .spot.noticeboard .tag,.stage.has-panorama .spot.oldtree .tag,.stage.has-panorama .spot.stump .tag,
+    .stage.has-panorama .spot.luggage .tag,.stage.has-panorama .spot.cottage .tag{top:50%}
     .stage.has-panorama #butler{left:12px;top:max(12px,env(safe-area-inset-top));z-index:9;max-width:calc(100vw - 112px);padding:6px 9px}
     .stage.has-panorama #butler .butler-name{max-width:150px}.stage.has-panorama #butler .butler-weather{max-width:190px}
     .estate-top-actions{right:12px;top:max(12px,env(safe-area-inset-top));z-index:9;max-width:calc(100vw - 24px)}
     .title{font-size:11px;padding:5px 9px}.demo-controls{width:min(360px,calc(100vw - 24px));justify-content:flex-end}.demo-control{height:30px;font-size:10px}
     .overlay{z-index:60;padding:0 0 var(--mobile-nav-h,62px);align-items:stretch}.panel{width:100vw;max-width:none;max-height:none;height:calc(100dvh - var(--mobile-nav-h,62px));padding:18px 15px;border-radius:0}.panel.scene-panel{height:calc(100dvh - var(--mobile-nav-h,62px))}
-    .notice-board-large{padding:18px 14px 28px}.notice-board-heading{align-items:flex-start}.notice-board-large h2{font-size:19px;line-height:1.35;margin-bottom:8px}.notice-tabs{display:flex;overflow:auto;flex-wrap:nowrap;padding-bottom:3px}.notice-tabs button{flex:0 0 auto;white-space:nowrap}.notice-layout{grid-template-columns:1fr}.notice-sidebar{order:2}.notice-content{order:1}.report-card{padding:12px}.report-actions{align-items:flex-start;flex-wrap:wrap}
-    .blackboard-panel{padding:0}.blackboard-app{width:100%;height:100%;display:block;overflow:auto}.bb-side{position:sticky;top:0;z-index:2;padding:14px 46px 12px 14px}.bb-side>p{display:none}.bb-actions{display:flex;gap:6px;overflow:auto}.bb-actions button{flex:0 0 auto;padding:8px 11px;font-size:11px}.bb-direction-box{display:none}.bb-main{padding:18px 15px 34px;overflow:visible}.bb-question h3{font-size:18px;line-height:1.62}.bb-answer-box{min-height:145px;padding:13px}.bb-comparison{grid-template-columns:1fr}
+    .notice-board-large{padding:0 14px 28px}.notice-sticky{position:sticky;top:0;z-index:4;margin:0 -14px 18px;padding:18px 14px 10px;background:rgba(249,250,247,.97);border-bottom:1px solid #dfe5dd;box-shadow:0 8px 16px rgba(43,58,46,.05);backdrop-filter:blur(14px)}.notice-board-heading{align-items:flex-start}.notice-board-large h2{font-size:19px;line-height:1.35;margin-bottom:8px}.week-title{margin:7px 0 10px;padding:0;border:0;line-height:1.5}.notice-tabs{display:flex;overflow:auto;flex-wrap:nowrap;margin:0;padding:3px;background:#e9f0e8}.notice-tabs button{flex:0 0 auto;white-space:nowrap;color:#617064}.notice-tabs button.active,.notice-tabs button:hover{background:#fafff9;color:#36553d;box-shadow:0 1px 4px rgba(48,78,54,.1)}.report-card{padding:12px}.report-actions{align-items:flex-start;flex-wrap:wrap}.send-note-btn,.parse-note-btn,.mic-note-btn{border-color:rgba(91,133,95,.24);background:#edf5eb}.send-note-btn:before,.send-note-btn:after,.parse-note-btn:before,.parse-note-btn:after{border-color:#6f9872}.parse-note-btn span,.mic-note-btn span{background:#6f9872}.mic-note-btn:before{background:#6f9872}.mic-note-btn:after{border-color:#6f9872}.mic-note-btn.is-recording{background:#6f9872;border-color:#6f9872}
+    .blackboard-panel{padding:0;background:#edf4e9}.blackboard-app{width:100%;height:100%;display:block;overflow:auto;background:#f7faf5}.bb-side{position:sticky;top:0;z-index:2;padding:14px 46px 12px 14px;background:rgba(224,238,218,.97);border-color:rgba(91,126,88,.16);box-shadow:0 8px 16px rgba(54,78,53,.05);backdrop-filter:blur(14px)}.bb-side h2{color:#3d5741;font-size:18px}.bb-side>p{display:none}.bb-actions{display:flex;gap:6px;overflow:auto}.bb-actions button{flex:0 0 auto;padding:8px 11px;font-size:12px;border-color:rgba(91,126,88,.18);background:rgba(250,253,248,.78);color:#58705b;box-shadow:none}.bb-actions button.active,.bb-actions button:hover{background:#709471;color:#fff;border-color:#709471;box-shadow:0 4px 10px rgba(76,113,78,.16)}.bb-main{padding:18px 15px 34px;overflow:visible;background:linear-gradient(180deg,#f9fcf7,#edf4e9)}.bb-question h3{font-size:17px;line-height:1.58;color:#3d5741}.bb-question p{font-size:13px;line-height:1.72}.bb-question .eyebrow,.bb-material h4,.bb-review-card h4{color:#66806a}.bb-answer-box{min-height:145px;padding:13px;border-color:rgba(91,126,88,.22);color:#3d5741;font-size:16px}.bb-helper-row input,.bb-direction-row input{font-size:16px}.bb-submit,.bb-helper-row button,.bb-direction-row button{background:#668a69;font-size:12px}.bb-comparison{grid-template-columns:1fr}.bb-material,.bb-review-card,.bb-history .category-archive,.bb-topic-group,.bb-history-entry{border-color:rgba(91,126,88,.14);background:rgba(255,255,255,.72)}
     .photo-library{height:calc(100dvh - var(--mobile-nav-h,62px));padding-bottom:30px}.photo-wall-cover{padding-bottom:12vh}
     .toolbox-panel{height:calc(100dvh - var(--mobile-nav-h,62px))}
     .demo-dialog{z-index:130}
   }
   .source-tag{display:inline-block;font-size:11px;border-radius:999px;padding:3px 8px;background:#ead7c2;color:#6b4b2e;margin-bottom:6px}
+  /* Keep controls from inheriting oversized headings when embedded in cards. */
+  .demo-password-wrap input,.toolbox-import input{font-family:inherit;font-size:13px}
+  .demo-dialog-actions button,.skill-build{font-family:inherit;font-size:12px}
+  .toolbox-import button{font-family:inherit;font-size:13px}
 </style>
 </head>
 <body>
@@ -577,7 +655,7 @@
   <div class="stage" id="stage">
     <!-- 若存在整幅生成图则铺底，否则用 CSS 场景 -->
     <img id="estate-bg" alt="" fetchpriority="high" decoding="async" />
-    <script>(function(){var mobile=matchMedia('(max-width:760px)').matches,suffix=mobile?'_mobile':'',scenes={sunny:'assets/estate/panorama'+suffix+'.webp',morning:'assets/estate/panorama_morning'+suffix+'.webp',snow:'assets/estate/panorama_snow'+suffix+'.webp',rain:'assets/estate/panorama_rain'+suffix+'.webp',overcast:'assets/estate/panorama_overcast'+suffix+'.webp',fog:'assets/estate/panorama_fog'+suffix+'.webp'};var last=localStorage.getItem('cozy_estate_scene')||((new Date()).getHours()>=5&&(new Date()).getHours()<10?'morning':'sunny');document.getElementById('estate-bg').src=scenes[last]||scenes.sunny;})();</script>
+    <script>(function(){var stage=document.getElementById('stage'),img=document.getElementById('estate-bg'),remote=window.CozyRuntime&&window.CozyRuntime.dataSource==='remote';if(remote){stage.dataset.weatherPending='1';return;}var mobile=matchMedia('(max-width:760px)').matches,suffix=mobile?'_mobile':'',scenes={sunny:'assets/estate/panorama'+suffix+'.webp',morning:'assets/estate/panorama_morning'+suffix+'.webp',snow:'assets/estate/panorama_snow'+suffix+'.webp',rain:'assets/estate/panorama_rain'+suffix+'.webp',thunder:mobile?'assets/estate/panorama_thunder_mobile.webp':'assets/estate/panorama_rain.webp',overcast:'assets/estate/panorama_overcast'+suffix+'.webp',fog:'assets/estate/panorama_fog'+suffix+'.webp'};var last=localStorage.getItem('cozy_estate_scene')||((new Date()).getHours()>=5&&(new Date()).getHours()<10?'morning':'sunny');img.src=scenes[last]||scenes.sunny;})();</script>
 
     <div class="sky">
       <div class="cloud" style="width:70px;height:26px;left:18%;top:12%"></div>
@@ -619,13 +697,13 @@
       <span class="tag">黑板</span>
     </button>
 
-    <!-- 老树 · 树洞 -->
-    <a class="spot oldtree" data-pan-x="84.5" data-pan-y="51" data-pan-w="11" data-pan-h="23" href="pages/heart_hollow.html">
+    <!-- 左侧果园入口 -->
+    <a class="spot oldtree" data-pan-x="84.5" data-pan-y="51" data-pan-w="11" data-pan-h="23" href="pages/orchard.html">
       <div class="art">
         <div class="canopy"></div>
         <div class="trunk"><div class="hollow"></div></div>
       </div>
-      <span class="tag">树洞</span>
+      <span class="tag">果园</span>
     </a>
 
     <!-- 树桩 · 工具箱 -->
@@ -667,16 +745,6 @@
       </div>
       <span class="tag">卧室</span>
     </a>
-
-    <!-- 整面照片墙 -->
-    <button class="spot photowall" data-pan-x="74" data-pan-y="48" data-pan-w="9" data-pan-h="12" onclick="openPhotoWall()">
-      <div class="art">
-        <div class="photo-wall-art">
-          <span></span><span></span><span></span><span></span><span></span><span></span>
-        </div>
-      </div>
-      <span class="tag">照片墙</span>
-    </button>
 
     <div id="wall" aria-hidden="true"></div>
   </div>
@@ -728,7 +796,7 @@ function fallbackBox(type){
   return b;
 }
 function renderTitle(){
-  document.title = '栗壳小院';
+  document.title = '阿栗';
 }
 function renderButlerState(){
   const events = window.CozyMemory ? CozyMemory.merged() : [];
@@ -765,7 +833,7 @@ function openOverlay(html, panelClass=''){
     '<button class="close '+(panelClass.includes('scene-panel')?'scene-close':'')+'" onclick="closeOverlay()">×</button>' + html;
   document.getElementById('overlay').classList.add('show');
 }
-function closeOverlay(){ document.getElementById('overlay').classList.remove('show'); }
+function closeOverlay(){ document.getElementById('overlay').classList.remove('show'); window.CozyMobile?.activate('index'); }
 
 function openPhoto(p){
   const fb = p.type === 'travel' ? '🏔️' : '📷';
@@ -983,7 +1051,7 @@ async function openBlackboard(){
           '<button id="bb-mode-question" class="active" onclick="showBlackboardMode(\'question\')">今日题目</button>'+
           '<button id="bb-mode-result" onclick="showBlackboardMode(\'result\')">批改结果</button>'+
           '<button id="bb-mode-history" onclick="showBlackboardMode(\'history\')">历史题目</button>'+
-        '</div><section class="bb-direction-box"><h4>以后想练什么</h4><p>这是出题参考，不会挤掉基础理论、场景判断、时事与评测等其他方向。</p><div class="bb-direction-row"><input id="bb-direction-input" placeholder="例如：多练 AI Agent 权限设计"><button onclick="saveBlackboardDirection()">记下</button></div><div class="bb-direction-status" id="bb-direction-status"></div></section></aside>'+
+        '</div></aside>'+
       '<main class="bb-main"><div id="bb-content"></div></main>'+
     '</div>',
     'blackboard-panel'
@@ -1063,8 +1131,41 @@ function showBlackboardMode(mode){
     }
     content.innerHTML = renderBlackboardResult(q, s.answer, s.review || buildBbReview(s.answer, q));
   }else{
-    content.innerHTML = '<section class="bb-question"><div class="eyebrow">历史题目</div><h3>题目存档</h3><div class="bb-history">'+renderBlackboardHistory(s)+'</div></section>';
+    const filter=s.historyFilter==='starred'?'starred':'all';
+    content.innerHTML = '<section class="bb-question"><div class="eyebrow">历史题目</div><div class="bb-history-heading"><h3>题目存档</h3><div class="bb-history-filter" role="group" aria-label="筛选历史题目"><button class="'+(filter==='all'?'active':'')+'" onclick="setBlackboardHistoryFilter(\'all\')">全部</button><button class="'+(filter==='starred'?'active':'')+'" onclick="setBlackboardHistoryFilter(\'starred\')">★ 星标</button></div></div><div class="bb-history">'+renderBlackboardHistory(s)+'</div>'+renderBlackboardDirectionBox()+'</section>';
   }
+}
+
+const BLACKBOARD_STAR_KEY='cozy_blackboard_starred';
+function getBlackboardStars(){
+  try{const value=JSON.parse(localStorage.getItem(BLACKBOARD_STAR_KEY)||'[]');return Array.isArray(value)?value.filter(Boolean):[];}catch(_error){return [];}
+}
+function isBlackboardStarred(item){return getBlackboardStars().includes(blackboardQuestionKey(item));}
+function saveBlackboardStars(items){
+  localStorage.setItem(BLACKBOARD_STAR_KEY,JSON.stringify(Array.from(new Set(items.filter(Boolean))).slice(0,300)));
+  window.CozyButler?.persistLocal([BLACKBOARD_STAR_KEY]);
+}
+function toggleBlackboardStar(item){
+  const key=blackboardQuestionKey(item);if(!key)return;
+  const stars=getBlackboardStars(),index=stars.indexOf(key);
+  if(index>=0)stars.splice(index,1);else stars.unshift(key);
+  saveBlackboardStars(stars);
+}
+function toggleCurrentBlackboardStar(){
+  const state=window.BB_STATE;if(!state?.questionData)return;
+  toggleBlackboardStar(state.questionData);showBlackboardMode('question');
+}
+function toggleHistoryBlackboardStar(id,event){
+  event?.preventDefault();event?.stopPropagation();
+  const item=window.BB_HISTORY_ITEMS&&window.BB_HISTORY_ITEMS[id];if(!item)return;
+  toggleBlackboardStar(item);showBlackboardMode('history');
+}
+function setBlackboardHistoryFilter(filter){
+  if(!window.BB_STATE)return;window.BB_STATE.historyFilter=filter==='starred'?'starred':'all';showBlackboardMode('history');
+}
+
+function renderBlackboardDirectionBox(){
+  return '<section class="bb-direction-box"><h4>以后想练什么</h4><p>这是出题参考，不会挤掉基础理论、场景判断、时事与评测等其他方向。</p><div class="bb-direction-row"><input id="bb-direction-input" placeholder="例如：多练 AI Agent 权限设计"><button onclick="saveBlackboardDirection()">记下</button></div><div class="bb-direction-status" id="bb-direction-status"></div></section>';
 }
 
 function blackboardQuestionKey(item){
@@ -1100,13 +1201,41 @@ function redoBlackboardQuestion(id){
   const note=document.getElementById('bb-answer-note');if(note)note.textContent='这是一次新的作答，提交后会保留之前的答案供你对照。';
 }
 
+function showBlackboardAttempt(archiveId,attemptIndex,button){
+  const root=document.getElementById('bb-attempts-'+archiveId);if(!root)return;
+  root.querySelectorAll('.bb-attempt-tab').forEach(tab=>tab.classList.toggle('active',tab===button));
+  root.querySelectorAll('.bb-attempt-panel').forEach(panel=>{panel.hidden=panel.dataset.attempt!==String(attemptIndex);});
+}
+
+function blackboardListBlock(title,items){
+  const values=Array.isArray(items)?items.filter(Boolean):[];
+  return values.length?'<article class="bb-review-card"><h4>'+escapeNotice(title)+'</h4><ul>'+values.map(item=>'<li>'+escapeNotice(item)+'</li>').join('')+'</ul></article>':'';
+}
+
+function renderBlackboardHistoryAttempt(attempt,question,index,total){
+  const review=attempt.review&&typeof attempt.review==='object'?attempt.review:{};
+  const standard=(attempt.standard&&attempt.standard.length?attempt.standard:question.standard)||[];
+  const scores=Array.isArray(review.scoreBreakdown)?review.scoreBreakdown:[];
+  const scoreGrid=scores.length?'<div class="bb-score-grid">'+scores.map(item=>'<div class="bb-score-item"><b><span>'+escapeNotice(item.criterion||'评分项')+'</span><span>'+escapeNotice(item.awarded||0)+' / '+escapeNotice(item.max||25)+'</span></b><p>'+escapeNotice(item.reason||'该次未记录评分说明。')+'</p></div>').join('')+'</div>':'';
+  const score=review.score||review.scoreSummary||'';
+  const completion=score||scoreGrid?'<article class="bb-review-card"><h4>本次完成度</h4>'+(score?'<p>'+escapeNotice(score)+'</p>':'')+scoreGrid+'</article>':'';
+  const diagnosis=blackboardListBlock('答案诊断',review.diagnosis);
+  const polished=review.revised?'<article class="bb-review-card"><h4>阿栗帮答</h4>'+renderPolishedAnswer(review.revised)+'</article>':'';
+  const comparison='<div class="bb-comparison"><article class="bb-review-card"><h4>你的原答案</h4><p>'+escapeNotice(attempt.answer||'该次没有保存原答案。')+'</p></article><article class="bb-review-card"><h4>标准答案</h4>'+(standard.length?'<ol class="bb-standard">'+standard.map(point=>'<li>'+escapeNotice(point)+'</li>').join('')+'</ol>':'<p>该次没有生成标准答案。</p>')+'</article></div>';
+  const suggestions=blackboardListBlock('AI 修改建议',review.suggestions);
+  const thinking=blackboardListBlock('下一轮思考方向',review.thinking);
+  const nextPractice=renderNextPractice(attempt.next_question||'',attempt.next_question_reference||[]);
+  const missing=!completion&&!diagnosis&&!polished&&!suggestions&&!thinking&&!nextPractice?'<div class="bb-history-missing">这是一条旧答题记录，当时没有保存结构化批改内容；原答案与标准答案仍然保留。</div>':'';
+  return '<section class="bb-attempt-panel" data-attempt="'+index+'" '+(index===total-1?'':'hidden')+'><div class="bb-attempt-head"><strong>第 '+(index+1)+' 次回答</strong><time>'+escapeNotice(attempt.date||'未标日期')+'</time></div><div class="bb-history-result">'+completion+diagnosis+polished+comparison+suggestions+thinking+nextPractice+missing+'</div></section>';
+}
+
 function renderBlackboardHistory(state){
   const saved=JSON.parse(localStorage.getItem('cozy_blackboard_answers')||'[]');
   const archive=[];
   const seen=new Map();
   const add=item=>{
     if(!item)return;
-    const normalized={title:item.title||'未命名题目',question:item.question||'',types:item.types||item.tags||[],date:item.date||'',standard:item.standard_points||item.standard||[],materials:item.materials||[],supplementalMaterials:item.supplementalMaterials||[],answer:item.answer||'',review:item.review||null,attempts:[]};
+    const normalized={title:item.title||'未命名题目',question:item.question||'',types:item.types||item.tags||[],date:item.date||'',standard:item.standard_points||item.standard||[],materials:item.materials||[],supplementalMaterials:item.supplementalMaterials||[],answer:item.answer||'',review:item.review||null,next_question:item.next_question||'',next_question_reference:item.next_question_reference||[],attemptId:item.attemptId||'',attempts:[]};
     const key=blackboardQuestionKey(normalized);
     if(!key)return;
     if(seen.has(key)){
@@ -1123,21 +1252,20 @@ function renderBlackboardHistory(state){
   (state.history||[]).forEach(add);
   window.BB_HISTORY_ITEMS={};
   const groups={};
-  archive.forEach(item=>{const topic=blackboardArchiveTopic(item);(groups[topic]=groups[topic]||[]).push(item);});
+  const filtered=state.historyFilter==='starred'?archive.filter(isBlackboardStarred):archive;
+  filtered.forEach(item=>{const topic=blackboardArchiveTopic(item);(groups[topic]=groups[topic]||[]).push(item);});
   const order=['AI 产品与用户体验','Agent 与系统设计','模型与技术理解','评测、质量与安全','商业化与落地'];
   return order.filter(topic=>groups[topic]?.length).map((topic,topicIndex)=>{
     const questions=groups[topic].map(item=>{
-    const archiveId=blackboardArchiveId(item),attempts=item.attempts||[],latest=attempts[0]||item,done=attempts.length>0;
+    const archiveId=blackboardArchiveId(item),attempts=(item.attempts||[]).slice().reverse(),done=attempts.length>0;
     window.BB_HISTORY_ITEMS[archiveId]=item;
     const types=(item.types||[]).filter(Boolean).map(type=>'<span class="bb-pill">'+escapeNotice(type)+'</span>').join('');
-    const answer=done?'<article class="bb-review-card"><h4>最近一次答案</h4><p>'+escapeNotice(latest.answer)+'</p></article>':'<p class="bb-note">这道题还没有作答记录。</p>';
-    const review=done&&latest.review&&latest.review.revised?'<article class="bb-review-card"><h4>阿栗帮答</h4>'+renderPolishedAnswer(latest.review.revised)+'</article>':'';
-    const standardPoints=(latest.standard&&latest.standard.length?latest.standard:item.standard)||[];
-    const standard=done&&standardPoints.length?'<article class="bb-review-card"><h4>标准答案</h4><ol class="bb-standard">'+standardPoints.map(point=>'<li>'+escapeNotice(point)+'</li>').join('')+'</ol></article>':'';
-    return '<details class="bb-history-entry"><summary><strong>'+escapeNotice(item.title)+'</strong><small>'+escapeNotice(item.date||'未标日期')+'</small></summary><div class="bb-history-entry-body"><div class="bb-history-question">'+escapeNotice(item.question||item.title)+'</div><div class="bb-pills">'+types+'</div><div class="bb-history-actions"><span class="bb-history-state '+(done?'done':'')+'">'+(done?'已作答 '+attempts.length+' 次':'未作答')+'</span><button class="bb-redo" onclick="redoBlackboardQuestion(\''+archiveId+'\')">'+(done?'再做一次':'开始作答')+'</button></div>'+answer+review+standard+'</div></details>';
+    const attemptsView=done?'<div class="bb-attempts" id="bb-attempts-'+archiveId+'"><nav class="bb-attempt-nav" aria-label="选择回答次数"><span>查看回答</span>'+attempts.map((attempt,index)=>'<button type="button" class="bb-attempt-tab '+(index===attempts.length-1?'active':'')+'" onclick="showBlackboardAttempt(\''+archiveId+'\','+index+',this)">'+(index+1)+'</button>').join('')+'</nav>'+attempts.map((attempt,index)=>renderBlackboardHistoryAttempt(attempt,item,index,attempts.length)).join('')+'</div>':'<p class="bb-note">这道题还没有作答记录。</p>';
+    const starred=isBlackboardStarred(item);
+    return '<details class="bb-history-entry"><summary><strong>'+escapeNotice(item.title)+'</strong><small>'+escapeNotice(item.date||'未标日期')+'</small><button type="button" class="bb-star '+(starred?'active':'')+'" aria-label="'+(starred?'取消星标':'星标题目')+'" aria-pressed="'+starred+'" title="'+(starred?'取消星标':'星标题目')+'" onclick="toggleHistoryBlackboardStar(\''+archiveId+'\',event)">★</button></summary><div class="bb-history-entry-body"><div class="bb-history-question">'+escapeNotice(item.question||item.title)+'</div><div class="bb-pills">'+types+'</div><div class="bb-history-actions"><span class="bb-history-state '+(done?'done':'')+'">'+(done?'已作答 '+attempts.length+' 次':'未作答')+'</span><button class="bb-redo" onclick="redoBlackboardQuestion(\''+archiveId+'\')">'+(done?'再做一次':'开始作答')+'</button></div>'+attemptsView+'</div></details>';
     }).join('');
     return '<details class="bb-topic-group" '+(topicIndex===0?'open':'')+'><summary><strong>'+escapeNotice(topic)+'</strong><span class="category-archive-count">'+groups[topic].length+' 题</span></summary><div class="bb-topic-list">'+questions+'</div></details>';
-  }).join('')||'<p class="bb-note">还没有历史题目。</p>';
+  }).join('')||(state.historyFilter==='starred'?'<div class="bb-history-empty">还没有星标题目。</div>':'<p class="bb-note">还没有历史题目。</p>');
 }
 
 async function submitBbAnswer(){
@@ -1274,7 +1402,8 @@ function renderBlackboardQuestion(q, answer){
   const allMaterials=[...(q.materials||[]),...(q.supplementalMaterials||[])];
   const materials = allMaterials.length ? '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list">'+allMaterials.map((x,index)=>'<li'+(index>=(q.materials||[]).length?' class="bb-added-material"':'')+'>'+escapeNotice(x)+'</li>').join('')+'</ul></div>' : '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list"></ul></div>';
   const refreshing=!!(window.BB_STATE&&window.BB_STATE.refreshing);
-  return '<section class="bb-question"><div class="bb-question-head"><div class="eyebrow">今日题目</div><button class="bb-refresh-question" onclick="refreshBlackboardQuestion()" '+(refreshing?'disabled':'')+' title="换一道新题" aria-label="换一道新题">'+(refreshing?'…':'↻')+'</button></div>'+
+  const starred=isBlackboardStarred(q);
+  return '<section class="bb-question"><div class="bb-question-head"><div class="eyebrow">今日题目</div><div class="bb-question-tools"><button type="button" class="bb-star '+(starred?'active':'')+'" onclick="toggleCurrentBlackboardStar()" aria-label="'+(starred?'取消星标':'星标题目')+'" aria-pressed="'+starred+'" title="'+(starred?'取消星标':'星标题目')+'">★</button><button class="bb-refresh-question" onclick="refreshBlackboardQuestion()" '+(refreshing?'disabled':'')+' title="换一道新题" aria-label="换一道新题">'+(refreshing?'…':'↻')+'</button></div></div>'+
     '<h3>'+escapeNotice(q.question)+'</h3><div class="bb-pills">'+pills+'</div>'+
     (q.seedHint ? '<p>'+escapeNotice(q.seedHint)+'</p>' : '')+materials+renderBlackboardHelper()+
     '<textarea id="bb-answer-input" class="bb-answer-box" placeholder="写你的答案。可以按 1、2、3 列，也可以先用几句话说清楚。"'+(window.BB_STATE&&window.BB_STATE.locked?' disabled':'')+'>'+escapeNotice(answer)+'</textarea>'+
@@ -1354,7 +1483,8 @@ function buildBbReview(answer, q){
 }
 
 function openPhotoWall(){
-  openOverlay('<div class="photo-wall-scene"><img class="photo-wall-bg" src="assets/photos/photo_wall.webp" onerror="this.src=\'assets/photos/photo_wall.png\'" alt="">'+
+  const wallBackground=matchMedia('(max-width:760px)').matches?'assets/photos/photo_wall_mobile.webp':'assets/photos/photo_wall.webp';
+  openOverlay('<div class="photo-wall-scene"><img class="photo-wall-bg" src="'+wallBackground+'" onerror="this.src=\'assets/photos/photo_wall.png\'" alt="">'+
     '<main class="photo-wall-cover" id="photo-library"><button class="photo-wall-enter" onclick="openPhotoLibrary()">进入照片库</button></main></div>','scene-panel');
 }
 
@@ -1455,13 +1585,13 @@ function deletePhotoAlbum(albumId){if(!confirm('删除整组照片吗？照片�
 
 function openNotice(){
   openOverlay('<div class="notice-board-large">'+
-    '<div class="notice-board-heading"><h2>公告板 · 阿栗资讯巡报</h2><div class="notice-heading-actions"><button class="notice-refresh" id="notice-refresh" onclick="runWeeklyNow()" aria-label="立即更新巡报" title="立即更新巡报">↻</button><span class="butler-connection" id="butler-connection">正在连接阿栗</span></div></div><div class="week-title" id="notice-week-title"></div>'+
+    '<div class="notice-sticky"><div class="notice-board-heading"><h2>公告板 · 阿栗资讯巡报</h2><div class="notice-heading-actions"><button class="notice-refresh" id="notice-refresh" onclick="runWeeklyNow()" aria-label="获取最新资讯" title="获取最新资讯">获取最新资讯</button><span class="butler-connection" id="butler-connection">正在连接阿栗</span></div></div><div class="week-title" id="notice-week-title"></div>'+
     '<div class="notice-tabs">'+
       '<button class="active" onclick="showNoticeView(\'current\',this)">最新巡报</button>'+
       '<button onclick="showNoticeView(\'weeks\',this)">往期巡报</button>'+
       '<button onclick="showNoticeView(\'categories\',this)">按分类查看</button>'+
       '<button onclick="showNoticeView(\'inbox\',this)">稍后看</button>'+
-    '</div>'+
+    '</div></div>'+
     '<div id="notice-content"></div>'+
     '<section id="notice-composer" class="notice-dialogue"><h3>给阿栗留言</h3><details class="notice-task-log" id="notice-task-log"><summary><span id="notice-task-summary">最近操作</span></summary><div class="notice-task-list" id="notice-task-list" aria-live="polite"></div></details>'+
     '<div class="notice-hints"><span>下次重点</span><span>总结口径</span><span>链接归类</span><span>工具箱补充</span><span>以后也看看这个来源</span></div>'+
@@ -1504,7 +1634,7 @@ function setNoticeRefreshState(status,message){
   const state={status,message:String(message||''),updated_at:new Date().toISOString()};
   localStorage.setItem(NOTICE_REFRESH_KEY,JSON.stringify(state));
   const button=document.getElementById('notice-refresh'),title=document.getElementById('notice-week-title');
-  if(button){button.disabled=status==='running';button.classList.toggle('running',status==='running');button.title=status==='failed'?message:(status==='running'?'正在更新巡报':'立即更新巡报');}
+  if(button){button.disabled=status==='running';button.classList.toggle('running',status==='running');button.textContent=status==='running'?'正在获取…':status==='failed'?'重新获取资讯':'获取最新资讯';button.title=status==='failed'?message:(status==='running'?'正在获取最新资讯':'获取最新资讯');button.setAttribute('aria-label',button.title);}
   if(title&&message)title.textContent=message;
   return state;
 }
@@ -2753,6 +2883,7 @@ function enablePanoramaMode(){
     spot.style.setProperty('--pan-h', spot.dataset.panH || 10);
   });
   stage.classList.add('has-panorama');
+  delete stage.dataset.weatherPending;
   stage.classList.add('scene-ready');
 }
 
@@ -2766,7 +2897,7 @@ function initPanorama(){
     if(!img.dataset.fallback&&fallback!==img.src){img.dataset.fallback='1';img.src=fallback;return;}
     stage.classList.remove('has-panorama');stage.classList.add('scene-ready');img.remove();
   });
-  if(img.complete){
+  if(img.complete&&img.getAttribute('src')){
     if(img.naturalWidth) enablePanoramaMode();
     else stage.classList.add('scene-ready');
   }
@@ -2777,13 +2908,24 @@ const ESTATE_SCENES = {
   morning:'assets/estate/panorama_morning.webp',
   snow:'assets/estate/panorama_snow.webp',
   rain:'assets/estate/panorama_rain.webp',
+  thunder:'assets/estate/panorama_rain.webp',
   overcast:'assets/estate/panorama_overcast.webp',
   fog:'assets/estate/panorama_fog.webp'
 };
 
+const ESTATE_MOBILE_SCENES = {
+  sunny:'assets/estate/panorama_mobile.webp',
+  morning:'assets/estate/panorama_morning_mobile.webp',
+  snow:'assets/estate/panorama_snow_mobile.webp',
+  rain:'assets/estate/panorama_rain_mobile.webp',
+  thunder:'assets/estate/panorama_thunder_mobile.webp',
+  overcast:'assets/estate/panorama_overcast_mobile.webp',
+  fog:'assets/estate/panorama_fog_mobile.webp'
+};
+
 function estateSceneSrc(scene){
   const desktop=ESTATE_SCENES[scene]||ESTATE_SCENES.sunny;
-  return matchMedia('(max-width:760px)').matches?desktop.replace(/\.webp$/, '_mobile.webp'):desktop;
+  return matchMedia('(max-width:760px)').matches?(ESTATE_MOBILE_SCENES[scene]||ESTATE_MOBILE_SCENES.sunny):desktop;
 }
 
 function localTimeScene(){
@@ -2802,6 +2944,7 @@ let estateSceneRequestId = 0;
 function applyEstateScene(scene, weatherData){
   const img = document.getElementById('estate-bg');
   const stage = document.getElementById('stage');
+  if(/雷/.test(String(weatherData?.current?.condition||''))) scene='thunder';
   const src = estateSceneSrc(scene);
   if(!img || !stage) return;
   const requestId = ++estateSceneRequestId;
@@ -2832,6 +2975,8 @@ function applyEstateScene(scene, weatherData){
   preload.onerror = ()=>{
     if(requestId !== estateSceneRequestId) return;
     delete stage.dataset.sceneLoading;
+    delete stage.dataset.weatherPending;
+    stage.classList.add('scene-ready');
   };
   preload.src = src;
 }

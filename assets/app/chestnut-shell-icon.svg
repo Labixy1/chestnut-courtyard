@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="栗壳小院图标">
+  <rect width="512" height="512" rx="108" fill="#5f765f"/>
+  <path d="M119 247 256 132l137 115v151c0 24-19 43-43 43H162c-24 0-43-19-43-43Z" fill="#f8f2e5"/>
+  <path d="m93 257 163-137 163 137" fill="none" stroke="#d9e2d3" stroke-width="30" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M201 441V296c0-35 25-63 55-63s55 28 55 63v145" fill="#71886f"/>
+  <path d="M218 301h76M256 251v188" fill="none" stroke="#f8f2e5" stroke-width="13" stroke-linecap="round"/>
+  <circle cx="282" cy="353" r="8" fill="#d9e2d3"/>
+  <path d="M341 105c36-40 82-30 96-22-2 39-23 76-78 76-20 0-34-6-43-13 6-15 14-28 25-41Z" fill="#dce8d5"/>
+  <path d="M319 159c24-25 54-46 89-60" fill="none" stroke="#5f765f" stroke-width="11" stroke-linecap="round"/>
+</svg>

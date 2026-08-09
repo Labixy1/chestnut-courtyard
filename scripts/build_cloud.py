@@ -106,10 +106,10 @@ def build(mode="preview", output=None):
     body = "/* Cloud build: private room data is intentionally excluded. */\nwindow.COZY = "
     (destination / "core/data.js").write_text(body + json.dumps(public_bundle, ensure_ascii=False, indent=2) + ";\n", encoding="utf-8")
     runtime_config = ({
-        "mode": "interview", "appName": "栗壳小院 · 演示体验", "apiBase": "",
+        "mode": "interview", "appName": "阿栗 · 演示体验", "apiBase": "",
         "dataSource": "remote", "allowWrites": True, "instanceId": "interview-demo",
     } if mode == "preview" else {
-        "mode": "owner", "appName": "栗壳小院", "apiBase": "",
+        "mode": "owner", "appName": "阿栗", "apiBase": "",
         "dataSource": "remote", "allowWrites": True, "instanceId": "owner-cloud",
     })
     (destination / "core/runtime-config.js").write_text(

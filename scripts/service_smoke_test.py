@@ -48,7 +48,7 @@ def main():
         assert "providers" in media_status and "counts" in media_status
 
         weather = request("/api/weather")
-        assert weather["current"]["scene"] in {"sunny", "morning", "snow", "rain", "overcast", "fog"}
+        assert weather["current"]["scene"] in {"sunny", "morning", "snow", "rain", "thunder", "overcast", "fog"}
         assert weather["location"].get("city")
 
         automation = request("/api/automation")["automation"]
@@ -66,6 +66,10 @@ def main():
         pending_id = "service_smoke_pending"
         state = request("/api/local-state")["state"]
         values = state.setdefault("values", {})
+        star_key = "service-smoke-star"
+        request("/api/local-state", {"values": {"cozy_blackboard_starred": [star_key]}})
+        synced_stars = request("/api/local-state")["state"]["values"].get("cozy_blackboard_starred", [])
+        assert synced_stars == [star_key]
         buried = [item for item in values.get("cozy_hollow_buried_media", []) if item.get("id") != pending_id]
         buried.insert(0, {"id": pending_id, "kind": "image", "status": "pending", "title": "验证"})
         request("/api/local-state", {"values": {"cozy_hollow_buried_media": buried}})
@@ -89,7 +93,7 @@ def main():
             created.unlink()
         for path, content in backups.items():
             path.write_bytes(content)
-    print("service smoke test ok: health; providers; media tasks; weather; daily question; upload; weekly readiness")
+    print("service smoke test ok: health; providers; media tasks; weather; daily question; starred sync; upload; weekly readiness")
 
 
 if __name__ == "__main__":

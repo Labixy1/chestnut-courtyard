@@ -765,7 +765,8 @@ async function logEvents(env, input) {
 function weatherScene(code, localTime) {
   if ([71, 73, 75, 77, 85, 86].includes(code)) return "snow";
   if ([45, 48].includes(code)) return "fog";
-  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99].includes(code)) return "rain";
+  if ([95, 96, 99].includes(code)) return "thunder";
+  if ([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "rain";
   if ([2, 3].includes(code)) return "overcast";
   const hour = Number(String(localTime || "").slice(11, 13));
   return hour >= 5 && hour < 10 ? "morning" : "sunny";
@@ -807,6 +808,31 @@ async function currentWeather(request, env, force = false) {
     const localTime = now();
     return {ok: true, fallback: true, location: {city: "杭州", latitude, longitude}, current: {weather_code: 0, condition: "晴天", temperature: null, temperature_unit: "°C", local_time: localTime, is_day: true, scene: weatherScene(0, localTime), timezone: "Asia/Shanghai"}, updated_at: localTime};
   }
+}
+
+async function transcribeVoice(request, env) {
+  const incoming = await request.formData();
+  const file = incoming.get("file");
+  if (!file || typeof file.arrayBuffer !== "function") throw new Error("没有收到录音");
+  if (file.size > 12 * 1024 * 1024) throw new Error("录音太长，请分段说");
+  const audio = await file.arrayBuffer();
+  const config = providerConfig(env, "openai");
+  let openAiError = "";
+  if (config?.key) {
+    const form = new FormData();
+    form.append("model", env.COZY_TRANSCRIBE_MODEL || "gpt-4o-mini-transcribe");
+    form.append("language", "zh");
+    form.append("file", new File([audio], file.name || "voice.webm", {type: file.type || "audio/webm"}));
+    const response = await fetch(`${String(config.base).replace(/\/+$/, "")}/audio/transcriptions`, {method: "POST", headers: {authorization: `Bearer ${config.key}`}, body: form});
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) return {ok: true, transcript: String(data.text || "").trim(), provider: "openai"};
+    openAiError = data.error?.message || `OpenAI HTTP ${response.status}`;
+  }
+  if (env.AI) {
+    const data = await env.AI.run(env.COZY_TRANSCRIBE_FALLBACK_MODEL || "@cf/openai/whisper", {audio: [...new Uint8Array(audio)]});
+    return {ok: true, transcript: String(data?.text || "").trim(), provider: "workers-ai"};
+  }
+  throw new Error(openAiError || "语音转文字服务尚未配置");
 }
 
 async function distillMemory(env) {
@@ -909,6 +935,10 @@ export async function handleRequest(request, env, ctx = {}) {
       return new Response(object.body, {headers});
     }
     if (request.method !== "POST") return json({ok: false, error: "接口不存在"}, 404);
+    if (url.pathname === "/api/voice/transcribe") {
+      if (env.DEMO_MODE === "true") await requireDemoAi(env);
+      return json(await transcribeVoice(request, env));
+    }
     const input = await request.json();
     if (url.pathname === "/api/demo/activation") {
       if (env.DEMO_MODE !== "true") return json({ok: false, error: "当前不是演示环境"}, 404);

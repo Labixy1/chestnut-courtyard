@@ -40,7 +40,9 @@ def scene_for(weather_code: int, local_time: str) -> str:
         return "snow"
     if weather_code in {45, 48}:
         return "fog"
-    if weather_code in {51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99}:
+    if weather_code in {95, 96, 99}:
+        return "thunder"
+    if weather_code in {51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82}:
         return "rain"
     if weather_code in {2, 3}:
         return "overcast"

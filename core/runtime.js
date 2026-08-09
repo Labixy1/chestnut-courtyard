@@ -33,7 +33,7 @@
   function assertWritable(){if(readOnly)throw new Error('当前是公开预览，只能浏览，数据不会写入');}
   window.CozyRuntime=Object.freeze({
     mode,readOnly,dataSource:source,apiBase,
-    appName:String(configured.appName||'栗壳小院'),
+    appName:String(configured.appName||'阿栗'),
     instanceId:String(configured.instanceId||mode),
     loadJson,assertWritable,
     capabilities:Object.freeze({
