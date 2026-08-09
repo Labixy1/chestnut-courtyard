@@ -1028,7 +1028,7 @@ function showBlackboardMode(mode){
     content.innerHTML = renderBlackboardQuestion(q, s.answer || '');
   }else if(mode === 'result'){
     if(!s.answer){
-      content.innerHTML = '<section class="bb-question"><div class="eyebrow">批改结果</div><h3>先提交一次答案</h3><p>写完今日题目后，阿栗会在这里给你润色、对照标准答案，并给出修改建议。</p><button class="bb-submit" onclick="showBlackboardMode(\'question\')">去答题</button></section>';
+      content.innerHTML = '<section class="bb-question"><div class="eyebrow">批改结果</div><h3>先提交一次答案</h3><p>提交答案后，在这里查看批改与参考答案。</p><button class="bb-submit" onclick="showBlackboardMode(\'question\')">去答题</button></section>';
       return;
     }
     content.innerHTML = renderBlackboardResult(q, s.answer, s.review || buildBbReview(s.answer, q));
