@@ -55,6 +55,7 @@ class MemoryStore:
         self._migrate_legacy()
         self._repair_card_categories()
         self._import_core_records()
+        self._repair_event_store()
 
     @staticmethod
     def now() -> str:
@@ -214,6 +215,83 @@ class MemoryStore:
             data["updated_at"] = self.now()
             self._write(self.paths["cards"], data)
             self._sync_legacy_views()
+
+    def _repair_event_store(self):
+        """Keep ordinary evidence unique and move historical sealed rows out of it."""
+        with self.lock:
+            events_data = self._read(self.paths["events"], {"version": 1, "items": []})
+            sealed_data = self._read(self.paths["sealed"], {"version": 1, "items": []})
+            cards_data = self._read(self.paths["cards"], {"version": 1, "items": []})
+            forgotten = self._forgotten()
+            sealed_by_id = {str(item.get("id")): item for item in sealed_data.get("items", []) if item.get("id")}
+            ordinary = []
+            ordinary_ids = set()
+            moved_sealed = 0
+            duplicate_ids = 0
+            for index, original in enumerate(events_data.get("items", [])):
+                item = dict(original or {})
+                event_id = str(item.get("id") or "repair_%s" % hashlib.sha1(
+                    (str(item.get("source")) + str(item.get("created_at")) + str(item.get("content")) + str(index)).encode("utf-8")
+                ).hexdigest()[:16])
+                item["id"] = event_id
+                is_sealed = item.get("layer") == "sealed" or item.get("sensitivity") == "sealed" or item.get("source") in SEALED_SOURCES
+                if is_sealed:
+                    sealed_by_id.setdefault(event_id, {**item, "layer": "sealed", "sensitivity": "sealed"})
+                    moved_sealed += 1
+                    continue
+                if event_id in ordinary_ids:
+                    duplicate_ids += 1
+                    continue
+                ordinary_ids.add(event_id)
+                ordinary.append(item)
+
+            repaired_evidence = 0
+            cards_changed = False
+            for card in cards_data.get("items", []):
+                if card.get("sensitivity") == "sealed":
+                    continue
+                evidence_ids = list(dict.fromkeys(str(value) for value in card.get("evidence_ids", []) if value))
+                evidence_ids = [value for value in evidence_ids if value not in forgotten]
+                if evidence_ids != card.get("evidence_ids", []):
+                    card["evidence_ids"] = evidence_ids
+                    cards_changed = True
+                for evidence_id in evidence_ids:
+                    if evidence_id in ordinary_ids or evidence_id in sealed_by_id:
+                        continue
+                    created = str(card.get("created_at") or self.now())
+                    ordinary.append({
+                        "id": evidence_id, "source": str(card.get("source") or "legacy"),
+                        "type": "migrated_evidence", "content": self._clean(card.get("statement") or card.get("summary"))[:12000],
+                        "summary": self._clean(card.get("summary") or card.get("statement"))[:600],
+                        "layer": "long" if card.get("status") == "active" else "short", "sensitivity": "personal",
+                        "weight": 3 if card.get("status") == "active" else 1, "created_at": created,
+                        "date": created[:10], "time": created[11:16], "signature": str(card.get("signature") or ""),
+                        "migration": "memory_integrity_v1",
+                    })
+                    ordinary_ids.add(evidence_id)
+                    repaired_evidence += 1
+                expected_count = len(evidence_ids)
+                if evidence_ids and int(card.get("evidence_count") or 0) < expected_count:
+                    card["evidence_count"] = expected_count
+                    cards_changed = True
+
+            sealed_items = list(sealed_by_id.values())[:800]
+            changed = moved_sealed or duplicate_ids or repaired_evidence or len(ordinary) != len(events_data.get("items", []))
+            if changed:
+                events_data["items"] = ordinary[:2000]
+                self._write(self.paths["events"], events_data)
+                sealed_data["items"] = sealed_items
+                self._write(self.paths["sealed"], sealed_data)
+            if cards_changed:
+                cards_data["updated_at"] = self.now()
+                self._write(self.paths["cards"], cards_data)
+            migration = self._read(self.paths["migration"], {"version": 1})
+            if changed or not migration.get("memory_integrity_v1"):
+                migration["memory_integrity_v1"] = {
+                    "status": "completed", "completed_at": self.now(), "sealed_rows_moved": moved_sealed,
+                    "duplicate_ids_removed": duplicate_ids, "evidence_rows_repaired": repaired_evidence,
+                }
+                self._write(self.paths["migration"], migration)
 
     def _infer_kind(self, text, source=""):
         value = self._clean(text + " " + source)
@@ -553,23 +631,27 @@ class MemoryStore:
             item["sensitivity"] = str(item.get("sensitivity") or ("sealed" if item["source"] in SEALED_SOURCES else "personal"))
             item["layer"] = "sealed" if item["sensitivity"] == "sealed" or requested == "sealed" else ("long" if requested == "long" or item["weight"] >= 3 or item.get("remember") is True else "short")
             item["signature"] = self._signature(item)
-            events = self._read(self.paths["events"], {"version": 1, "items": []})
-            duplicate = next((old for old in events.get("items", []) if old.get("id") == item["id"] or
-                              (old.get("source") == item["source"] and old.get("date") == item["date"] and self._clean(old.get("content")) == item["content"] and item["content"])), None)
-            if duplicate:
-                item = {**duplicate, **{key: value for key, value in item.items() if value not in (None, "")}}
-                events["items"] = [item if old.get("id") == duplicate.get("id") else old for old in events.get("items", [])]
-            else:
-                events.setdefault("items", []).insert(0, item)
-            events["items"] = events["items"][:2000]
-            self._write(self.paths["events"], events)
             if item["layer"] == "sealed":
                 sealed = self._read(self.paths["sealed"], {"version": 1, "items": []})
                 sealed["items"] = [old for old in sealed.get("items", []) if old.get("id") != item["id"]]
                 sealed["items"].insert(0, item)
                 sealed["items"] = sealed["items"][:800]
                 self._write(self.paths["sealed"], sealed)
-            elif not duplicate:
+                self.prune_short()
+                return item
+            events = self._read(self.paths["events"], {"version": 1, "items": []})
+            duplicate = next((old for old in events.get("items", []) if old.get("id") == item["id"] or
+                              (old.get("source") == item["source"] and old.get("date") == item["date"] and self._clean(old.get("content")) == item["content"] and item["content"])), None)
+            if duplicate:
+                item = {**duplicate, **{key: value for key, value in item.items() if value not in (None, "")}}
+                item["id"] = duplicate["id"]
+                events["items"] = [old for old in events.get("items", []) if old.get("id") != duplicate.get("id")]
+                events["items"].insert(0, item)
+            else:
+                events.setdefault("items", []).insert(0, item)
+            events["items"] = events["items"][:2000]
+            self._write(self.paths["events"], events)
+            if not duplicate:
                 self._upsert_card_from_event(item)
             self.prune_short()
             return item

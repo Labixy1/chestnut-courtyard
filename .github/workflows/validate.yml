@@ -31,3 +31,5 @@ jobs:
         run: python3 scripts/build_cloud.py --mode owner
       - name: Check owner privacy and runtime
         run: python3 scripts/cloud_owner_test.py
+      - name: Check cloud asset references
+        run: python3 scripts/cloud_asset_test.py

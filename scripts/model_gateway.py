@@ -74,6 +74,12 @@ class ModelGateway:
         key = self._key(provider)
         if not key:
             raise RuntimeError(f"{provider} API Key 尚未配置")
+        configured_timeout = self._env(f"COZY_{provider.upper()}_TIMEOUT")
+        if configured_timeout:
+            try:
+                timeout = max(5, min(300, int(configured_timeout)))
+            except ValueError as exc:
+                raise RuntimeError(f"COZY_{provider.upper()}_TIMEOUT 必须是 5 到 300 的整数") from exc
         data = None if body is None else json.dumps(body, ensure_ascii=False).encode("utf-8")
         headers = {"Content-Type": "application/json"}
         if provider == "gemini":
@@ -99,13 +105,25 @@ class ModelGateway:
         except (ValueError, UnicodeError) as exc:
             raise RuntimeError(f"{provider} 返回了无法解析的数据") from exc
 
+    def text_providers(self):
+        supported = ("openai", "deepseek", "glm", "qwen")
+        configured = []
+        for env_name in ("COZY_TEXT_PROVIDER", "COZY_TEXT_FALLBACK_PROVIDER"):
+            configured.extend(part.strip().lower() for part in self._env(env_name).split(",") if part.strip())
+        if not configured:
+            configured = list(supported)
+        invalid = [name for name in configured if name not in supported]
+        if invalid:
+            raise RuntimeError("文本模型 provider 只支持 openai、deepseek、glm 或 qwen")
+        ordered = []
+        for name in configured:
+            if name not in ordered and self._key(name):
+                ordered.append(name)
+        return ordered
+
     def text_provider(self):
-        preferred = self._env("COZY_TEXT_PROVIDER").lower()
-        if preferred:
-            if preferred not in {"openai", "deepseek", "glm", "qwen"}:
-                raise RuntimeError("COZY_TEXT_PROVIDER 只支持 openai、deepseek、glm 或 qwen")
-            return preferred if self._key(preferred) else ""
-        return next((name for name in ("openai", "deepseek", "glm", "qwen") if self._key(name)), "")
+        providers = self.text_providers()
+        return providers[0] if providers else ""
 
     @staticmethod
     def _responses_text(payload):
@@ -146,6 +164,19 @@ class ModelGateway:
         if not text:
             raise RuntimeError(f"{provider} 没有返回文字")
         return text, provider
+
+    def call_text_with_fallback(self, prompt, temperature=0.5, max_output_tokens=1200):
+        providers = self.text_providers()
+        if not providers:
+            raise RuntimeError("没有配置可用的在线文本模型")
+        errors = []
+        for provider in providers:
+            try:
+                return self.call_text(prompt, provider, temperature=temperature,
+                                      max_output_tokens=max_output_tokens)
+            except Exception as exc:
+                errors.append(f"{provider}: {exc}")
+        raise RuntimeError("主模型和兜底模型均不可用：" + "；".join(errors))
 
     def generate_image(self, prompt, provider="seedream", **options):
         provider = str(provider or "seedream").lower()
@@ -256,6 +287,7 @@ class ModelGateway:
             text[provider] = {"configured": bool(self._key(provider)), "model": self._model(provider, "text")}
         return {
             "text": text,
+            "text_route": self.text_providers(),
             "image": {
                 "seedream": {"configured": bool(self._key("ark")), "model": self._model("ark", "image")},
                 "openai": {"configured": bool(self._key("openai")), "model": self._model("openai", "image")},

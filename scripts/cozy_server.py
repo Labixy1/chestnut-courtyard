@@ -239,11 +239,12 @@ def write_json_atomic(path: Path, value):
 def sync_local_state(payload: dict):
     allowed = {
         "cozy_blackboard_answers", "cozy_blackboard_directions", "cozy_orchard_seeds", "cozy_orchard_topics",
-        "cozy_orchard_garden", "cozy_orchard_backpack", "cozy_orchard_growth_events", "cozy_notice_requests",
+        "cozy_orchard_garden", "cozy_orchard_backpack", "cozy_orchard_growth_events", "cozy_orchard_chat_sessions", "cozy_notice_requests",
         "cozy_trips", "cozy_trip_reflections", "cozy_heart_entries", "cozy_heart_deleted_entries",
         "cozy_hollow_buried_media", "cozy_memory_events", "cozy_global_butler_history",
         "cozy_toolbox_local_items", "cozy_notice_links", "cozy_notice_chest",
         "cozy_butler_watch_topics", "cozy_butler_local_sources", "cozy_photo_albums",
+        "cozy_courtyard_hidden_scenes",
     }
     current = read_json(LOCAL_STATE_PATH, {"version": 1, "updated_at": "", "values": {}})
     values = current.setdefault("values", {})
@@ -506,10 +507,9 @@ def call_openai(prompt: str) -> str:
 
 
 def call_ai(prompt: str) -> tuple[str, str]:
-    online = MODEL_GATEWAY.text_provider()
-    if online:
+    if MODEL_GATEWAY.text_providers():
         token_budget = 4200 if ("记忆编辑器" in prompt or "蒸馏提案" in prompt or "只修复下面输出" in prompt) else 1800
-        return MODEL_GATEWAY.call_text(prompt, online, max_output_tokens=token_budget)
+        return MODEL_GATEWAY.call_text_with_fallback(prompt, max_output_tokens=token_budget)
     raise RuntimeError("阿栗还没有连接你自己的文本模型 API。请配置 OpenAI、DeepSeek、GLM 或通义 API Key。")
 
 
@@ -965,12 +965,14 @@ def run_notice_assistant_task(task_id: str, message: str, browser_context: dict)
             "reply": str(result.get("reply") or "")[:5000],
             "tool_results": result.get("tool_results") if isinstance(result.get("tool_results"), list) else [],
         }
+        failed = [item for item in stored_result["tool_results"] if not item.get("ok")]
+        status = "failed" if failed else "completed"
         SYSTEM_RUNTIME.task_update(
-            task_id, "completed", stored_result["reply"][:1200],
+            task_id, status, stored_result["reply"][:1200],
             result=stored_result,
             steps=[
                 {"name": "读取公告板与知识库", "status": "completed"},
-                {"name": "调用工具并执行", "status": "completed"},
+                {"name": "调用工具并执行", "status": "failed" if failed else "completed"},
                 {"name": "整理回复", "status": "completed"},
             ],
         )
@@ -1009,7 +1011,7 @@ def room_reply(room: str, message: str, context: dict) -> dict:
             "provider": "local", "deferred": True,
         }
     formats = {
-        "orchard": '只返回 JSON：{"reply":"一段80-160字的田野签语，先点出问题真正指向，再给具体回答；有先知般的画面和余味，但不预言命运、不空泛玄学","seed_summary":"一句可长期跟进的成长主题","key_insight":"一句可复用判断","next_step":"一个3天内可完成的小实验","knowledge_topic":{"match_id":"能归入上下文现有专题时必须填该id，否则留空","title":"稳定、可继续扩展的专题名，如AI编程助手，不要只用单个产品名","category":"优先复用现有分类，确实不同才新建","entities":["本次涉及的产品或概念"],"summary":"融合旧专题和本次新知识后的最新综合摘要","knowledge_points":["本次新增或修正的具体知识点"]}}',
+        "orchard": '只返回 JSON：{"reply":"针对当前问题的直接回答，120-260字；先给结论，再按清晰维度解释原因、差异或适用场景，必要时最多问一个有助于继续讨论的问题","seed_summary":"本轮关注点的简短概括","key_insight":"一句可复习的核心判断","next_step":"一个可选的验证或学习动作，没有必要时留空","knowledge_topic":{"match_id":"能归入上下文现有专题时必须填该id，否则留空","title":"稳定、可继续扩展的专题名，如AI编程助手，不要只用单个产品名","category":"优先复用现有分类，确实不同才新建","entities":["本次涉及的产品或概念"],"summary":"融合旧专题、本轮问答和会话上下文后的专题笔记摘要","knowledge_points":["可独立复习的事实、差异、方法或判断"]}}。必须结合 context.conversation 理解追问中的代词和省略内容。禁止比喻、拟人、诗意散文、田野签语、玄学隐喻和泛泛安慰。涉及产品能力时区分已知事实与推断，不确定或可能过时的内容要明确说明，不要编造。先解决问题，再沉淀知识。',
         "heart_hollow": (
             '只返回 JSON：{"reply":"一句签语","mode":"oracle","growth_signal":{"should_grow":true或false,"title":"不包含原话和私密细节的成长主题，最多20字","hint":"这段经历正在形成的判断或变化，最多60字","nourishment":1到3}}。'
             '签语必须只有一句、18-45字，像塔罗牌上的句子一样有画面与余味，但不预言命运；必须回应主人刚才说的具体内容，不空泛安慰、不说教、不硬套树的隐喻。'
@@ -1019,9 +1021,9 @@ def room_reply(room: str, message: str, context: dict) -> dict:
             '用60-160字回应主人话里的一个具体细节，可以提供判断或陪伴梳理，最多问一个真正有用的问题；不急着安慰，不硬套树的隐喻。'
             '只有内容具体、包含真实经历或形成了可持续成长线索时 should_grow 才为 true；短促情绪、试音和重复句必须为 false。成长信号不得复述树洞原话、人物、公司、地点或其他私密细节。'
         ),
-        "blackboard": ('只返回 JSON：{"reply":"仅小助手模式使用","material":"仅小助手模式使用的一条可独立阅读的补充资料","score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"方案完整","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"验证与指标","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"风险与回滚","max":25,"awarded":0到25,"reason":"必须引用原答案证据"}],"score_summary":"一句总评，不自行写总分","diagnosis":["逐点指出原答案已覆盖和遗漏"],"polished_answer":"严格按判断、拆解、验证、边界、例子五段输出的完整回答","standard_points":["4到7条标准答案要点"],"suggestions":["具体修改建议"],"thinking_directions":["后续思考方向"],"next_question":"下一步练习"}。'
+        "blackboard": ('只返回 JSON：{"reply":"仅小助手模式使用","material":"仅小助手模式使用的一条可独立阅读的补充资料","score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"方案完整","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"验证与指标","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"风险与回滚","max":25,"awarded":0到25,"reason":"必须引用原答案证据"}],"score_summary":"一句总评，不自行写总分","diagnosis":["逐点指出原答案已覆盖和遗漏"],"polished_answer":"严格按判断、拆解、验证、边界、例子五段输出的完整回答","standard_points":["4到7条标准答案要点"],"suggestions":["具体修改建议"],"thinking_directions":["后续思考方向"],"next_question":"下一步练习","next_question_reference":["4到6条直接回答下一步练习的参考答案要点"]}。'
                        '若 context.intent=question_helper：回答必须直接关联当前题目和用户追问；可以使用模型通用知识补足背景，但最新归属、版本、价格和指标未联网核验时必须标注。reply 用80到180字解释，material 必须写成“用户问：问题；阿栗补充：答案摘要”，其余评分字段返回空数组。不得泄露标准答案或替主人完成方案。'
-                       '若 context.intent=grade_answer：没有在原答案明确出现的内容不得给分；“不会、好难、不知道”等只有困惑没有答案的内容四项必须全部为0。polished_answer 严格按“判断：”“拆解：1...2...3...”“验证：”“边界：”“例子：”分段。'),
+                       '若 context.intent=grade_answer：没有在原答案明确出现的内容不得给分；“不会、好难、不知道”等只有困惑没有答案的内容四项必须全部为0。polished_answer 严格按“判断：”“拆解：1...2...3...”“验证：”“边界：”“例子：”分段。next_question_reference 必须直接回答 next_question，不能重复当前题目的 standard_points；内容要具体、可执行，适合用户展开后自行对照。'),
         "travel": '只返回 JSON：{"summary":"忠于原话的旅行感悟摘要，120字内","title":"简短名称"}',
     }
     prompt = f"""你在栗壳小院中处理一个房间内任务。
@@ -1153,8 +1155,11 @@ class CozyHandler(SimpleHTTPRequestHandler):
                 task = SYSTEM_RUNTIME.task_start(message[:100], "agent_request", message)
                 try:
                     result = assistant_reply(message, payload.get("context") or {})
-                    SYSTEM_RUNTIME.task_update(task["id"], "completed", result.get("reply", "")[:1200])
-                    self.send_json(200, {"ok": True, "task_id": task["id"], **result})
+                    tool_results = result.get("tool_results") if isinstance(result.get("tool_results"), list) else []
+                    failed = [item for item in tool_results if not item.get("ok")]
+                    status = "failed" if failed else "completed"
+                    SYSTEM_RUNTIME.task_update(task["id"], status, result.get("reply", "")[:1200], tool_results=tool_results)
+                    self.send_json(200, {"ok": not failed, "task_id": task["id"], "status": status, **result})
                 except Exception as exc:
                     SYSTEM_RUNTIME.task_update(task["id"], "failed", str(exc)[:1200])
                     raise

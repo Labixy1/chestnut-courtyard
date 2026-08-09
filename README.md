@@ -35,7 +35,7 @@ node scripts/cloud_worker_test.mjs
 
 复制 `.env.example` 为被 Git 忽略的 `.env` 并填入至少一个文本模型密钥；本地服务启动时会自动读取，不要把真实密钥写进其他项目文件。支持：
 
-- 文本：OpenAI、DeepSeek、GLM、Qwen。
+- 文本：OpenAI、DeepSeek、GLM、Qwen。可通过 `COZY_TEXT_PROVIDER` 与 `COZY_TEXT_FALLBACK_PROVIDER` 设置主模型和自动兜底模型；当前默认示例为 DeepSeek V4 Flash，失败时切换 GPT-5.6 Luna。
 - 图片：Seedream、GPT Image 和 Gemini Nano Banana，默认模型名分别为 `doubao-seedream-4-0-250828`、`gpt-image-2` 与 `gemini-2.5-flash-image`。
 - 视频：Seedance 2.0 mini，默认模型名为 `doubao-seedance-2-0-mini-260615`，使用持久化异步任务，离开页面后仍可继续查询。
 
@@ -94,6 +94,8 @@ python3 scripts/service_smoke_test.py
 ## Cloudflare
 
 `python3 scripts/build_cloud.py --mode preview` 生成公开只读的 `dist/`；`--mode owner` 生成主人专用的 `dist-owner/`。主人版由同源 Worker 提供口令登录、KV 私人状态、阿栗对话、网页解析和非封存记忆档案，口令与模型密钥只存 Cloudflare Secret。公开构建和主人构建都只携带空白种子，树洞、密阁、运行日志和 API Key 不进入 GitHub。R2 尚未在当前 Cloudflare 账户启用，因此云端照片上传与生成媒体持久化暂时关闭；本地完整版本不受影响。
+
+当前发布地址：主人版 `https://dcxin.neuralnode.top`；公开只读演示版 `https://demo.neuralnode.top`。公开分享只使用演示域名，不使用带 Cloudflare 账户子域名的默认地址。
 
 ## 数据位置
 

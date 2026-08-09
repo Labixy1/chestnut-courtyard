@@ -96,9 +96,27 @@ storage.set('cozy_notice_chest', JSON.stringify([{
 vm.runInContext("CORE={notice_reports:{reports:[{sections:[],insights:[],hot_items:[]}]}}", context);
 context.showNoticeView('categories');
 const rendered = node('notice-content').innerHTML;
-for (const expected of ['可操作的归档测试资料', '查看原文', '加入待读', '已入栗夹', '这是 AI 总结。']) {
+for (const expected of ['可操作的归档测试资料', '查看原文', '稍后看', '已入栗夹', '这是 AI 总结。']) {
   if (!rendered.includes(expected)) throw new Error('category card missing: ' + expected);
 }
+
+storage.set('cozy_notice_requests', JSON.stringify([{
+  date:'2026-08-01',
+  text:'查找留言独有资料',
+  found_items:[
+    {title:'主栏目同链接',url:'https://example.com/same-url',summary:'不应重复'},
+    {title:'主栏目同标题',url:'https://example.com/alternate-url',summary:'不应重复'},
+    {title:'留言独有资料',url:'https://example.com/found-only',summary:'应保留'},
+    {title:'留言独有资料',url:'https://example.com/found-only-copy',summary:'留言内部也不应重复'},
+  ],
+}]));
+vm.runInContext("CORE={notice_reports:{reports:[{id:'current_test',week_start:'2026-08-03',week_end:'2099-08-09',hot_items:[{title:'主栏目同链接',url:'https://example.com/same-url',summary:'主栏目内容'}],sections:[{name:'产品相关动态',items:[{title:'主栏目同标题',url:'https://example.com/main-title',summary:'主栏目内容'}]}],insights:[]}]}}", context);
+context.showNoticeView('current');
+const currentRendered = node('notice-content').innerHTML;
+if (!currentRendered.includes('留言独有资料')) throw new Error('unique found item was removed');
+if ((currentRendered.match(/<h4>留言独有资料<\/h4>/g) || []).length !== 1) throw new Error('found items were not deduplicated internally');
+if ((currentRendered.match(/<h4>主栏目同链接<\/h4>/g) || []).length !== 1) throw new Error('same-url found item duplicated a primary section');
+if ((currentRendered.match(/<h4>主栏目同标题<\/h4>/g) || []).length !== 1) throw new Error('same-title found item duplicated a primary section');
 
 vm.runInContext("CORE={notice_reports:{reports:[{id:'week_test',week_start:'2026-08-03',week_end:'2026-08-09',focus_title:'本周重点标题',hot_items:[{title:'完整热点',summary:'热点摘要',category:'模型与技术'}],sections:[{name:'国内外动态',items:[{title:'完整周报正文',summary:'正文摘要',category:'行业动态'}]}],insights:['具体总结']}]}}", context);
 context.showNoticeView('weeks');
@@ -119,4 +137,4 @@ node('notice-task-list').innerHTML = '';
 context.renderNoticeJobs();
 if (!node('notice-task-list').innerHTML.includes('运行中')) throw new Error('running task did not survive panel reopen');
 
-console.log('notice smoke test ok: voice enabled; actions mutually exclusive; persistent running task; archive card actionable; weekly report expandable');
+console.log('notice smoke test ok: voice enabled; actions mutually exclusive; persistent running task; archive card actionable; found-item dedupe; weekly report expandable');

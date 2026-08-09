@@ -88,14 +88,14 @@
   .hint{color:#9fae94;font-size:12px}
   .nav{display:flex;justify-content:space-between;max-width:780px;width:100%;margin-top:10px}
   .nav button{background:rgba(32,22,14,.36);color:#fff1d1;border:0;border-radius:20px;padding:6px 16px;cursor:pointer;font-size:13px}
-  .history-wrap{display:none;position:absolute;left:3vw;right:3vw;bottom:3vh;z-index:8;height:min(82vh,780px);grid-template-columns:minmax(0,1.65fr) minmax(320px,.7fr);overflow:hidden;background:rgba(246,239,221,.94);color:#4a3b2b;border-radius:16px;box-shadow:0 26px 70px rgba(0,0,0,.34);backdrop-filter:blur(14px)}
+  .history-wrap{display:none;position:absolute;left:2vw;right:2vw;bottom:2vh;z-index:8;height:min(90vh,900px);grid-template-columns:minmax(0,1.75fr) minmax(320px,.65fr);overflow:hidden;background:rgba(246,239,221,.94);color:#4a3b2b;border-radius:16px;box-shadow:0 26px 70px rgba(0,0,0,.34);backdrop-filter:blur(14px)}
   .hollow-stage.history-unlocked .history-wrap{display:grid}
   .history-close{position:absolute;right:12px;top:12px;z-index:3;width:34px;height:34px;border:0;border-radius:50%;background:rgba(74,59,43,.09);color:#5f4935;font-size:20px;cursor:pointer}
   .buried-wrap{overflow:auto;border-right:1px solid rgba(74,59,43,.14);padding:22px 24px}
   .history-main{min-width:0;overflow:auto;padding:54px 20px 18px}
   .buried-wrap h2{font-size:16px;color:#6b4b2e;margin-bottom:12px}
   .buried-card{display:grid;gap:12px;background:rgba(255,255,255,.54);border-radius:12px;padding:10px;margin:10px 0 18px}
-  .buried-thumb{width:100%;aspect-ratio:16/10;min-height:390px;border-radius:9px;background:linear-gradient(135deg,#b9c8a4,#ead6aa) center/cover no-repeat;
+  .buried-thumb{width:100%;height:clamp(280px,45vh,350px);min-height:0;border-radius:9px;background:linear-gradient(135deg,#b9c8a4,#ead6aa) center/cover no-repeat;
      display:flex;align-items:center;justify-content:center;color:#5d4a30;font-size:13px;font-weight:700}
   .buried-thumb:not([style]){flex-direction:column;gap:7px;padding:18px;text-align:center}.buried-thumb small{max-width:92%;font-size:10px;line-height:1.55;font-weight:500;color:rgba(255,248,232,.9)}
   .buried-thumb.status-failed{background:#8f6d64;color:#fff7ef}.buried-thumb.status-waiting{background:linear-gradient(135deg,#8fa080,#c7b98f)}
@@ -113,7 +113,7 @@
   .memory-mode{display:inline-flex;padding:2px 6px;border-radius:999px;font-size:9px;background:#e6d6b7;color:#745835}.memory-mode.dialogue{background:#d7e2d2;color:#4f6b4d}
   .memory-item .echo-line{color:#5f7d47;margin-top:4px}
   .memory-actions{display:flex;gap:6px;margin-top:7px}.memory-actions button{border:0;border-radius:999px;background:rgba(105,88,65,.09);color:#806b53;padding:4px 8px;font:9px inherit;cursor:pointer}.memory-actions button.danger{color:#9a655d}.memory-editor{display:grid;gap:7px}.memory-editor textarea{width:100%;min-height:72px;box-sizing:border-box;border:1px solid rgba(91,70,48,.18);border-radius:8px;background:rgba(255,255,255,.72);color:#4a3b2b;padding:8px;font:12px/1.6 inherit;resize:vertical}.memory-editor label{font-size:9px;color:#927d64}
-  @media(max-width:720px){.history-wrap{left:10px;right:10px;bottom:10px;height:82vh;grid-template-columns:1fr}.buried-wrap{max-height:58%;border-right:0;border-bottom:1px solid rgba(74,59,43,.14)}.buried-thumb{min-height:190px}.history-main{padding:16px}.live-transcript{top:34%;width:82vw;font-size:15px}}
+  @media(max-width:720px){.history-wrap{left:10px;right:10px;bottom:10px;height:82vh;grid-template-columns:1fr}.buried-wrap{max-height:58%;border-right:0;border-bottom:1px solid rgba(74,59,43,.14)}.buried-thumb{height:200px}.history-main{padding:16px}.live-transcript{top:34%;width:82vw;font-size:15px}}
 </style>
 </head>
 <body>
@@ -228,7 +228,7 @@ function renderBuriedMedia(){
     const editing=window.editingBuriedId===item.id;
     const copy=editing
       ? '<div class="buried-editor"><input id="buried-edit-title" maxlength="40" aria-label="影像标题" value="'+escapeHtml(item.title||'')+'"><textarea id="buried-edit-summary" maxlength="600" aria-label="影像文字">'+escapeHtml(item.summary||'')+'</textarea><div class="buried-actions"><button onclick="saveBuriedText(\''+escapeHtml(item.id)+'\')">保存</button><button onclick="cancelBuriedEdit()">取消</button></div></div>'
-      : '<div><h3>'+escapeHtml(item.title||'未命名影像')+'</h3><p>'+escapeHtml(item.summary||'这张影像还没有文字。')+'</p><div class="buried-actions">'+(item.file?'':'<button onclick="chooseBuriedPhoto(\''+escapeHtml(item.id)+'\')">补一张照片</button>')+'<button onclick="editBuriedText(\''+escapeHtml(item.id)+'\')">编辑文字</button>'+(item.summary?'<button onclick="clearBuriedText(\''+escapeHtml(item.id)+'\')">删除文字</button>':'')+'<button class="danger" onclick="deleteBuriedItem(\''+escapeHtml(item.id)+'\')">删除影像</button></div></div>';
+      : '<div><h3>'+escapeHtml(item.title||'未命名影像')+'</h3><p>'+escapeHtml(item.summary||'这张影像还没有文字。')+'</p><div class="buried-actions">'+(item.file?'':'<button onclick="chooseBuriedPhoto(\''+escapeHtml(item.id)+'\')">补一张照片</button>')+'<button onclick="editBuriedText(\''+escapeHtml(item.id)+'\')">编辑文字</button>'+(item.summary?'<button onclick="clearBuriedText(\''+escapeHtml(item.id)+'\')">删除</button>':'')+'<button class="danger" onclick="deleteBuriedItem(\''+escapeHtml(item.id)+'\')">删除</button></div></div>';
     return '<article class="buried-card">'+thumb+copy+'</article>';
   }).join('') : '<p style="font-size:12px;color:#8b765d;line-height:1.6">还没有需要留下的影像。阿栗每天最多挑一段真正具体的内容；如果没有，就不会生成。</p>';
 }

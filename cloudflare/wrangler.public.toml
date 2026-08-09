@@ -3,6 +3,10 @@ account_id = "42d36bec076af7c710aa8b8d50246870"
 main = "worker.js"
 compatibility_date = "2026-08-01"
 
+routes = [
+  { pattern = "demo.neuralnode.top", custom_domain = true }
+]
+
 # The public build is deliberately read-only and contains no private state.
 # Private APIs remain unavailable until Access, KV, R2 and secrets are bound.
 [vars]

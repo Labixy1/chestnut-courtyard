@@ -699,8 +699,7 @@ def build_product_advice(hot_items, selected):
 def refine_report_with_ai(report):
     """Add article-specific summaries with the owner's configured text API."""
     gateway = ModelGateway()
-    provider = gateway.text_provider()
-    if not provider:
+    if not gateway.text_providers():
         return report, "AI 精炼跳过：尚未配置自己的文本模型 API"
     items = []
     seen = set()
@@ -725,7 +724,7 @@ def refine_report_with_ai(report):
 5. advice 给 2-4 条，把本期具体变化转成产品选型、评测、权限、成本或工作流设计动作；要有推理链和验证方法，不写“多关注、多学习”之类泛话。
 资料：""" + json.dumps(source, ensure_ascii=False)
     try:
-        text, used_provider = gateway.call_text(prompt, provider, max_output_tokens=2600)
+        text, used_provider = gateway.call_text_with_fallback(prompt, max_output_tokens=2600)
         text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.I)
         try:
             result = json.loads(text)

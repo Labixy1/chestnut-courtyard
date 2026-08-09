@@ -61,3 +61,6 @@ wrangler deploy --config wrangler.public.toml
 The preview publishes only `dist/`, uses the starter seed, and rejects every
 write. It has no owner KV, model secret, memory, tree-hole data, private-room
 data, uploads, logs, or owner photos.
+
+The shareable preview URL is `https://demo.neuralnode.top`. The generated
+`workers.dev` account subdomain is not used for sharing.

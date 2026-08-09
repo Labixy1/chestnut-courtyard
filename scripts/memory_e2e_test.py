@@ -46,6 +46,7 @@ with tempfile.TemporaryDirectory(prefix="cozy_memory_e2e_") as directory:
     })
     check(sealed["layer"] == "sealed", "树洞内容没有进入封存密库")
     check(memory.state()["sealed"] == [], "普通状态读取到了封存原文")
+    check(not any(item.get("id") == sealed["id"] for item in memory.state()["events"]), "封存原文泄漏到普通证据流水")
     check(memory.state(include_sealed=True)["sealed"], "授权状态未能读取封存内容")
     results["采集与封存"] = "pass"
 
@@ -170,6 +171,29 @@ with tempfile.TemporaryDirectory(prefix="cozy_memory_e2e_") as directory:
     legacy_ids_twice = [item["id"] for item in MemoryStore(legacy_root).state()["cards"]]
     check(legacy_ids_once == legacy_ids_twice and len(legacy_ids_once) == 1, "旧记忆迁移不是幂等的")
     results["持久化与迁移"] = "pass"
+
+    # 8b. Historical duplicate/sealed rows are repaired without losing lineage.
+    repaired_root = root / "repair"
+    prepare_root(repaired_root)
+    repaired = MemoryStore(repaired_root)
+    normal = repaired.add_event({"id": "normal_once", "source": "noticeboard", "content": "需要保留的普通证据", "remember": True})
+    normal_card = card_for_evidence(repaired, normal["id"])
+    event_data = repaired._read(repaired.paths["events"], {"items": []})
+    event_data["items"].append(dict(event_data["items"][0]))
+    event_data["items"].append({"id": "legacy_secret", "source": "heart_hollow", "content": "旧版封存原文", "summary": "旧版封存原文", "layer": "sealed", "sensitivity": "sealed"})
+    repaired._write(repaired.paths["events"], event_data)
+    cards_data = repaired._read(repaired.paths["cards"], {"items": []})
+    normal_card_on_disk = next(item for item in cards_data["items"] if item["id"] == normal_card["id"])
+    normal_card_on_disk["evidence_ids"].append("legacy_missing_evidence")
+    repaired._write(repaired.paths["cards"], cards_data)
+    repaired_after_restart = MemoryStore(repaired_root)
+    repaired_state = repaired_after_restart.state()
+    repaired_ids = [item["id"] for item in repaired_state["events"]]
+    check(len(repaired_ids) == len(set(repaired_ids)), "历史重复证据没有在启动时修复")
+    check("legacy_secret" not in repaired_ids, "历史封存原文仍留在普通证据流水")
+    check(any(item.get("id") == "legacy_secret" for item in repaired_after_restart.state(include_sealed=True)["sealed"]), "历史封存原文迁移时丢失")
+    check("legacy_missing_evidence" in repaired_ids, "旧卡片缺失的证据引用没有修复")
+    results["证据完整性修复"] = "pass"
 
     # 9. Daily maintenance runs without owner confirmation.
     automation = AutomationRunner(root, restarted)

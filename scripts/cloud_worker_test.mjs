@@ -30,6 +30,7 @@ assert.equal(result.body.storage.kv, true);
 
 result = await payload(await request("/api/providers"));
 assert.equal(result.body.providers.image.nano_banana.model, "gemini-2.5-flash-image");
+assert.deepEqual(result.body.providers.text_route, []);
 
 result = await payload(await request("/api/data?key=estate_state"));
 assert.equal(result.body.level, "新来的住客");
@@ -80,6 +81,24 @@ result = await payload(await request("/api/room", {room: "blackboard", message: 
 assert.equal(result.body.result.standard_points.length, 4);
 
 const nativeFetch = globalThis.fetch;
+const fallbackEnv = {
+  ...baseEnv,
+  COZY_TEXT_PROVIDER: "deepseek", COZY_TEXT_FALLBACK_PROVIDER: "openai",
+  DEEPSEEK_API_KEY: "test-deepseek", OPENAI_API_KEY: "test-openai",
+  COZY_DEEPSEEK_MODEL: "deepseek-v4-flash", COZY_OPENAI_MODEL: "gpt-5.6-luna"
+};
+globalThis.fetch = async (url, options) => {
+  if (String(url).includes("api.deepseek.com")) return new Response(JSON.stringify({error: {message: "simulated primary failure"}}), {status: 503, headers: {"content-type": "application/json"}});
+  if (String(url).includes("api.openai.com/v1/responses")) return new Response(JSON.stringify({output_text: "云端兜底成功"}), {status: 200, headers: {"content-type": "application/json"}});
+  return nativeFetch(url, options);
+};
+result = await payload(await request("/api/room", {room: "orchard", message: "验证模型兜底", context: {}}, fallbackEnv));
+assert.equal(result.status, 200);
+assert.equal(result.body.provider, "openai");
+assert.match(result.body.reply, /云端兜底成功/);
+result = await payload(await request("/api/providers", undefined, fallbackEnv));
+assert.deepEqual(result.body.providers.text_route, ["deepseek", "openai"]);
+
 globalThis.fetch = async (url, options) => {
   if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(`<?xml version="1.0"?><rss><channel><item><title>OpenAI 发布重要模型更新</title><link>https://news.example/model</link><pubDate>Fri, 08 Aug 2026 00:00:00 GMT</pubDate><description>模型能力与价格更新</description><source url="https://news.example">测试媒体</source></item></channel></rss>`, {status: 200});
   return nativeFetch(url, options);
@@ -120,4 +139,4 @@ assert.equal(result.body.access, "owner");
 const readOnly = await payload(await request("/api/local-state", {values: {x: 1}}, {...baseEnv, PUBLIC_READ_ONLY: "true"}));
 assert.equal(readOnly.status, 403);
 
-console.log("cloud worker test ok: auth; KV; memory; blackboard AI; grading; scheduled report path; read-only guard");
+console.log("cloud worker test ok: auth; KV; memory; model fallback; blackboard AI; grading; scheduled report path; read-only guard");

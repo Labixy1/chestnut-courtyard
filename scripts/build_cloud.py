@@ -6,8 +6,6 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import subprocess
-import sys
 from copy import deepcopy
 from pathlib import Path
 
@@ -43,14 +41,39 @@ def public_seed():
 
 def optimize_assets(destination):
     """Reduce cloud copies only; local high-resolution originals stay untouched."""
-    if sys.platform != "darwin" or not shutil.which("sips"):
-        return
+    try:
+        from PIL import Image
+    except ImportError:
+        return {}
+    replacements = {}
     for path in (destination / "assets").rglob("*.png"):
-        if path.stat().st_size <= 4_800_000:
+        if path.stat().st_size <= 700_000:
             continue
         target = 640 if path.name == "butler_dog.png" else 1920
-        subprocess.run(["sips", "-Z", str(target), str(path), "--out", str(path)],
-                       capture_output=True, text=True, check=True)
+        webp = path.with_suffix(".webp")
+        with Image.open(path) as image:
+            image.thumbnail((target, target), Image.Resampling.LANCZOS)
+            image.save(webp, "WEBP", quality=78, method=6)
+        old = path.relative_to(destination).as_posix()
+        new = webp.relative_to(destination).as_posix()
+        replacements[old] = new
+        path.unlink()
+    return replacements
+
+
+def rewrite_asset_references(destination, replacements):
+    if not replacements:
+        return
+    suffixes = {".html", ".css", ".js", ".json", ".webmanifest"}
+    for path in destination.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in suffixes:
+            continue
+        text = path.read_text(encoding="utf-8")
+        updated = text
+        for old, new in replacements.items():
+            updated = updated.replace(old, new)
+        if updated != text:
+            path.write_text(updated, encoding="utf-8")
 
 
 def build(mode="preview", output=None):
@@ -64,7 +87,7 @@ def build(mode="preview", output=None):
         shutil.copy2(ROOT / name, destination / name)
     copy_tree(ROOT / "pages", destination / "pages")
     copy_tree(ROOT / "assets", destination / "assets", excluded={"uploads", "generated", "hollow"}, max_bytes=24 * 1024 * 1024)
-    optimize_assets(destination)
+    replacements = optimize_assets(destination)
     (destination / "core").mkdir()
     for name in ("butler_widget.js", "memory.js", "runtime.js", "pwa.js"):
         shutil.copy2(ROOT / "core" / name, destination / "core" / name)
@@ -103,6 +126,7 @@ def build(mode="preview", output=None):
         "  Cache-Control: private, no-store\n",
         encoding="utf-8",
     )
+    rewrite_asset_references(destination, replacements)
     print(f"Cloudflare {mode} bundle ready: {destination}")
 
 

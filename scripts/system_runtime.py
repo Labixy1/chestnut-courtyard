@@ -301,6 +301,21 @@ class SystemRuntime:
             raise ValueError("掌院模型返回格式不正确")
         return value
 
+    @staticmethod
+    def _compact_agent_transcript(transcript, limit=12):
+        compact = []
+        for entry in transcript[-limit:]:
+            request = entry.get("request", {}) if isinstance(entry, dict) else {}
+            result = entry.get("result") if isinstance(entry, dict) else None
+            if isinstance(result, dict):
+                result = dict(result)
+                if isinstance(result.get("content"), str) and len(result["content"]) > 7000:
+                    result["content"] = result["content"][:7000] + "\n... [读取结果已截断]"
+            elif isinstance(result, list) and len(result) > 30:
+                result = result[:30] + [{"note": "其余结果已省略"}]
+            compact.append({"request": request, "result": result})
+        return compact
+
     def _agent_file_list(self, query=""):
         query = str(query or "").lower().strip()
         items = []
@@ -389,12 +404,24 @@ class SystemRuntime:
 4. {{"action":"replace","path":"项目相对路径","old":"必须逐字匹配的原文","new":"替换后的完整文本"}}
 5. {{"action":"write","path":"仅用于新建文本文件的项目相对路径","content":"完整内容"}}
 6. {{"action":"finish","summary":"完成了什么"}}
-先搜索和读取再改。replace 的 old 必须来自 read 结果，范围尽量小且唯一。不得删除文件。完成必要改动后 finish。"""
+先搜索和读取再改。replace 的 old 必须来自 read 结果，范围尽量小且唯一。不得删除文件。完成必要改动后 finish。
+禁止重复完全相同的动作；replace 成功后若目标已实现，下一步必须 finish。"""
         try:
+            action_counts = {}
             for turn in range(24):
-                prompt = system_rules + "\n\n动作记录：\n" + json.dumps(transcript[-14:], ensure_ascii=False)[:30000]
+                prompt = (
+                    system_rules
+                    + "\n\n当前进度：已修改文件 " + json.dumps(changed, ensure_ascii=False)
+                    + "；剩余轮数 " + str(24 - turn)
+                    + "。\n动作记录（越靠后越新）：\n"
+                    + json.dumps(self._compact_agent_transcript(transcript), ensure_ascii=False)
+                )
                 action = self._agent_json(self.model_call(prompt))
                 name = str(action.get("action") or "").lower()
+                fingerprint = json.dumps(action, ensure_ascii=False, sort_keys=True)
+                action_counts[fingerprint] = action_counts.get(fingerprint, 0) + 1
+                if action_counts[fingerprint] >= 3:
+                    raise RuntimeError("掌院代理连续重复同一动作，已停止并回滚：" + name)
                 if name == "list":
                     result = self._agent_file_list(action.get("query"))
                 elif name == "search":
@@ -438,6 +465,11 @@ class SystemRuntime:
                 else:
                     result = {"ok": False, "error": "不认识的动作"}
                 transcript.append({"request": action, "result": result})
+                self.task_update(
+                    task["id"], "running", "正在执行第 %d 轮：%s" % (turn + 1, name or "未知动作"),
+                    snapshot_id=snapshot["id"], changed_files=changed,
+                    agent_trace=self._compact_agent_transcript(transcript, limit=16),
+                )
             else:
                 raise RuntimeError("掌院代理超过最大操作轮数，已停止并回滚")
             if not changed:
@@ -463,8 +495,12 @@ class SystemRuntime:
                     dst.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(src, dst)
             detail = str(exc)[:1200]
-            self.task_update(task["id"], "failed", detail, snapshot_id=snapshot["id"], rolled_back=True)
-            self.audit("system_change_failed", {"task_id": task["id"], "snapshot_id": snapshot["id"], "error": detail, "rolled_back": True})
+            trace = self._compact_agent_transcript(transcript, limit=16)
+            self.task_update(task["id"], "failed", detail, snapshot_id=snapshot["id"], rolled_back=True,
+                             changed_files=changed, agent_trace=trace)
+            self.audit("system_change_failed", {"task_id": task["id"], "snapshot_id": snapshot["id"],
+                                                  "error": detail, "rolled_back": True,
+                                                  "changed_files": changed, "agent_trace": trace})
             raise
 
     def build_skill(self, name: str, purpose: str, example: str = ""):

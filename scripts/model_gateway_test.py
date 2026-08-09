@@ -41,12 +41,35 @@ class FakeGateway(ModelGateway):
         raise AssertionError((provider, method, path))
 
 
+class FallbackGateway(FakeGateway):
+    def __init__(self):
+        super().__init__()
+        self.environ.update({
+            "COZY_TEXT_PROVIDER": "deepseek",
+            "COZY_TEXT_FALLBACK_PROVIDER": "openai",
+            "COZY_OPENAI_MODEL": "gpt-5.6-luna",
+            "COZY_OPENAI_TIMEOUT": "35",
+            "COZY_DEEPSEEK_MODEL": "deepseek-v4-flash",
+        })
+
+    def _request(self, provider, method, path, body=None, timeout=120):
+        if provider == "deepseek" and path == "/chat/completions":
+            raise RuntimeError("simulated primary timeout")
+        return super()._request(provider, method, path, body, timeout)
+
+
 def main():
     gateway = FakeGateway()
     text, provider = gateway.call_text("hello", "openai")
     assert text == "online" and provider == "openai"
     text, provider = gateway.call_text("hello", "deepseek")
     assert text == "compatible" and provider == "deepseek"
+
+    fallback = FallbackGateway()
+    assert fallback.text_providers() == ["deepseek", "openai"]
+    text, provider = fallback.call_text_with_fallback("hello")
+    assert text == "online" and provider == "openai"
+    assert fallback.status()["text_route"] == ["deepseek", "openai"]
 
     seedream = gateway.generate_image("院子", "seedream", size="2K")
     assert seedream["model"] == "seedream-test"

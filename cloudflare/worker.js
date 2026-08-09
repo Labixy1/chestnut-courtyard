@@ -16,8 +16,8 @@ let accessKeysCache = {issuer: "", expires: 0, keys: []};
 
 const providerConfig = (env, name) => {
   const configs = {
-    openai: {key: env.OPENAI_API_KEY, base: env.OPENAI_BASE_URL || "https://api.openai.com/v1", model: env.COZY_OPENAI_MODEL || "gpt-5-mini"},
-    deepseek: {key: env.DEEPSEEK_API_KEY, base: env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1", model: env.COZY_DEEPSEEK_MODEL || "deepseek-chat"},
+    openai: {key: env.OPENAI_API_KEY, base: env.OPENAI_BASE_URL || "https://api.openai.com/v1", model: env.COZY_OPENAI_MODEL || "gpt-5.6-luna"},
+    deepseek: {key: env.DEEPSEEK_API_KEY, base: env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1", model: env.COZY_DEEPSEEK_MODEL || "deepseek-v4-flash"},
     glm: {key: env.GLM_API_KEY, base: env.GLM_BASE_URL || "https://open.bigmodel.cn/api/paas/v4", model: env.COZY_GLM_MODEL || "glm-4.7-flash"},
     qwen: {key: env.QWEN_API_KEY || env.DASHSCOPE_API_KEY, base: env.QWEN_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1", model: env.COZY_QWEN_MODEL || "qwen3.7-flash"},
     ark: {key: env.ARK_API_KEY, base: env.ARK_BASE_URL || "https://ark.cn-beijing.volces.com/api/v3"},
@@ -146,15 +146,31 @@ async function providerRequest(env, provider, path, body, method = "POST") {
   return payload;
 }
 
+function textProviders(env) {
+  const configured = name => name === "workers-ai" ? Boolean(env.AI) : Boolean(providerConfig(env, name)?.key);
+  const ordered = [String(env.COZY_TEXT_PROVIDER || "").toLowerCase(), String(env.COZY_TEXT_FALLBACK_PROVIDER || "").toLowerCase(), "deepseek", "openai", "glm", "qwen", "workers-ai"];
+  return [...new Set(ordered.filter(name => name && configured(name)))];
+}
+
 function textProvider(env) {
-  const preferred = String(env.COZY_TEXT_PROVIDER || "").toLowerCase();
-  if (preferred && providerConfig(env, preferred)?.key) return preferred;
-  return ["openai", "deepseek", "glm", "qwen"].find(name => providerConfig(env, name)?.key) || (env.AI ? "workers-ai" : "");
+  return textProviders(env)[0] || "";
 }
 
 async function callText(env, prompt, maxTokens = 1600) {
-  const provider = textProvider(env);
-  if (!provider) throw new Error("还没有配置在线文本模型 API Key");
+  const providers = textProviders(env);
+  if (!providers.length) throw new Error("还没有配置在线文本模型 API Key");
+  const failures = [];
+  for (const provider of providers) {
+    try {
+      return await callTextProvider(env, provider, prompt, maxTokens);
+    } catch (error) {
+      failures.push(`${provider}: ${String(error?.message || error)}`);
+    }
+  }
+  throw new Error(`文本模型均不可用：${failures.join("；")}`);
+}
+
+async function callTextProvider(env, provider, prompt, maxTokens = 1600) {
   if (provider === "workers-ai") {
     const model = env.COZY_WORKERS_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct-fp8";
     const payload = await env.AI.run(model, {messages: [{role: "user", content: prompt}], temperature: 0.4, max_tokens: maxTokens});
@@ -767,10 +783,11 @@ export async function handleRequest(request, env, ctx = {}) {
   try {
     if (request.method === "GET" && url.pathname === "/api/status") {
       const access = env.ALLOW_UNAUTHENTICATED === "true" ? "preview" : "owner";
-      return json({ok: true, service: "cloud", provider: textProvider(env) || "none", tools: 8, steward_mode: (await permissions(env)).steward_mode, access, storage: {kv: Boolean(env.COZY_STATE), private_r2: Boolean(env.COZY_PRIVATE), media_r2: Boolean(env.COZY_MEDIA)}});
+      return json({ok: true, service: "cloud", provider: textProvider(env) || "none", text_route: textProviders(env), tools: 8, steward_mode: (await permissions(env)).steward_mode, access, storage: {kv: Boolean(env.COZY_STATE), private_r2: Boolean(env.COZY_PRIVATE), media_r2: Boolean(env.COZY_MEDIA)}});
     }
     if (request.method === "GET" && url.pathname === "/api/providers") return json({ok: true, providers: {
       text: Object.fromEntries(["openai", "deepseek", "glm", "qwen"].map(name => [name, {configured: Boolean(providerConfig(env, name)?.key), model: providerConfig(env, name)?.model}])),
+      text_route: textProviders(env),
       workers_ai: {configured: Boolean(env.AI), model: env.COZY_WORKERS_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct-fp8"},
       image: {seedream: {configured: Boolean(env.ARK_API_KEY), model: env.COZY_SEEDREAM_MODEL || "doubao-seedream-4-0-250828"}, openai: {configured: Boolean(env.OPENAI_API_KEY), model: env.COZY_OPENAI_IMAGE_MODEL || "gpt-image-2"}, nano_banana: {configured: Boolean(env.GEMINI_API_KEY), model: env.COZY_GEMINI_IMAGE_MODEL || "gemini-2.5-flash-image"}},
       video: {seedance: {configured: Boolean(env.ARK_API_KEY), model: env.COZY_SEEDANCE_MODEL || "doubao-seedance-2-0-mini-260615"}}

@@ -497,6 +497,7 @@
   .bb-material h4,.bb-review-card h4{font-size:14px;color:#6b4618;margin-bottom:8px}
   .bb-material ul,.bb-review-card ul,.bb-standard{padding-left:20px}
   .bb-material li,.bb-review-card li,.bb-standard li{font-size:13px;line-height:1.75;color:rgba(83,54,22,.82);margin:3px 0}
+  .bb-next-reference{margin-top:14px;border-top:1px solid rgba(143,94,25,.13);padding-top:10px}.bb-next-reference summary{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:8px 10px;border:1px solid rgba(143,94,25,.16);border-radius:9px;background:rgba(255,252,244,.74);color:#795524;font-size:12px;font-weight:650;cursor:pointer;list-style:none}.bb-next-reference summary::-webkit-details-marker{display:none}.bb-next-reference summary:after{content:"+";font-size:17px;line-height:1;color:#a2773c}.bb-next-reference[open] summary:after{content:"−"}.bb-next-reference .bb-standard{margin:10px 0 2px;padding-left:24px}
   .bb-polished{display:grid;gap:9px}.bb-polished p{margin:0;padding:9px 11px;border-left:3px solid rgba(180,123,36,.34);border-radius:0 9px 9px 0;background:rgba(255,251,240,.7);white-space:pre-wrap}
   .bb-helper{margin:14px 0 18px;border:1px solid rgba(143,94,25,.14);border-radius:16px;background:rgba(255,255,255,.48);overflow:hidden}
   .bb-helper-head{display:flex;align-items:center;gap:9px;padding:11px 13px;border-bottom:1px solid rgba(143,94,25,.1)}
@@ -540,8 +541,8 @@
   .photo-library-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin:0 0 22px}.photo-library-head h2{font-size:24px;margin:0 0 4px}.photo-library-head p{font-size:12px;color:rgba(255,250,242,.72);margin:0}.photo-library-actions{display:flex;gap:8px}.photo-library-actions button,.photo-album-toolbar button{border:1px solid rgba(255,255,255,.22);border-radius:9px;background:rgba(37,31,28,.46);color:#fffaf2;padding:8px 11px;font:12px inherit;cursor:pointer;backdrop-filter:blur(8px)}
   .photo-library-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.photo-library-tools button,.photo-library-tools select{height:34px;border:1px solid rgba(255,255,255,.22);border-radius:8px;background:rgba(37,31,28,.46);color:#fffaf2;padding:0 10px;font:11px inherit;cursor:pointer;backdrop-filter:blur(8px)}
   .photo-album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}.photo-album-tile{position:relative;min-height:230px;border:0;padding:0;background:transparent;color:#fff;text-align:left}.photo-album-cover{position:relative;display:block;width:100%;height:184px;border:0;padding:0;border-radius:7px;overflow:hidden;background:rgba(255,255,255,.12);box-shadow:0 14px 34px rgba(0,0,0,.2);cursor:pointer}.photo-album-cover img{position:static;width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s ease}.photo-album-tile:hover .photo-album-cover img{transform:scale(1.025)}.photo-album-title{display:block;font-size:14px;font-weight:650;margin-top:10px}.photo-album-meta{display:flex;justify-content:space-between;gap:8px;margin-top:4px;color:rgba(255,255,255,.62);font-size:10px}.photo-date-mark{color:#bfe4f5;background:rgba(100,174,210,.13);border-radius:999px;padding:2px 7px}.photo-album-move{position:absolute;right:7px;top:7px;z-index:2;display:flex;gap:4px}.photo-album-move button{width:27px;height:27px;border:0;border-radius:7px;background:rgba(24,22,21,.56);color:#fff;cursor:pointer}.photo-album-add{height:184px;border:1px dashed rgba(255,255,255,.42);border-radius:7px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:38px;font-weight:200;color:rgba(255,255,255,.72)}
-  .photo-album-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px}.photo-album-toolbar h2{font-size:20px;margin:0 auto 0 0}.photo-album-toolbar .danger{color:#ffd4cd}.photo-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}.photo-detail-item{position:relative;margin:0;min-width:0}.photo-detail-item img{position:static;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:7px;display:block;background:rgba(255,255,255,.08)}.photo-detail-item figcaption{display:flex;align-items:center;gap:7px;margin-top:6px;font-size:11px;color:rgba(255,255,255,.72)}.photo-detail-controls{margin-left:auto;display:flex;gap:3px}.photo-detail-controls button{width:25px;height:25px;border:0;border-radius:6px;background:rgba(20,18,17,.48);color:#fff;cursor:pointer}.photo-wall-status{font-size:11px;color:#d6edf7;min-height:16px;margin-top:10px}
-  @media(max-width:620px){.tool-card{grid-template-rows:none;height:auto}.photo-library{padding:62px 14px 30px}.photo-library-head{align-items:flex-start;flex-direction:column}.photo-album-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.photo-album-cover,.photo-album-add{height:132px}.photo-album-tile{min-height:178px}.photo-detail-grid{grid-template-columns:1fr 1fr}}
+  .photo-album-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px}.photo-album-toolbar h2{font-size:20px;margin:0 auto 0 0}.photo-album-toolbar .danger{color:#ffd4cd}.photo-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;align-items:stretch}.photo-detail-item{position:relative;display:grid;grid-template-rows:220px 74px;height:294px;margin:0;min-width:0;overflow:hidden;border-radius:8px;background:rgba(24,22,20,.52);box-shadow:0 10px 26px rgba(0,0,0,.16)}.photo-detail-item img{position:static;width:100%;height:220px;min-width:0;object-fit:contain;border-radius:8px 8px 0 0;display:block;background:rgba(244,240,234,.12)}.photo-detail-item figcaption{position:static;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:1fr auto;align-items:center;column-gap:8px;row-gap:3px;min-width:0;height:74px;margin:0;padding:8px 9px;background:rgba(28,25,23,.88);font-size:11px;line-height:1.4;color:rgba(255,255,255,.86)}.photo-detail-item figcaption>span:first-child{grid-row:1/3;min-width:0;overflow:hidden;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}.photo-detail-item .photo-date-mark{grid-column:2;grid-row:1;white-space:nowrap;justify-self:end}.photo-detail-controls{grid-column:2;grid-row:2;margin-left:0;display:flex;justify-content:flex-end;gap:3px}.photo-detail-controls button{width:25px;height:25px;border:0;border-radius:6px;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}.photo-detail-controls button:hover{background:rgba(255,255,255,.2)}.photo-wall-status{font-size:11px;color:#d6edf7;min-height:16px;margin-top:10px}
+  @media(max-width:620px){.tool-card{grid-template-rows:none;height:auto}.photo-library{padding:62px 14px 30px}.photo-library-head{align-items:flex-start;flex-direction:column}.photo-album-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.photo-album-cover,.photo-album-add{height:132px}.photo-album-tile{min-height:178px}.photo-detail-grid{grid-template-columns:1fr}.photo-detail-item{grid-template-rows:210px 74px;height:284px}.photo-detail-item img{height:210px}}
   .source-tag{display:inline-block;font-size:11px;border-radius:999px;padding:3px 8px;background:#ead7c2;color:#6b4b2e;margin-bottom:6px}
 </style>
 </head>
@@ -963,7 +964,7 @@ async function openBlackboard(){
   const saved = JSON.parse(localStorage.getItem('cozy_blackboard_answers') || '[]');
   window.BB_STATE = {today, history, questionData:getBlackboardQuestionData(today),locked:false,submitting:false,refreshing:false};
   const initialSaved = findSavedBlackboardAnswer(saved,window.BB_STATE.questionData);
-  if(initialSaved){window.BB_STATE.answer=initialSaved.answer;window.BB_STATE.review=initialSaved.review;window.BB_STATE.questionData.supplementalMaterials=initialSaved.supplementalMaterials||[];window.BB_STATE.locked=true;}
+  if(initialSaved){window.BB_STATE.answer=initialSaved.answer;window.BB_STATE.review=initialSaved.review;window.BB_STATE.nextQuestion=initialSaved.next_question||'';window.BB_STATE.nextQuestionReference=initialSaved.next_question_reference||[];window.BB_STATE.questionData.supplementalMaterials=initialSaved.supplementalMaterials||[];window.BB_STATE.locked=true;}
   showBlackboardMode('question');
   try{
     const data = await cozyApi('/api/blackboard/today',undefined,90000);
@@ -980,9 +981,11 @@ async function openBlackboard(){
     };
     delete window.BB_STATE.answer;
     delete window.BB_STATE.review;
+    delete window.BB_STATE.nextQuestion;
+    delete window.BB_STATE.nextQuestionReference;
     window.BB_STATE.locked=false;
     const submitted=findSavedBlackboardAnswer(saved,window.BB_STATE.questionData);
-    if(submitted){window.BB_STATE.answer=submitted.answer;window.BB_STATE.review=submitted.review;window.BB_STATE.questionData.supplementalMaterials=submitted.supplementalMaterials||[];window.BB_STATE.locked=true;}
+    if(submitted){window.BB_STATE.answer=submitted.answer;window.BB_STATE.review=submitted.review;window.BB_STATE.nextQuestion=submitted.next_question||'';window.BB_STATE.nextQuestionReference=submitted.next_question_reference||[];window.BB_STATE.questionData.supplementalMaterials=submitted.supplementalMaterials||[];window.BB_STATE.locked=true;}
     showBlackboardMode('question');
   }catch(error){ /* 双击打开时继续使用本地题 */ }
 }
@@ -1000,10 +1003,10 @@ async function refreshBlackboardQuestion(){
     const item=data.question||{};
     state.today={title:item.title||'每日产品题',tags:item.types||[]};
     state.questionData={id:item.id||('local-'+nonce),title:item.title||'每日产品题',types:item.types||['产品场景'],question:item.question||'',materials:item.materials||[],standard:item.standard_points||item.standard||[],seedHint:'',date:item.date||localCalendarDate()};
-    delete state.answer;delete state.review;delete state.nextQuestion;
+    delete state.answer;delete state.review;delete state.nextQuestion;delete state.nextQuestionReference;
     state.locked=false;
     const saved=findSavedBlackboardAnswer(JSON.parse(localStorage.getItem('cozy_blackboard_answers')||'[]'),state.questionData);
-    if(saved){state.answer=saved.answer;state.review=saved.review;state.locked=true;}
+    if(saved){state.answer=saved.answer;state.review=saved.review;state.nextQuestion=saved.next_question||'';state.nextQuestionReference=saved.next_question_reference||[];state.locked=true;}
   }catch(error){
     state.history=(state.history||[]).filter(item=>blackboardQuestionKey(item)!==blackboardQuestionKey(current));
     state.questionData=current;
@@ -1065,7 +1068,7 @@ function redoBlackboardQuestion(id){
   const item=window.BB_HISTORY_ITEMS&&window.BB_HISTORY_ITEMS[id],state=window.BB_STATE;if(!item||!state)return;
   state.questionData={title:item.title,question:item.question,types:item.types||[],materials:item.materials||[],supplementalMaterials:item.supplementalMaterials||[],standard:item.standard||[],date:localCalendarDate(),archiveSourceDate:item.date||''};
   state.today={title:item.title,tags:item.types||[]};state.redoMode=true;state.locked=false;state.submitting=false;
-  delete state.answer;delete state.review;delete state.nextQuestion;
+  delete state.answer;delete state.review;delete state.nextQuestion;delete state.nextQuestionReference;
   showBlackboardMode('question');
   const note=document.getElementById('bb-answer-note');if(note)note.textContent='这是一次新的作答，提交后会保留之前的答案供你对照。';
 }
@@ -1142,9 +1145,10 @@ async function submitBbAnswer(){
     window.BB_STATE.review.score=window.BB_STATE.review.scoreBreakdown.length?window.BB_STATE.review.scoreBreakdown.reduce((sum,item)=>sum+item.awarded,0)+'/100 · '+window.BB_STATE.review.scoreSummary:window.BB_STATE.review.scoreSummary;
     if(Array.isArray(result.standard_points)&&result.standard_points.length) q.standard=result.standard_points;
     window.BB_STATE.nextQuestion=result.next_question||'';
+    window.BB_STATE.nextQuestionReference=Array.isArray(result.next_question_reference)&&result.next_question_reference.length?result.next_question_reference:buildNextQuestionReference(window.BB_STATE.nextQuestion);
   }catch(error){window.BB_STATE.review=buildBbReview(value,q);window.BB_STATE.review.suggestions.push('本次 AI 批改未连接成功，已保留本地结构化建议。');}
   const saved = JSON.parse(localStorage.getItem('cozy_blackboard_answers') || '[]');
-  const record={title:q.title,question:q.question,types:q.types||[],materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],answer:value,review:window.BB_STATE.review,standard:q.standard,next_question:window.BB_STATE.nextQuestion||'',date:q.date||localCalendarDate(),attemptId:'attempt_'+Date.now().toString(36),archiveSourceDate:q.archiveSourceDate||''};
+  const record={title:q.title,question:q.question,types:q.types||[],materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],answer:value,review:window.BB_STATE.review,standard:q.standard,next_question:window.BB_STATE.nextQuestion||'',next_question_reference:window.BB_STATE.nextQuestionReference||[],date:q.date||localCalendarDate(),attemptId:'attempt_'+Date.now().toString(36),archiveSourceDate:q.archiveSourceDate||''};
   const duplicateIndex=saved.findIndex(item=>blackboardQuestionKey(item)===blackboardQuestionKey(record));
   if(!window.BB_STATE.redoMode&&duplicateIndex>=0)saved.splice(duplicateIndex,1);
   saved.unshift(record);
@@ -1276,8 +1280,24 @@ function renderBlackboardResult(q, answer, review){
     '<div class="bb-review-card"><h4>标准答案</h4><ol class="bb-standard">'+q.standard.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ol></div></div>'+
     '<div class="bb-review-card"><h4>AI 修改建议</h4><ul>'+review.suggestions.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>'+
     (review.thinking&&review.thinking.length?'<div class="bb-review-card"><h4>下一轮思考方向</h4><ul>'+review.thinking.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>':'')+
-    (window.BB_STATE&&window.BB_STATE.nextQuestion?'<div class="bb-review-card"><h4>下一步练习</h4><p>'+escapeNotice(window.BB_STATE.nextQuestion)+'</p></div>':'')+
+    renderNextPractice(window.BB_STATE&&window.BB_STATE.nextQuestion,window.BB_STATE&&window.BB_STATE.nextQuestionReference)+
     '</section>';
+}
+
+function buildNextQuestionReference(question){
+  if(!question)return[];
+  return [
+    '先说明你的选择标准，并把判断依据写清楚。',
+    '逐一拆解用户问题、现有流程，以及 AI 可以介入的位置。',
+    '为每个方案定义一项可观察指标和具体验证方法。',
+    '最后补充失败边界、人工兜底，以及有限时间内的取舍。'
+  ];
+}
+
+function renderNextPractice(question,reference){
+  if(!question)return'';
+  const points=Array.isArray(reference)&&reference.length?reference:buildNextQuestionReference(question);
+  return '<div class="bb-review-card bb-next-practice"><h4>下一步练习</h4><p>'+escapeNotice(question)+'</p><details class="bb-next-reference"><summary>查看参考答案</summary><ol class="bb-standard">'+points.map(point=>'<li>'+escapeNotice(point)+'</li>').join('')+'</ol></details></div>';
 }
 
 function saveBlackboardDirection(){
@@ -1317,6 +1337,7 @@ function photoAssetId(value){let h=2166136261;for(const char of String(value||''
 
 function seedPhotoAlbums(){
   const saved=readNoticeList('cozy_photo_albums').filter(album=>album.id!=='courtyard_all');
+  const hiddenCourtyardScenes=new Set(readNoticeList('cozy_courtyard_hidden_scenes'));
   const personal=((CORE.estate_state&&CORE.estate_state.wall_photos)||[]).map(p=>({id:p.id||'photo_'+Math.random().toString(36).slice(2),src:p.file||'',caption:p.note||p.title||'随手拍',date:p.date||localCalendarDate()})).filter(p=>p.src);
   const allTrips = JSON.parse(localStorage.getItem('cozy_trips') || '[]').concat((CORE.estate_state&&CORE.estate_state.travel&&CORE.estate_state.travel.history)||[]);
   const travelAlbums=allTrips.map((trip,index)=>({id:'travel_'+(trip.id||index),title:trip.place||'一次旅行',source:'travel',date:trip.date||localCalendarDate(),photos:(trip.photos&&trip.photos.length?trip.photos:[trip.file]).filter(Boolean).map((src,pIndex)=>({id:'travel_photo_'+index+'_'+pIndex,src,caption:trip.line||trip.place||'旅行照片',date:trip.date||localCalendarDate()}))})).filter(album=>album.photos.length);
@@ -1335,7 +1356,7 @@ function seedPhotoAlbums(){
     ['卧室 · 白天','assets/interior/bedroom_day.webp'],['卧室 · 夜晚','assets/interior/bedroom_night.webp'],['成长田','assets/plants/orchard_field.jpg'],
     ['成长田 · 春','assets/plants/orchard_spring.jpg'],['成长田 · 夏','assets/plants/orchard_summer.jpg'],['成长田 · 秋','assets/plants/orchard_autumn.jpg'],
     ['成长田 · 冬','assets/plants/orchard_winter.jpg'],['出发旅行','assets/travel/travel_postcard.webp']
-  ].map(([caption,src])=>({id:'scene_'+photoAssetId(src),src,caption,date:''}));
+  ].map(([caption,src])=>({id:'scene_'+photoAssetId(src),src,caption,date:''})).filter(scene=>!hiddenCourtyardScenes.has(scene.id));
   return [{id:'courtyard_all',title:'小院的所有照片',source:'aggregate',date:localCalendarDate(),photos:courtyardScenes},...albums];
 }
 
@@ -1368,7 +1389,7 @@ function createPhotoAlbum(){
 function openPhotoAlbum(id){
   const box=document.getElementById('photo-library');const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===id);if(!box||!album)return;
   const aggregate=album.source==='aggregate';
-  const photos=(album.photos||[]).map((photo,index)=>'<figure class="photo-detail-item"><img src="'+escapeNotice(photo.src)+'" alt=""><figcaption><span>'+escapeNotice(photo.caption||'照片')+'</span><span class="photo-date-mark">'+escapeNotice(photoDateLabel(photo.date||album.date))+'</span>'+(aggregate?'':'<span class="photo-detail-controls"><button title="向前移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',-1)">←</button><button title="向后移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',1)">→</button><button title="删除照片" onclick="removeAlbumPhoto(\''+escapeNotice(id)+'\','+index+')">×</button></span>')+'</figcaption></figure>').join('');
+  const photos=(album.photos||[]).map((photo,index)=>'<figure class="photo-detail-item"><img src="'+escapeNotice(photo.src)+'" alt=""><figcaption><span>'+escapeNotice(photo.caption||'照片')+'</span><span class="photo-date-mark">'+escapeNotice(photoDateLabel(photo.date||album.date))+'</span>'+(aggregate?'<span class="photo-detail-controls"><button title="从合集中移除" aria-label="从小院照片合集中移除" onclick="removeCourtyardScene(\''+escapeNotice(photo.id)+'\')">×</button></span>':'<span class="photo-detail-controls"><button title="向前移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',-1)">←</button><button title="向后移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',1)">→</button><button title="删除照片" onclick="removeAlbumPhoto(\''+escapeNotice(id)+'\','+index+')">×</button></span>')+'</figcaption></figure>').join('');
   box.innerHTML='<div class="photo-album-toolbar"><button onclick="renderPhotoAlbums()">← 照片集</button><h2>'+escapeNotice(album.title)+'</h2>'+(aggregate?'':'<button onclick="document.getElementById(\'photo-wall-upload\').click()">＋ 照片</button><button class="danger" onclick="deletePhotoAlbum(\''+escapeNotice(id)+'\')">删除整组</button>')+'</div><div class="photo-detail-grid">'+(photos||(aggregate?'<div class="empty-note">小院里还没有照片。</div>':'<div class="photo-album-add" onclick="document.getElementById(\'photo-wall-upload\').click()">＋</div>'))+'</div><div class="photo-wall-status" id="photo-wall-status"></div>'+(aggregate?'':'<input id="photo-wall-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onchange="uploadPhotoWallFiles(this.files,\''+escapeNotice(id)+'\')">');
 }
 
@@ -1394,6 +1415,14 @@ async function uploadPhotoWallFiles(files,albumId){
 }
 
 function moveAlbumPhoto(albumId,index,step){const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===albumId);if(!album)return;const target=index+step;if(target<0||target>=album.photos.length)return;[album.photos[index],album.photos[target]]=[album.photos[target],album.photos[index]];savePhotoAlbums(albums);openPhotoAlbum(albumId);}
+function removeCourtyardScene(sceneId){
+  if(!confirm('从“小院的所有照片”中移除这张场景图吗？'))return;
+  const hidden=readNoticeList('cozy_courtyard_hidden_scenes');
+  if(!hidden.includes(sceneId))hidden.push(sceneId);
+  localStorage.setItem('cozy_courtyard_hidden_scenes',JSON.stringify(hidden));
+  window.CozyButler?.persistLocal(['cozy_courtyard_hidden_scenes']);
+  openPhotoAlbum('courtyard_all');
+}
 function removeAlbumPhoto(albumId,index){if(!confirm('从这组照片里删除这一张吗？'))return;const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===albumId);if(!album)return;album.photos.splice(index,1);savePhotoAlbums(albums);openPhotoAlbum(albumId);}
 function deletePhotoAlbum(albumId){if(!confirm('删除整组照片吗？照片文件不会从其他旅行记录中删除。'))return;savePhotoAlbums(seedPhotoAlbums().filter(item=>item.id!==albumId));renderPhotoAlbums();}
 
@@ -1817,15 +1846,27 @@ function showNoticeView(view, btn){
   if(view === 'current'){
     const requests = JSON.parse(localStorage.getItem('cozy_notice_requests') || '[]');
     const today = localCalendarDate();
-    const foundItems = requests.filter(x=>x.date && x.date < today && Array.isArray(x.found_items)).flatMap(x=>x.found_items).filter(item=>item&&item.title);
-    const foundBlock = foundItems.length ? '<section class="report-section"><h3>留言找到的内容</h3>'+
-      foundItems.slice(0,6).map(item=>reportCardHtml(item, '留言找到的内容')).join('')+
-      '</section>' : '';
     const dynamicItems = curatedNoticeItems(sectionItemsBy(report, isDynamicItem), 4);
     const productItems = curatedNoticeItems(sectionItemsBy(report, isProductItem), 4);
     const ownerItems = (report.sections||[]).filter(section=>section.name==='主人关注').flatMap(section=>section.items||[]).slice(0,4);
     const ownerBlock = ownerItems.length?'<section class="report-section owner-focus-section"><h3>主人关注</h3>'+ownerItems.map(item=>reportCardHtml(item,item.category)).join('')+'</section>':'';
     const hotItems = Array.isArray(report.hot_items) && report.hot_items.length ? report.hot_items : [];
+    const visibleKeys = new Set([...hotItems,...dynamicItems,...productItems,...ownerItems].map(noticeItemKey));
+    const titleKey = item=>String(item?.title||'').toLowerCase().replace(/[\s，。！？、：；,.!?;:'"“”‘’（）()《》<>\-—_]/g,'');
+    const visibleTitles = new Set([...hotItems,...dynamicItems,...productItems,...ownerItems].map(titleKey).filter(Boolean));
+    const foundKeys = new Set();
+    const foundTitles = new Set();
+    const foundItems = requests.filter(x=>x.date && x.date < today && Array.isArray(x.found_items)).flatMap(x=>x.found_items).filter(item=>{
+      if(!item||!item.title)return false;
+      const key=noticeItemKey(item),title=titleKey(item);
+      if(visibleKeys.has(key)||visibleTitles.has(title)||foundKeys.has(key)||foundTitles.has(title))return false;
+      foundKeys.add(key);
+      foundTitles.add(title);
+      return true;
+    });
+    const foundBlock = foundItems.length ? '<section class="report-section"><h3>留言找到的内容</h3>'+
+      foundItems.slice(0,6).map(item=>reportCardHtml(item, '留言找到的内容')).join('')+
+      '</section>' : '';
     box.innerHTML = '<section class="report-section hot-report-section"><h3>热点速览</h3><div class="brief-list">'+
       (hotItems.length ? hotItems.map(item=>reportCardHtml(item, '热点速览')).join('') : ((report.quick || []).map((x,i)=>quickCardHtml(x,i)).join('') || emptyReportCard('本周还没有速览','阿栗会在周报生成时补上本周最重要的真实热点。')))+'</div></section>'+
       '<section class="report-section dynamic-report-section"><h3>国内外动态</h3>'+

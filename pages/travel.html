@@ -70,9 +70,11 @@
   .reflection-panel{width:100%;background:rgba(246,252,255,.78);border:1px solid rgba(107,154,179,.2);
      border-radius:14px;padding:15px;margin:0;box-shadow:0 14px 34px rgba(50,70,82,.16);
      backdrop-filter:blur(10px)}
-  .reflection-head{display:block;margin-bottom:12px}
+  .reflection-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px;margin-bottom:12px}
   .reflection-head h2{font-size:16px;color:#345767;font-weight:700}
   .reflection-head span{display:block;margin-top:4px;font-size:11px;color:#78909a}
+  .reflection-clear{height:30px;border:1px solid rgba(107,154,179,.24);border-radius:8px;background:rgba(255,255,255,.58);color:#5b7c8b;padding:0 10px;font:11px inherit;cursor:pointer}
+  .reflection-clear:hover{background:rgba(255,255,255,.86);color:#365d70}
   .reflection-grid{display:grid;grid-template-columns:1fr;gap:9px;align-items:start}
   .reflection-panel select,.reflection-panel textarea{border:1px solid rgba(107,154,179,.22);border-radius:16px;
      padding:10px 12px;background:rgba(255,255,255,.78);font:inherit;color:#3d4c55;outline:none}
@@ -112,8 +114,8 @@
 <div class="travel-status" id="travel-status"></div>
 <div class="travel-layout"><section class="reflection-panel">
   <div class="reflection-head">
-    <h2>旅行感悟</h2>
-    <span>选一段旅行，录一小段也可以</span>
+    <div><h2>旅行感悟</h2><span>选一段旅行，录一小段也可以</span></div>
+    <button class="reflection-clear" type="button" onclick="clearReflectionDraft()">清空</button>
   </div>
   <div class="reflection-grid">
     <select id="reflection-trip" onchange="loadTripReflection()"></select>
@@ -225,7 +227,22 @@ function loadTripReflection(){
   ai.dataset.summary = data&&data.summary ? data.summary : '';
   ai.textContent = data ? ('已保存摘要：'+(data.summary || data.text || '这段旅行已有感悟。')) : '这段旅行还没有感悟。可以打字，也可以点麦克风说。';
 }
+function resetReflectionInput(){
+  clearTimeout(reflectionTimer);
+  if(reflectionVoice?.isActive())reflectionVoice.stop();
+  const textarea=document.getElementById('reflection-text');
+  if(textarea)textarea.value='';
+}
 let reflectionVoice=null;
+function clearReflectionDraft(){
+  clearTimeout(reflectionTimer);
+  if(reflectionVoice?.isActive())reflectionVoice.stop();
+  const textarea=document.getElementById('reflection-text');
+  const ai=document.getElementById('reflection-ai');
+  if(textarea)textarea.value='';
+  if(ai){ai.dataset.summary='';ai.textContent='内容已清空，可以重新写一段感悟。';}
+  textarea?.focus();
+}
 function setReflectionVoiceState(state,message){
   const textarea = document.getElementById('reflection-text');
   const ai = document.getElementById('reflection-ai');
@@ -417,6 +434,7 @@ async function uploadTripPhotos(files){
 }
 window.addEventListener('cozy:state-synced',render);
 window.addEventListener('beforeunload',()=>{if(reflectionVoice?.isActive())reflectionVoice.stop();});
+window.addEventListener('pageshow',()=>setTimeout(resetReflectionInput,0));
 load();
 </script>
 </body>

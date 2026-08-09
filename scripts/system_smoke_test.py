@@ -47,6 +47,16 @@ with tempfile.TemporaryDirectory(prefix="cozy_system_test_") as directory:
         pass
     assert "新的开场" in (root / "index.html").read_text(encoding="utf-8")
 
+    repeated_runtime = SystemRuntime(root, model_call=lambda _prompt: json.dumps({"action": "list", "query": "index"}))
+    repeated_runtime._validate_after_change = lambda: (True, [])
+    try:
+        repeated_runtime.run_system_change("重复动作保护测试")
+        raise AssertionError("重复动作应停止并回滚")
+    except RuntimeError as exc:
+        assert "连续重复同一动作" in str(exc)
+    repeated_task = repeated_runtime.tasks()["tasks"][0]
+    assert repeated_task["status"] == "failed" and repeated_task.get("agent_trace"), "失败任务应保留代理轨迹"
+
     legacy_root = root / "legacy_case"
     (legacy_root / "core/memory").mkdir(parents=True)
     (legacy_root / "core/memory/preferences.json").write_text(json.dumps({"version": 2, "items": [{
