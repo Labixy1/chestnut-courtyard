@@ -210,11 +210,11 @@ function renderReflectionOptions(trips){
   }
   const current = select.value;
   select.disabled = false;
-  select.innerHTML = trips.map(t=>{
+  select.innerHTML = '<option value="">选择一段旅行</option>'+trips.map(t=>{
     const date = (t.start || t.date || '未写日期') + (t.end ? ' → '+t.end : '');
     return '<option value="'+escapeTravel(t._key)+'">'+escapeTravel((t.place || '未命名地点')+' · '+date)+'</option>';
   }).join('');
-  if(current && trips.some(t=>t._key === current)) select.value = current;
+  select.value = current && trips.some(t=>t._key === current) ? current : '';
   loadTripReflection();
 }
 function loadTripReflection(){
@@ -222,6 +222,12 @@ function loadTripReflection(){
   const textarea = document.getElementById('reflection-text');
   const ai = document.getElementById('reflection-ai');
   if(!select || !textarea || !ai) return;
+  if(!select.value){
+    textarea.value = '';
+    ai.dataset.summary = '';
+    ai.textContent = '先选择一段旅行，再写下或说出一点感悟。';
+    return;
+  }
   const data = getReflections()[select.value];
   textarea.value = '';
   ai.dataset.summary = data&&data.summary ? data.summary : '';
@@ -237,10 +243,12 @@ let reflectionVoice=null;
 function clearReflectionDraft(){
   clearTimeout(reflectionTimer);
   if(reflectionVoice?.isActive())reflectionVoice.stop();
+  const select=document.getElementById('reflection-trip');
   const textarea=document.getElementById('reflection-text');
   const ai=document.getElementById('reflection-ai');
+  if(select)select.value='';
   if(textarea)textarea.value='';
-  if(ai){ai.dataset.summary='';ai.textContent='内容已清空，可以重新写一段感悟。';}
+  if(ai){ai.dataset.summary='';ai.textContent='先选择一段旅行，再写下或说出一点感悟。';}
   textarea?.focus();
 }
 function setReflectionVoiceState(state,message){

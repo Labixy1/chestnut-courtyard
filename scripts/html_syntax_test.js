@@ -13,4 +13,7 @@ for (const file of files) {
     count += 1;
   });
 }
+const travel = fs.readFileSync('pages/travel.html', 'utf8');
+if (!travel.includes('<option value="">选择一段旅行</option>')) throw new Error('travel reflection must start without a selected trip');
+if (!travel.includes("if(select)select.value='';")) throw new Error('travel reflection clear action must reset the selected trip');
 console.log(`html syntax test ok: ${files.length} pages; ${count} inline scripts`);
