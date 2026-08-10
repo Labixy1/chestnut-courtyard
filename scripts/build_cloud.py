@@ -51,11 +51,15 @@ def optimize_assets(destination):
             continue
         target = 640 if path.name == "butler_dog.png" else 1920
         webp = path.with_suffix(".webp")
+        old = path.relative_to(destination).as_posix()
+        new = webp.relative_to(destination).as_posix()
+        if webp.exists():
+            replacements[old] = new
+            path.unlink()
+            continue
         with Image.open(path) as image:
             image.thumbnail((target, target), Image.Resampling.LANCZOS)
             image.save(webp, "WEBP", quality=78, method=6)
-        old = path.relative_to(destination).as_posix()
-        new = webp.relative_to(destination).as_posix()
         replacements[old] = new
         path.unlink()
     return replacements

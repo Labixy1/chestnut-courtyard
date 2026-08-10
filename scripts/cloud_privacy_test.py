@@ -27,7 +27,8 @@ def main() -> None:
     assert '"allowWrites": true' in runtime_config
     assert (DIST / "core/mobile.js").is_file()
     assert "core/mobile.js" in (DIST / "index.html").read_text(encoding="utf-8")
-    assert "panorama_mobile.webp" in (DIST / "sw.js").read_text(encoding="utf-8")
+    assert "panorama_mobile.webp" in (DIST / "index.html").read_text(encoding="utf-8")
+    assert (DIST / "assets/estate/panorama_mobile.webp").is_file()
     forbidden = [
         DIST / "core/local_state.json", DIST / "core/memory", DIST / "core/tasks.json",
         DIST / "core/audit_log.json", DIST / "assets/photos/uploads",
@@ -40,7 +41,7 @@ def main() -> None:
         "butler_state.json", "weather_cache.json", "user_profile.yaml",
     }
     assert not any(path.name in private_names for path in (DIST / "core").iterdir())
-    print("cloud privacy test ok: preview mode; read-only; memories; sealed rooms; photos; trips; runtime state excluded")
+    print("cloud privacy test ok: isolated preview; memories; sealed rooms; photos; trips; runtime state excluded")
 
 
 if __name__ == "__main__":

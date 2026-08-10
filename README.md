@@ -2,6 +2,8 @@
 
 一个只服务主人的本地优先个人系统。页面保持纯静态，本地 Python 服务让阿栗能够真正解析网页、调用 AI、写入记忆、生成周报和执行系统任务。
 
+完整的产品、使用、架构、同步、AI 调用和测试运维说明见 [docs/README.md](docs/README.md)。
+
 ## 分发模式
 
 同一套代码支持五种运行模式：`dev` 用于本机调试，`owner` 是主人的私人云端实例，`selfhost` 是下载者自己的实例，`interview` 是限时体验空间，`preview` 是公开只读预览。模式由 `core/runtime-config.js` 注入，页面统一通过 `core/runtime.js` 选择数据来源和写入能力。
@@ -43,7 +45,7 @@ Seedream 与 Seedance 共用 `ARK_API_KEY`；Nano Banana 使用单独的 `GEMINI
 
 ## 小院房间
 
-- 公告板：每周一、周三、周六 08:00 自动巡逻国内外 AI 与产品资讯，生成新的资讯巡报；保留原摘要、AI 精炼、原文、待读和栗夹归档，往期巡报默认收起、可完整展开。
+- 公告板：每周一、周三、周五 08:00 自动巡逻国内外 AI 与产品资讯，生成新的资讯巡报；保留原摘要、AI 精炼、原文、待读和栗夹归档，往期巡报默认收起、可完整展开。
 - 黑板：每日一道产品问答题，可结合近期资讯、果园线索、历史答案和出题方向留言；提交后由 AI 返回逐点诊断、润色答案、标准要点、修改建议和下一题。
 - 工具箱：按使用场景分类，阿栗可新增、更新、移动或删除工具；Skills 专区展示已接入能力与权限，并可把推荐能力交给掌院阿栗创建为实例私有 Skill。
 - 智慧果园：围绕成长、方向和困惑交流，再沉淀为成长种子和收成。
@@ -96,6 +98,14 @@ python3 scripts/service_smoke_test.py
 `python3 scripts/build_cloud.py --mode preview` 生成公开只读的 `dist/`；`--mode owner` 生成主人专用的 `dist-owner/`。主人版由同源 Worker 提供口令登录、KV 私人状态、阿栗对话、网页解析和非封存记忆档案，口令与模型密钥只存 Cloudflare Secret。公开构建和主人构建都只携带空白种子，树洞、密阁、运行日志和 API Key 不进入 GitHub。R2 尚未在当前 Cloudflare 账户启用，因此云端照片上传与生成媒体持久化暂时关闭；本地完整版本不受影响。
 
 当前发布地址：主人版 `https://dcxin.neuralnode.top`；公开只读演示版 `https://demo.neuralnode.top`。公开分享只使用演示域名，不使用带 Cloudflare 账户子域名的默认地址。
+
+查看云端状态与备份时，优先使用 HTTPS；若公司网络拦截 Python TLS，可安全地改用 Wrangler 传输：
+
+```bash
+python3 scripts/cloud_sync.py status --transport wrangler
+python3 scripts/cloud_sync.py backup --transport wrangler
+python3 scripts/cloud_sync.py pull --transport wrangler
+```
 
 ## 数据位置
 

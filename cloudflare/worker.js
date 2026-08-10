@@ -175,7 +175,7 @@ async function hmac(secret, value) {
 }
 
 const loginPage = (message = "") => new Response(`<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>回到栗壳小院</title><style>
-*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f2e9dc;color:#49392d;font-family:"PingFang SC","Microsoft YaHei",sans-serif}.login{width:min(360px,calc(100vw - 32px));padding:28px;background:rgba(255,252,246,.96);border:1px solid rgba(91,65,42,.14);border-radius:16px;box-shadow:0 22px 65px rgba(77,54,35,.18)}.mark{width:64px;height:64px;margin:0 auto 16px;border-radius:50%;background:#ead8be url('/assets/estate/butler_dog.png') center/cover no-repeat}h1{font-size:21px;text-align:center;margin:0 0 6px}p{font-size:12px;line-height:1.7;text-align:center;color:#8b7563;margin:0 0 18px}.password-wrap{position:relative}input{width:100%;height:44px;border:1px solid rgba(91,65,42,.22);border-radius:10px;background:#fff;padding:0 46px 0 12px;font:14px inherit;outline:none}input:focus{border-color:#9a7655;box-shadow:0 0 0 3px rgba(154,118,85,.12)}.toggle-pass{position:absolute;right:3px;top:3px;width:38px;height:38px;display:grid;place-items:center;border:0;background:transparent;color:#876f5c;cursor:pointer;border-radius:8px}.toggle-pass:hover{background:#f5eee5}.toggle-pass:focus-visible{outline:2px solid #9a7655;outline-offset:0}.toggle-pass svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.eye-off{display:none}.toggle-pass.is-visible .eye-on{display:none}.toggle-pass.is-visible .eye-off{display:block}#submit{width:100%;height:42px;margin-top:10px;border:0;border-radius:10px;background:#765c45;color:#fff;font:14px inherit;cursor:pointer}#submit:disabled{opacity:.5}.error{display:block;width:100%;min-height:18px;margin-top:10px;color:#a04e43;font-size:11px;line-height:1.5;text-align:center;white-space:normal;word-break:normal;overflow-wrap:break-word}</style></head><body><main class="login"><div class="mark"></div><h1>栗壳小院</h1><p>这是主人的私人入口。阿栗会守住这里的数据。</p><form id="form"><div class="password-wrap"><input id="passcode" type="password" autocomplete="current-password" placeholder="输入小院口令" aria-label="小院口令" required><button class="toggle-pass" id="toggle-pass" type="button" aria-label="显示口令" title="显示口令"><svg class="eye-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.1 12s3.6-7 9.9-7 9.9 7 9.9 7-3.6 7-9.9 7-9.9-7-9.9-7Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 10.7a2 2 0 0 0 2.7 2.7M9.9 5.1A9 9 0 0 1 12 5c6.3 0 9.9 7 9.9 7a15 15 0 0 1-2.1 3M6.6 6.6C3.7 8.5 2.1 12 2.1 12s3.6 7 9.9 7a9 9 0 0 0 4.1-.9"/></svg></button></div><button id="submit">回小院</button><div class="error" id="error">${String(message).replace(/[<>&]/g, "")}</div></form></main><script>const passcode=document.getElementById('passcode'),toggle=document.getElementById('toggle-pass');toggle.addEventListener('click',()=>{const visible=passcode.type==='text';passcode.type=visible?'password':'text';toggle.classList.toggle('is-visible',!visible);toggle.setAttribute('aria-label',visible?'显示口令':'隐藏口令');toggle.title=visible?'显示口令':'隐藏口令';passcode.focus();});document.getElementById('form').addEventListener('submit',async event=>{event.preventDefault();const button=document.getElementById('submit'),error=document.getElementById('error');button.disabled=true;error.textContent='阿栗正在确认…';try{const response=await fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({passcode:passcode.value})});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'口令不正确');location.replace('/');}catch(reason){error.textContent=reason.message;button.disabled=false;}});</script></body></html>`, {status: 401, headers: {"content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "referrer-policy": "no-referrer"}});
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#f2e9dc;color:#49392d;font-family:"PingFang SC","Microsoft YaHei",sans-serif}.login{width:min(360px,calc(100vw - 32px));padding:28px;background:rgba(255,252,246,.96);border:1px solid rgba(91,65,42,.14);border-radius:16px;box-shadow:0 22px 65px rgba(77,54,35,.18)}.mark{width:72px;height:72px;margin:0 auto 16px;border:3px solid #fff;border-radius:50%;background:#ead8be url('/assets/app/icon-192.png') center/cover no-repeat;box-shadow:0 5px 16px rgba(82,60,39,.16)}h1{font-size:21px;text-align:center;margin:0 0 6px}p{font-size:12px;line-height:1.7;text-align:center;color:#8b7563;margin:0 0 18px}.password-wrap{position:relative}input{width:100%;height:44px;border:1px solid rgba(91,65,42,.22);border-radius:10px;background:#fff;padding:0 46px 0 12px;font:14px inherit;outline:none}input:focus{border-color:#9a7655;box-shadow:0 0 0 3px rgba(154,118,85,.12)}.toggle-pass{position:absolute;right:3px;top:3px;width:38px;height:38px;display:grid;place-items:center;border:0;background:transparent;color:#876f5c;cursor:pointer;border-radius:8px}.toggle-pass:hover{background:#f5eee5}.toggle-pass:focus-visible{outline:2px solid #9a7655;outline-offset:0}.toggle-pass svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}.eye-off{display:none}.toggle-pass.is-visible .eye-on{display:none}.toggle-pass.is-visible .eye-off{display:block}#submit{width:100%;height:42px;margin-top:10px;border:0;border-radius:10px;background:#765c45;color:#fff;font:14px inherit;cursor:pointer}#submit:disabled{opacity:.5}.error{display:block;width:100%;min-height:18px;margin-top:10px;color:#a04e43;font-size:11px;line-height:1.5;text-align:center;white-space:normal;word-break:normal;overflow-wrap:break-word}</style></head><body><main class="login"><div class="mark" role="img" aria-label="阿栗"></div><h1>栗壳小院</h1><p>这是主人的私人入口。阿栗会守住这里的数据。</p><form id="form"><div class="password-wrap"><input id="passcode" type="password" autocomplete="current-password" placeholder="输入小院口令" aria-label="小院口令" required><button class="toggle-pass" id="toggle-pass" type="button" aria-label="显示口令" title="显示口令"><svg class="eye-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.1 12s3.6-7 9.9-7 9.9 7 9.9 7-3.6 7-9.9 7-9.9-7-9.9-7Z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 3 18 18M10.6 10.7a2 2 0 0 0 2.7 2.7M9.9 5.1A9 9 0 0 1 12 5c6.3 0 9.9 7 9.9 7a15 15 0 0 1-2.1 3M6.6 6.6C3.7 8.5 2.1 12 2.1 12s3.6 7 9.9 7a9 9 0 0 0 4.1-.9"/></svg></button></div><button id="submit">回小院</button><div class="error" id="error">${String(message).replace(/[<>&]/g, "")}</div></form></main><script>const passcode=document.getElementById('passcode'),toggle=document.getElementById('toggle-pass');toggle.addEventListener('click',()=>{const visible=passcode.type==='text';passcode.type=visible?'password':'text';toggle.classList.toggle('is-visible',!visible);toggle.setAttribute('aria-label',visible?'显示口令':'隐藏口令');toggle.title=visible?'显示口令':'隐藏口令';passcode.focus();});document.getElementById('form').addEventListener('submit',async event=>{event.preventDefault();const button=document.getElementById('submit'),error=document.getElementById('error');button.disabled=true;error.textContent='阿栗正在确认…';try{const response=await fetch('/api/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({passcode:passcode.value})});const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.error||'口令不正确');location.replace('/');}catch(reason){error.textContent=reason.message;button.disabled=false;}});</script></body></html>`, {status: 401, headers: {"content-type": "text/html; charset=utf-8", "cache-control": "no-store", "x-frame-options": "DENY", "referrer-policy": "no-referrer"}});
 
 async function login(request, env) {
   if (!env.OWNER_PASSCODE || !env.SESSION_SECRET) return json({ok: false, error: "主人登录密钥尚未配置"}, 503);
@@ -275,6 +275,29 @@ function extractJson(text) {
   }
 }
 
+function orchardAnswerAligned(message, parsed) {
+  const reply = String(parsed?.reply || "").trim();
+  const focus = String(parsed?.answer_focus || "").trim();
+  if (reply.length < 12 || focus.length < 4) return false;
+  const ignored = new Set(["what", "why", "how", "which", "help", "about"]);
+  const anchors = [...new Set((String(message).match(/[A-Za-z][A-Za-z0-9._-]{2,}/g) || []).map(value => value.toLowerCase()).filter(value => !ignored.has(value)))];
+  const answer = `${focus}\n${reply}`.toLowerCase();
+  return anchors.every(anchor => answer.includes(anchor));
+}
+
+function blackboardGradeNeedsRetry(message, context, parsed) {
+  const scores = Array.isArray(parsed?.score_breakdown) ? parsed.score_breakdown : [];
+  if (scores.length < 4) return true;
+  const answer = String(message || "").replace(/\s+/g, "");
+  const emptyAnswer = answer.length < 12 && /^(不会|好难|不知道|不懂|不会做|答不出|没思路|太难了|不会好难)+$/.test(answer.replace(/[，。！？,.!?~～…]/g, ""));
+  if (emptyAnswer) return false;
+  const awarded = scores.reduce((sum, item) => sum + Math.max(0, Number(item?.awarded) || 0), 0);
+  const reasons = `${parsed?.score_summary || ""} ${(parsed?.diagnosis || []).join(" ")} ${scores.map(item => item?.reason || "").join(" ")}`;
+  const generalScenario = /假设|如何设计|你会如何|方案|机制|流程/.test(String(context?.question || ""));
+  const wronglyRequiresProduct = /没有提供.{0,6}产品信息|缺乏.{0,6}产品信息|产品信息不足|无法评估/.test(reasons);
+  return awarded === 0 && (generalScenario || wronglyRequiresProduct);
+}
+
 function dateInShanghai(offsetDays = 0) {
   return new Date(Date.now() + offsetDays * 86400000).toLocaleDateString("en-CA", {timeZone: "Asia/Shanghai"});
 }
@@ -336,7 +359,9 @@ async function runCloudReport(env, force = false) {
   const butlerState = await readData(env, "butler_state");
   const watchTopics = (butlerState.watch_topics || []).map(item => String(item.text || item.title || "").trim()).filter(Boolean).slice(0, 8);
   const latest = (reportsData.reports || [])[0];
-  if (!force && latest?.generated_at && Date.now() - Date.parse(latest.generated_at) < 46 * 60 * 60 * 1000) return latest;
+  if (!force && latest?.generated_at && Date.now() - Date.parse(latest.generated_at) < 46 * 60 * 60 * 1000) {
+    return {...latest, unchanged: true, report_count: (reportsData.reports || []).length};
+  }
   const queries = [
     '(OpenAI OR Anthropic OR Google Gemini OR Claude) AI when:3d',
     '(DeepSeek OR Kimi OR 通义千问 OR 豆包 OR Seedance OR Seedream) when:3d',
@@ -344,6 +369,11 @@ async function runCloudReport(env, force = false) {
     ...watchTopics.map(topic => `${topic.replace(/[()"']/g, " ").slice(0, 80)} when:7d`)
   ];
   const settled = await Promise.allSettled(queries.map(fetchNewsRss));
+  const fulfilled = settled.filter(item => item.status === "fulfilled");
+  if (!fulfilled.length) {
+    const reasons = settled.map(item => item.status === "rejected" ? String(item.reason?.message || item.reason || "连接失败") : "").filter(Boolean);
+    throw new Error(`资讯源全部连接失败：${[...new Set(reasons)].join("；").slice(0, 260)}`);
+  }
   const articleKeys = item => {
     const keys = new Set();
     const title = String(item?.title || "").toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g, "");
@@ -358,8 +388,13 @@ async function runCloudReport(env, force = false) {
   };
   const previousKeys = new Set();
   (reportsData.reports || []).forEach(report => [...(report.hot_items || []), ...(report.sections || []).flatMap(section => section.items || [])].forEach(item => articleKeys(item).forEach(key => previousKeys.add(key))));
-  const pool = settled.flatMap(item => item.status === "fulfilled" ? item.value : []).filter(item => ![...articleKeys(item)].some(key => previousKeys.has(key))).slice(0, 45);
-  if (!pool.length) throw new Error("近期资讯源没有返回可整理内容");
+  const pool = fulfilled.flatMap(item => item.value).filter(item => ![...articleKeys(item)].some(key => previousKeys.has(key))).slice(0, 45);
+  if (!pool.length) {
+    const reportCount=(reportsData.reports || []).length;
+    const message=`已检查，暂无新资讯；保留 ${reportCount} 版巡报`;
+    await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "completed", last_success: now(), unchanged: true, message}}});
+    return {...(latest || {focus_title: "暂无新资讯"}), unchanged: true, report_count: reportCount};
+  }
   const prompt = `你是阿栗，负责为 AI 产品经理整理一次“资讯巡报”。从候选中只挑真正重要、具体、多样的 7 到 11 条，不要为了凑数收录普通软文。
 只返回 JSON：{"focus_title":"本期最重要变化","hot_items":[{"source_id":"候选id","category":"模型与技术","original_summary":"基于标题与已有摘要的忠实短摘要","ai_summary":"120到200字，说明具体变化、关键数字或能力、值得关注的结论"}],"sections":[{"name":"国内外动态","items":[同结构]},{"name":"产品相关动态","items":[同结构]},{"name":"主人关注","items":[同结构]}],"insights":["跨文章案例总结"],"advice":["给正在做AI产品的主人一个有深度且可执行的建议"]}。
 热点速览只放行业级重要发布；国内外动态兼顾 OpenAI、Anthropic、Google 与国内 DeepSeek、Kimi、通义、豆包；产品相关动态只放评测、记忆、Agent、原型、工作流等真正能提升产品能力的案例。分类只用模型与技术、产品与实践、行业动态、学术研究。不得编造候选中没有的价格、指标和事实。
@@ -594,6 +629,51 @@ async function parseUrl(env, value, instruction = "") {
   };
 }
 
+async function importToolCard(env, value, instruction = "", source = {}) {
+  let page;
+  try { page = await parseUrl(env, value, instruction); }
+  catch (error) {
+    if (!source?.title || (!source?.summary && !source?.ai_summary)) throw error;
+    const url = safeExternalUrl(value);
+    page = {
+      title: String(source.title).slice(0, 240), url: url.toString(), source_url: url.toString(),
+      media: String(source.media || url.hostname).slice(0, 120), category: String(source.category || ""),
+      summary: String(source.summary || "").slice(0, 1200), ai_summary: String(source.ai_summary || "").slice(0, 1600)
+    };
+  }
+  const categories = new Set(["写代码", "学术", "图像与视频", "产品与原型", "办公与中文", "本地与协议", "模型与技术", "其他"]);
+  let parsed = {};
+  if (textProvider(env)) {
+    const result = await callText(env, `你是工具箱整理员。判断资讯中是否出现了可以直接使用的产品、模型、API、软件或开源项目，并整理成一张工具卡。不要把文章标题当工具名。只返回 JSON：{"is_tool":true,"title":"真实工具名","category":"写代码/学术/图像与视频/产品与原型/办公与中文/本地与协议/模型与技术/其他","purpose":"一句用途","key_capabilities":["3到6项"],"use_cases":["2到4项"],"example":"一个具体使用例子","official_url":"明确知道时填写，否则留空"}。如果文章没有可直接使用的工具，返回 {"is_tool":false,"reason":"原因"}。不得编造能力。\n用户要求：${String(instruction).slice(0, 500)}\n标题：${page.title}\n原摘要：${page.summary || ""}\nAI摘要：${page.ai_summary || ""}\n来源：${page.url}`, 1200);
+    parsed = extractJson(result.text);
+    if (parsed.is_tool === false) throw new Error(String(parsed.reason || "这篇资讯里没有识别到可直接使用的工具"));
+  }
+  let officialUrl = "";
+  try { if (parsed.official_url) officialUrl = safeExternalUrl(parsed.official_url).toString(); }
+  catch (_error) {}
+  const title = String(parsed.title || page.title || "").trim().slice(0, 120);
+  if (!title) throw new Error("没有识别到明确的工具名称");
+  const toolText = `${title} ${parsed.purpose || ""} ${(parsed.key_capabilities || []).join(" ")}`;
+  let category = categories.has(String(parsed.category || "")) ? String(parsed.category) : "其他";
+  if (category === "其他") {
+    if (/图像|图片|视频|生图|video|image/i.test(toolText)) category = "图像与视频";
+    else if (/代码|编程|开发|code/i.test(toolText)) category = "写代码";
+    else if (/论文|科研|学术|research|paper/i.test(toolText)) category = "学术";
+    else if (/原型|产品|工作流|agent/i.test(toolText)) category = "产品与原型";
+    else if (/文档|表格|办公|office/i.test(toolText)) category = "办公与中文";
+    else if (/本地|协议|mcp/i.test(toolText)) category = "本地与协议";
+  }
+  return {
+    id: `tool_${crypto.randomUUID().slice(0, 10)}`, type: "toolbox", title,
+    category,
+    purpose: String(parsed.purpose || page.ai_summary || page.summary || "").slice(0, 1000),
+    key_capabilities: (Array.isArray(parsed.key_capabilities) ? parsed.key_capabilities : []).filter(Boolean).slice(0, 6).map(String),
+    use_cases: (Array.isArray(parsed.use_cases) ? parsed.use_cases : []).filter(Boolean).slice(0, 4).map(String),
+    example: String(parsed.example || "").slice(0, 800), url: officialUrl || page.url,
+    source_url: page.url, media: page.media || "", added_at: now(), source: "notice_import"
+  };
+}
+
 async function refreshToolPriceCloud(env, rawTool) {
   const tool = rawTool && typeof rawTool === "object" ? rawTool : {};
   const title = String(tool.title || "").trim();
@@ -706,7 +786,15 @@ async function assistantReply(env, message, clientContext = {}) {
 async function roomReply(env, room, message, context) {
   const roomPrompts = {
     heart_hollow: "这里是树洞。若 mode 是 oracle，请在主人完整倾诉后给一句像塔罗牌但不故弄玄虚的回应；若 mode 是 dialogue，就自然来回对话。不要强行围绕树，不急着安慰。",
-    orchard: "这里是成长田。先直接解答困惑，再提炼可以继续生长的知识专题与下一步行动；不要把一切解释成情绪。",
+    orchard: `这里是成长田的“问问阿栗”，这是一个认真解惑和学习的多轮对话，不是树洞、签语或成长鸡汤。
+回答规则：
+1. 当前“主人”消息是唯一主任务，必须准确回答它所问的对象和问题，不能擅自换题。
+2. context.conversation 仅用于理解“它、这个、上面那个”等追问指代；若当前问题已经完整明确，以当前问题为准。旧对话不得盖过当前问题。
+3. context.knowledge_topics 仅用于回答完成后决定归入哪个专题，不能用旧专题内容替代答案。相关非封存记忆也只能提供稳定偏好，和问题无关时必须忽略。
+4. 先给明确结论，再用2到4个清晰要点解释原因、差异、步骤或适用场景；必要时给一个具体例子。不得只复述问题，不得只提问，不得泛泛安慰。
+5. 用户问事实、产品或技术时，回答具体机制和边界；不确定、可能过时或未经联网核验的信息必须明确标注，不能编造。
+6. 只有确实缺少关键条件、无法合理作答时，才在已经给出当前可答部分后追问最多一个问题。
+7. 禁止田野隐喻、诗意散文、玄学签语和强制安排“几天内实验”。下一步没有实际帮助时留空。`,
     travel: "这里是旅行记录。帮助主人提炼具体旅行感悟，保留地点、事件和变化，不写旅游宣传语。",
     blackboard: "这里是产品黑板。围绕题目逐点评改，区分主人答案、标准答案和具体改进建议。"
   };
@@ -714,17 +802,29 @@ async function roomReply(env, room, message, context) {
   const formats = {
     blackboard: String(context?.intent || "grade_answer") === "question_helper"
       ? '只返回 JSON：{"reply":"80到180字、直接关联当前题目和用户追问的背景解释","material":"用户问：问题；阿栗补充：可独立阅读的答案摘要"}。可使用模型通用知识补足背景；最新归属、版本、价格和指标未联网核验时必须明确标注。不得泄露标准答案或代写方案。'
-      : '只返回 JSON：{"score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"方案完整","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"验证与指标","max":25,"awarded":0到25,"reason":"引用原答案证据"},{"criterion":"风险与回滚","max":25,"awarded":0到25,"reason":"引用原答案证据"}],"score_summary":"一句总评，不写总分","diagnosis":["逐点诊断"],"polished_answer":"按判断、拆解、验证、边界、例子五段输出的完整回答","standard_points":["4到7条参考答案要点"],"suggestions":["具体建议"],"thinking_directions":["思考方向"],"next_question":"下一步练习"}。没有在原答案明确出现的内容不得给分；“不会、好难、不知道”等只有困惑没有答案的内容四项必须全部为0。polished_answer 严格使用“判断：”“拆解：1...2...3...”“验证：”“边界：”“例子：”并换行。',
-    orchard: '只返回 JSON：{"reply":"直接而有余味的解答","seed_summary":"成长主题","key_insight":"可复用判断","next_step":"3天内的小实验","knowledge_topic":{"match_id":"","title":"可持续更新的专题名","category":"成长与方向","entities":[],"summary":"专题最新摘要","knowledge_points":[]}}',
+      : '只返回 JSON：{"score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25的整数,"reason":"先引用原答案中的具体证据，再说明覆盖和缺失"},{"criterion":"方案完整","max":25,"awarded":0到25的整数,"reason":"先引用原答案中的具体证据，再说明覆盖和缺失"},{"criterion":"验证与指标","max":25,"awarded":0到25的整数,"reason":"先引用原答案中的具体证据，再说明覆盖和缺失"},{"criterion":"风险与回滚","max":25,"awarded":0到25的整数,"reason":"先引用原答案中的具体证据，再说明覆盖和缺失"}],"score_summary":"一句总评，不写总分","diagnosis":["逐点写已覆盖与遗漏"],"polished_answer":"按判断、拆解、验证、边界、例子五段输出的完整回答","standard_points":["4到7条互不重复、直接回答题目的参考要点"],"suggestions":["具体修改建议"],"thinking_directions":["思考方向"],"next_question":"下一步练习"}。评分对象是主人提交的答案，不是题目背景资料。必须根据原答案实际写出的观点给予部分分，不能因为答案简短就全部0分。题目若是“假设你负责某类产品”或要求设计通用机制，不得要求主人补充具体产品名称、公司资料或未在题目中给出的信息。只有“不会、好难、不知道”等没有任何观点的答案才四项全部0分；非空但答偏的答案也要引用其内容解释为什么低分。standard_points 必须去重，并覆盖题目要求的机制、执行、验证和风险闭环。polished_answer 严格使用“判断：”“拆解：1...2...3...”“验证：”“边界：”“例子：”并换行。',
+    orchard: '只返回合法 JSON，不要 Markdown 代码围栏：{"reply":"直接回答当前问题的完整中文回复，通常180到500字；结论优先，分段或编号清楚，问题简单时可以更短","answer_focus":"20到50字概括本轮实际回答的问题，用于检查是否答偏","seed_summary":"本轮关注点的简短概括","key_insight":"一句可独立复习的核心判断","next_step":"一个确实有帮助的后续验证或学习动作，没有必要则留空","knowledge_topic":{"match_id":"能归入 context.knowledge_topics 中现有专题时必须填写其id，否则留空","title":"稳定且可扩展的专题名，不要把一次问题或单个产品机械建成一类","category":"优先复用现有分类，确实不同才新建","entities":["本轮实际涉及的产品、组织或概念"],"summary":"融合本轮正确答案与已有专题后的可复习摘要","knowledge_points":["3到7条具体事实、差异、方法或判断"],"comparison_rows":[{"item":"比较对象","traits":"主要特点","scenarios":"适用场景","considerations":"限制或注意点"}],"scenarios":["实际应用场景"],"conclusion":"专题当前结论"}}。reply 必须独立完整，即使后面的专题整理字段全部删掉也能直接解决用户问题。',
     heart_hollow: String(context?.mode || "oracle") === "dialogue"
       ? '只返回 JSON：{"reply":"自然的对话回应","mode":"dialogue","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。'
       : '只返回 JSON：{"reply":"18到45字、回应具体内容的一句签语","mode":"oracle","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。',
     travel: '只返回 JSON：{"summary":"120字内旅行感悟摘要","title":"简短名称"}'
   };
   const memory = await memoryContext(env);
-  const result = await callText(env, `${guide}\n${formats[room] || "请直接回应。"}\n不得编造主人没有说过的经历。\n房间：${room}\n主人：${message.slice(0, 8000)}\n上下文：${JSON.stringify(context).slice(0, 7000)}\n相关非封存记忆：${JSON.stringify(memory).slice(0, 5000)}`, 1800);
+  const answerMemory = room === "orchard" ? {note: "成长田回答阶段不注入全局记忆，避免其他模块内容干扰当前问题"} : memory;
+  const roomPrompt = `${guide}\n${formats[room] || "请直接回应。"}\n不得编造主人没有说过的经历。\n房间：${room}\n当前主人问题（最高优先级）：${message.slice(0, 8000)}\n辅助上下文（只用于指代消解和归档）：${JSON.stringify(context).slice(0, 7000)}\n相关非封存记忆（无关内容必须忽略）：${JSON.stringify(answerMemory).slice(0, 5000)}`;
+  let result = await callText(env, roomPrompt, room === "orchard" ? 2600 : 1800);
   let parsed;
   try { parsed = extractJson(result.text); } catch (_error) { parsed = {reply: result.text}; }
+  if (room === "orchard" && !orchardAnswerAligned(message, parsed)) {
+    result = await callText(env, `${roomPrompt}\n\n上一版输出没有准确对齐当前问题，禁止沿用其中无关内容。请重新阅读“当前主人问题”，确保 answer_focus 准确概括该问题，reply 明确提到问题中的产品、组织或概念并直接作答。上一版输出：${String(result.text).slice(0, 5000)}`, 2600);
+    parsed = extractJson(result.text);
+    if (!orchardAnswerAligned(message, parsed)) throw new Error("阿栗两次回答都没有对准当前问题，请换一种问法后重试");
+  }
+  if (room === "blackboard" && String(context?.intent || "grade_answer") === "grade_answer" && blackboardGradeNeedsRetry(message, context, parsed)) {
+    result = await callText(env, `${roomPrompt}\n\n上一版评分错误地把题目背景不足当成主人没有作答，或对非空答案无证据地给了0分。请重新评分：逐项引用主人原答案中的具体词句，承认已覆盖内容，再扣除缺失项。通用假设题不得索要具体产品信息。上一版输出：${String(result.text).slice(0, 5000)}`, 2200);
+    parsed = extractJson(result.text);
+    if (blackboardGradeNeedsRetry(message, context, parsed)) throw new Error("评分结果仍缺少对原答案的有效依据，请稍后重新核分");
+  }
   const reply = String(parsed.reply || parsed.summary || result.text);
   await addMemoryEvents(env, {
     source: room, type: "room_conversation", content: message, summary: reply.slice(0, 300),
@@ -862,7 +962,7 @@ async function distillMemory(env) {
 export async function handleRequest(request, env, ctx = {}) {
   const url = new URL(request.url);
   if (request.method === "OPTIONS") return new Response(null, {status: 204});
-  if (request.method === "GET" && url.pathname === "/assets/estate/butler_dog.png" && env.ASSETS) return env.ASSETS.fetch(request);
+  if (request.method === "GET" && url.pathname === "/assets/app/icon-192.png" && env.ASSETS) return env.ASSETS.fetch(request);
   if (request.method === "POST" && url.pathname === "/api/auth/login") return login(request, env);
   const identity = await verifyAccess(request, env);
   if (!identity.allowed) {
@@ -963,7 +1063,7 @@ export async function handleRequest(request, env, ctx = {}) {
     if (DEMO_AI_PATHS.has(url.pathname)) await requireDemoAi(env);
     if (url.pathname === "/api/data") return json({ok: true, value: await writeData(env, String(input.key || ""), input.value)});
     if (url.pathname === "/api/events") return json({ok: true, items: await logEvents(env, input)});
-    if (url.pathname === "/api/local-state") return json({ok: true, state: await mergeLocalState(env, input.values || input)});
+    if (url.pathname === "/api/local-state") return json({ok: true, state: await mergeLocalState(env, input)});
     if (url.pathname === "/api/state/sync") return json({ok: true, state: await syncButlerState(env, input.state || input)});
     if (url.pathname === "/api/permissions") return json({ok: true, permissions: await setStewardMode(env, Boolean(input.steward_mode))});
     if (url.pathname === "/api/memory/event") return json({ok: true, item: (await addMemoryEvents(env, input.event || input))[0]});
@@ -992,8 +1092,7 @@ export async function handleRequest(request, env, ctx = {}) {
       return json({ok: true, item, state, provider: textProvider(env) || "extractor"});
     }
     if (url.pathname === "/api/toolbox/import") {
-      const item = await parseUrl(env, String(input.url || ""), String(input.instruction || ""));
-      const tool = {...item, id: `tool_${crypto.randomUUID().slice(0, 10)}`, type: "toolbox", purpose: item.ai_summary || item.summary, key_capabilities: [], usage_example: "从原文案例开始试用"};
+      const tool = await importToolCard(env, String(input.url || ""), String(input.instruction || ""), input.source || {});
       const state = await appendButlerItem(env, "toolbox", tool);
       return json({ok: true, summary: `已加入工具箱：${tool.title}`, item: tool, state});
     }
@@ -1034,7 +1133,9 @@ export async function scheduled(_event, env, ctx) {
     await writeState(env, "automation:status", status);
     try {
       const report = await runCloudReport(env, false);
-      status.jobs.notice_report = {status: "completed", last_success: now(), message: `巡报已准备：${report.focus_title}`};
+      status.jobs.notice_report = report.unchanged
+        ? {status: "completed", last_success: now(), unchanged: true, message: `已检查，暂无新资讯；保留 ${report.report_count || 0} 版巡报`}
+        : {status: "completed", last_success: now(), message: `巡报已准备：${report.focus_title}`};
     } catch (error) {
       status.jobs.notice_report = {status: "failed", last_error: now(), message: String(error.message || error).slice(0, 300)};
     }

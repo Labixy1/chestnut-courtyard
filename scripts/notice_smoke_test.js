@@ -48,6 +48,7 @@ const context = {
   setTimeout,
   clearTimeout,
   Event: function Event(type) { this.type = type; },
+  matchMedia: () => ({matches: false, addEventListener() {}, removeEventListener() {}}),
   location: { protocol: 'file:', hostname: '', port: '' },
   localStorage: {
     getItem(key) { return storage.has(key) ? storage.get(key) : null; },
@@ -124,6 +125,18 @@ const weeksRendered = node('notice-content').innerHTML;
 for (const expected of ['<details', '完整热点', '完整周报正文', '具体总结', '本周重点标题']) {
   if (!weeksRendered.includes(expected)) throw new Error('weekly history missing: ' + expected);
 }
+
+vm.runInContext("CORE={notice_reports:{reports:Array.from({length:5},(_,index)=>({id:'report_'+index,hot_items:[],sections:[]}))}}", context);
+context.updateNoticeCadence();
+if (node('notice-cadence').textContent !== '每周一、周三、周五 08:00 更新 · 往期巡报 5 版') throw new Error('notice cadence count must match weekly archive count');
+vm.runInContext("CORE={notice_reports:{reports:[]}}", context);
+context.updateNoticeCadence();
+if (!node('notice-cadence').textContent.endsWith('往期巡报 0 版')) throw new Error('fallback report must not be counted as an archived edition');
+context.CozyRuntime = {dataSource:'remote'};
+vm.runInContext("CORE={notice_reports:{reports:[]}}", context);
+context.showNoticeView('current');
+if (!node('notice-content').innerHTML.includes('页面不会再显示旧版占位巡报') || node('notice-content').innerHTML.includes('AI Agent 工具链继续')) throw new Error('remote empty state must not render bundled fallback news');
+context.CozyRuntime = {dataSource:'bundle'};
 
 if (!html.includes("'/api/assistant/start'")) throw new Error('notice tasks are not started asynchronously');
 storage.set('cozy_notice_jobs', JSON.stringify([{

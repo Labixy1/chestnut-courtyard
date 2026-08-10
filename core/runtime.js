@@ -23,7 +23,11 @@
       const target=source==='remote'
         ? apiBase+'/api/data?key='+encodeURIComponent(dataKey)
         : path;
-      const response=await fetch(target,{headers:{'accept':'application/json'}});
+      const response=await fetch(target,{
+        cache:source==='remote'?'no-store':'default',
+        credentials:'same-origin',
+        headers:{'accept':'application/json'}
+      });
       if(!response.ok)throw new Error('HTTP '+response.status);
       return await response.json();
     }catch(error){

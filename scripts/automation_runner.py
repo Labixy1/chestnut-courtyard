@@ -14,7 +14,7 @@ from pathlib import Path
 
 
 class AutomationRunner:
-    REPORT_DAYS = (0, 2, 5)  # Monday, Wednesday, Saturday
+    REPORT_DAYS = (0, 2, 4)  # Monday, Wednesday, Friday
     REPORT_HOUR = 8
     def __init__(self, root: Path, memory_store, memory_distiller=None, media_service=None):
         self.root = root
@@ -292,7 +292,7 @@ class AutomationRunner:
     def status(self):
         state = self._read()
         job = state.setdefault("jobs", {}).setdefault("weekly_report", {})
-        job["schedule"] = "每周一、周三、周六 08:00"
+        job["schedule"] = "每周一、周三、周五 08:00"
         job["next_run"] = self.next_weekly_run().isoformat(timespec="minutes")
         if self.memory_distiller:
             distillation = state.setdefault("jobs", {}).setdefault("memory_distillation", {})

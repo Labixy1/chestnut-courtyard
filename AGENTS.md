@@ -27,7 +27,7 @@ cozy-estate/
 ├── pages/
 │   ├── bedroom.html      # 卧室（瓢虫爬行、拉绳灯、布娃娃）
 │   ├── heart_hollow.html # 情绪树洞（日记本左右页 + 月份索引 + 语音口述）
-│   ├── private_wing.html # 私人密室（铜牌墙 + 玻璃匣 + 牛皮日记）
+│   ├── memory_nook.html  # 密阁与记忆档案
 │   └── travel.html       # 旅行页（拍立得 + 出发动画）
 ├── core/
 │   ├── user_profile.yaml # 庄园性格配置（管家读它）

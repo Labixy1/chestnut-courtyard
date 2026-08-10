@@ -361,6 +361,12 @@
   .article-action{border:1px solid rgba(184,112,128,.18);background:rgba(255,255,255,.5);color:#8b5360;
      border-radius:999px;padding:5px 9px;font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
   .article-action:hover{background:#fff;color:#7c4653}.article-action:disabled{opacity:.5;cursor:wait}
+  .notice-note{margin-top:12px;border-top:1px solid rgba(104,65,75,.12);padding-top:10px}
+  .notice-note>summary{width:max-content;max-width:100%;list-style:none;cursor:pointer;color:#657368;font-size:12px;font-weight:650}
+  .notice-note>summary::-webkit-details-marker{display:none}.notice-note>summary:before{content:"＋";display:inline-block;width:16px;color:#7b8d7d}
+  .notice-note[open]>summary:before{content:"−"}.notice-note-editor{margin-top:9px}
+  .notice-note-editor textarea{display:block;width:100%;min-height:82px;resize:vertical;border:1px solid #d8dcd5;border-radius:7px;background:#fff;color:#343833;padding:9px 10px;font:13px/1.65 inherit}
+  .notice-note-actions{display:flex;align-items:center;gap:7px;margin-top:7px;flex-wrap:wrap}.notice-note-actions button{border:0;border-radius:6px;background:#e7eee5;color:#506455;padding:6px 10px;font:11px inherit;cursor:pointer}.notice-note-actions button:hover{background:#dbe8d9}.notice-note-actions .danger{background:transparent;color:#8a6d6d}.notice-note-state{font-size:10px;color:#849087}
   @media(max-width:680px){
     .report-meta{align-items:flex-start;flex-direction:column;gap:9px}
     .report-meta>span{line-height:1.5;overflow-wrap:anywhere}
@@ -470,6 +476,7 @@
   .notice-board-large h2{color:#353a35;letter-spacing:0;margin-bottom:4px}
   .notice-board-large p{color:#626861}
   .notice-board-heading{padding:0 0 16px;border-bottom:1px solid #dedfd8}
+  .notice-cadence{display:block;margin-top:5px;color:#7f8881;font-size:10px;font-weight:500;line-height:1.5}
   .butler-connection{color:#59665c;background:#eef1ec;border-color:#d8ded7;box-shadow:none}
   .notice-refresh{border-color:#d8dbd5;background:#fff;color:#647267}
   .notice-tabs{gap:4px;margin:15px 0 26px;padding:4px;width:max-content;max-width:100%;background:#ecece7;border-radius:9px}
@@ -611,7 +618,7 @@
   .photo-library{position:absolute;inset:0;z-index:2;overflow:auto;padding:68px clamp(22px,5vw,74px) 42px;color:#fffaf2;background:rgba(28,25,25,.2)}
   .photo-library-head{display:flex;align-items:end;justify-content:space-between;gap:18px;margin:0 0 22px}.photo-library-head h2{font-size:24px;margin:0 0 4px}.photo-library-head p{font-size:12px;color:rgba(255,250,242,.72);margin:0}.photo-library-actions{display:flex;gap:8px}.photo-library-actions button,.photo-album-toolbar button{border:1px solid rgba(255,255,255,.22);border-radius:9px;background:rgba(37,31,28,.46);color:#fffaf2;padding:8px 11px;font-family:inherit;font-size:12px;cursor:pointer;backdrop-filter:blur(8px)}
   .photo-library-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.photo-library-tools button,.photo-library-tools select{height:34px;border:1px solid rgba(255,255,255,.22);border-radius:8px;background:rgba(37,31,28,.46);color:#fffaf2;padding:0 10px;font-family:inherit;font-size:11px;cursor:pointer;backdrop-filter:blur(8px)}
-  .photo-album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}.photo-album-tile{position:relative;min-height:230px;border:0;padding:0;background:transparent;color:#fff;text-align:left}.photo-album-cover{position:relative;display:block;width:100%;height:184px;border:0;padding:0;border-radius:7px;overflow:hidden;background:rgba(255,255,255,.12);box-shadow:0 14px 34px rgba(0,0,0,.2);cursor:pointer}.photo-album-cover img{position:static;width:100%;height:100%;object-fit:cover;display:block;transition:transform .2s ease}.photo-album-tile:hover .photo-album-cover img{transform:scale(1.025)}.photo-album-title{display:block;font-size:14px;font-weight:650;margin-top:10px}.photo-album-meta{display:flex;justify-content:space-between;gap:8px;margin-top:4px;color:rgba(255,255,255,.62);font-size:10px}.photo-date-mark{color:#bfe4f5;background:rgba(100,174,210,.13);border-radius:999px;padding:2px 7px}.photo-album-move{position:absolute;right:7px;top:7px;z-index:2;display:flex;gap:4px}.photo-album-move button{width:27px;height:27px;border:0;border-radius:7px;background:rgba(24,22,21,.56);color:#fff;cursor:pointer}.photo-album-add{height:184px;border:1px dashed rgba(255,255,255,.42);border-radius:7px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:38px;font-weight:200;color:rgba(255,255,255,.72)}
+  .photo-album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px}.photo-album-tile{position:relative;min-height:230px;border:0;padding:0;background:transparent;color:#fff;text-align:left}.photo-album-cover{position:relative;display:block;width:100%;height:184px;border:0;padding:0;border-radius:7px;overflow:hidden;background:rgba(246,244,238,.94);box-shadow:0 14px 34px rgba(0,0,0,.2);cursor:pointer}.photo-album-cover img{position:static;width:100%;height:100%;object-fit:contain;display:block}.photo-album-title{display:block;font-size:14px;font-weight:650;margin-top:10px}.photo-album-meta{display:flex;justify-content:space-between;gap:8px;margin-top:4px;color:rgba(255,255,255,.62);font-size:10px}.photo-date-mark{color:#bfe4f5;background:rgba(100,174,210,.13);border-radius:999px;padding:2px 7px}.photo-album-move{position:absolute;right:7px;top:7px;z-index:2;display:flex;gap:4px}.photo-album-move button{width:27px;height:27px;border:0;border-radius:7px;background:rgba(24,22,21,.56);color:#fff;cursor:pointer}.photo-album-add{height:184px;border:1px dashed rgba(255,255,255,.42);border-radius:7px;display:grid;place-items:center;background:rgba(255,255,255,.05);font-size:38px;font-weight:200;color:rgba(255,255,255,.72)}
   .photo-album-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px}.photo-album-toolbar h2{font-size:20px;margin:0 auto 0 0}.photo-album-toolbar .danger{color:#ffd4cd}.photo-detail-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px;align-items:stretch}.photo-detail-item{position:relative;display:grid;grid-template-rows:220px 74px;height:294px;margin:0;min-width:0;overflow:hidden;border-radius:8px;background:rgba(24,22,20,.52);box-shadow:0 10px 26px rgba(0,0,0,.16)}.photo-detail-item img{position:static;width:100%;height:220px;min-width:0;object-fit:contain;border-radius:8px 8px 0 0;display:block;background:rgba(244,240,234,.12)}.photo-detail-item figcaption{position:static;display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-rows:1fr auto;align-items:center;column-gap:8px;row-gap:3px;min-width:0;height:74px;margin:0;padding:8px 9px;background:rgba(28,25,23,.88);font-size:11px;line-height:1.4;color:rgba(255,255,255,.86)}.photo-detail-item figcaption>span:first-child{grid-row:1/3;min-width:0;overflow:hidden;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3}.photo-detail-item .photo-date-mark{grid-column:2;grid-row:1;white-space:nowrap;justify-self:end}.photo-detail-controls{grid-column:2;grid-row:2;margin-left:0;display:flex;justify-content:flex-end;gap:3px}.photo-detail-controls button{width:25px;height:25px;border:0;border-radius:6px;background:rgba(255,255,255,.1);color:#fff;cursor:pointer}.photo-detail-controls button:hover{background:rgba(255,255,255,.2)}.photo-wall-status{font-size:11px;color:#d6edf7;min-height:16px;margin-top:10px}
   @media(max-width:620px){.tool-card{grid-template-rows:none;height:auto}.photo-library{padding:62px 14px 30px}.photo-library-head{align-items:flex-start;flex-direction:column}.photo-album-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.photo-album-cover,.photo-album-add{height:132px}.photo-album-tile{min-height:178px}.photo-detail-grid{grid-template-columns:1fr}.photo-detail-item{grid-template-rows:210px 74px;height:284px}.photo-detail-item img{height:210px}}
   @media(max-width:760px){
@@ -620,17 +627,18 @@
     #estate-bg{height:calc(100% - var(--mobile-nav-h,62px));object-position:center center}
     .stage:after{content:"";position:absolute;inset:0 0 var(--mobile-nav-h,62px);z-index:3;pointer-events:none;background:linear-gradient(180deg,rgba(22,25,20,.23),transparent 23%,transparent 64%,rgba(24,25,21,.28))}
     .stage.has-panorama .spot,.stage.has-panorama #wall{display:none}
-    .stage.has-panorama .spot.noticeboard,.stage.has-panorama .spot.oldtree,.stage.has-panorama .spot.stump,
+    .stage.has-panorama .spot.noticeboard,.stage.has-panorama .spot.oldtree,.stage.has-panorama .spot.orchard,.stage.has-panorama .spot.stump,
     .stage.has-panorama .spot.luggage,.stage.has-panorama .spot.cottage{display:block;z-index:8}
     .stage.has-panorama .spot.noticeboard{left:82%;top:51%;width:22%;height:15%}
-    .stage.has-panorama .spot.oldtree{left:15%;top:39%;width:25%;height:30%}
+    .stage.has-panorama .spot.orchard{left:15%;top:39%;width:25%;height:30%}
+    .stage.has-panorama .spot.oldtree{left:84%;top:45%;width:22%;height:20%}
     .stage.has-panorama .spot.stump{left:13%;top:64%;width:22%;height:15%}
     .stage.has-panorama .spot.luggage{left:50%;top:73%;width:30%;height:15%}
     .stage.has-panorama .spot.cottage{left:50%;top:48%;width:19%;height:23%}
     .stage.has-panorama .spot .tag{top:50%;padding:5px 4px;border:0;border-radius:0;background:transparent;color:#e7f7ff;font-size:11px;box-shadow:none;text-shadow:0 1px 2px rgba(20,32,30,.95),0 0 7px rgba(18,34,35,.72);opacity:1;backdrop-filter:none}
     .stage.has-panorama .spot:hover .tag{background:transparent;color:#f4fbff;text-shadow:0 1px 2px rgba(20,32,30,.98),0 0 9px rgba(166,224,245,.48)}
     .stage.has-panorama .spot .tag:after{display:none}
-    .stage.has-panorama .spot.noticeboard .tag,.stage.has-panorama .spot.oldtree .tag,.stage.has-panorama .spot.stump .tag,
+    .stage.has-panorama .spot.noticeboard .tag,.stage.has-panorama .spot.oldtree .tag,.stage.has-panorama .spot.orchard .tag,.stage.has-panorama .spot.stump .tag,
     .stage.has-panorama .spot.luggage .tag,.stage.has-panorama .spot.cottage .tag{top:50%}
     .stage.has-panorama #butler{left:12px;top:max(12px,env(safe-area-inset-top));z-index:9;max-width:calc(100vw - 112px);padding:6px 9px}
     .stage.has-panorama #butler .butler-name{max-width:150px}.stage.has-panorama #butler .butler-weather{max-width:190px}
@@ -697,13 +705,13 @@
       <span class="tag">黑板</span>
     </button>
 
-    <!-- 左侧果园入口 -->
-    <a class="spot oldtree" data-pan-x="84.5" data-pan-y="51" data-pan-w="11" data-pan-h="23" href="pages/orchard.html">
+    <!-- 左侧树洞入口 -->
+    <a class="spot oldtree" data-pan-x="84.5" data-pan-y="51" data-pan-w="11" data-pan-h="23" href="pages/heart_hollow.html">
       <div class="art">
         <div class="canopy"></div>
         <div class="trunk"><div class="hollow"></div></div>
       </div>
-      <span class="tag">果园</span>
+      <span class="tag">树洞</span>
     </a>
 
     <!-- 树桩 · 工具箱 -->
@@ -725,7 +733,7 @@
         </div>
         <div class="trunk"></div>
       </div>
-      <span class="tag">智慧果园</span>
+      <span class="tag">果园</span>
     </a>
 
     <!-- 行李箱 · 旅行 -->
@@ -768,11 +776,10 @@ async function loadCore(){
                  private_wing:'core/private_wing.json',manifest:'core/manifest.json',
                  notice_reports:'core/notice_reports.json',butler_sources:'core/butler_sources.json',
                  daily_questions:'core/daily_questions.json'};
-  const out = {};
-  for(const [k,path] of Object.entries(files)){
-    out[k] = window.CozyRuntime ? await window.CozyRuntime.loadJson(path,{},k) : (fallback[k] || {});
-  }
-  return out;
+  const entries=await Promise.all(Object.entries(files).map(async ([k,path])=>[
+    k,window.CozyRuntime ? await window.CozyRuntime.loadJson(path,{},k) : (fallback[k] || {})
+  ]));
+  return Object.fromEntries(entries);
 }
 
 let CORE = {};
@@ -844,7 +851,14 @@ function openPhoto(p){
   );
 }
 
-function openToolbox(){
+async function openToolbox(){
+  await CORE_READY;
+  if(window.CozyRuntime?.dataSource==='remote'){
+    try{
+      const data=await cozyApi('/api/state',undefined,6000);
+      applyButlerServerState(data.state,true);
+    }catch(error){ /* 保留本机缓存，仍允许打开工具箱 */ }
+  }
   skillZoneLoaded=false;
   const localItems = JSON.parse(localStorage.getItem('cozy_toolbox_local_items') || '[]');
   const combined = ((CORE.manifest && CORE.manifest.items)||[]).filter(i=>i.type==='toolbox').concat(localItems);
@@ -887,13 +901,14 @@ function toggleToolboxImport(force){
 
 function toolboxCategory(item){
   const raw=String(item.category||'').trim();
-  if(/科研|学术/.test(raw)) return '学术';
-  if(/代码|编程|开发/.test(raw)) return '写代码';
-  if(/图像|视频|设计|生图/.test(raw)) return '图像与视频';
-  if(/原型|产品/.test(raw)) return '产品与原型';
-  if(/办公|中文|文档|表格/.test(raw)) return '办公与中文';
-  if(/本地|协议|MCP/.test(raw)) return '本地与协议';
   const title=String(item.title||'');
+  const text=[raw,title,item.purpose||'',...(item.key_capabilities||[]),...(item.use_cases||[])].join(' ');
+  if(/科研|学术|论文|research|paper/i.test(text)) return '学术';
+  if(/代码|编程|开发|code/i.test(text)) return '写代码';
+  if(/图像|图片|视频|设计|生图|image|video/i.test(text)) return '图像与视频';
+  if(/原型|产品|工作流|agent/i.test(text)) return '产品与原型';
+  if(/办公|中文|文档|表格|office/i.test(text)) return '办公与中文';
+  if(/本地|协议|MCP/i.test(text)) return '本地与协议';
   if(/Cursor|Claude Code|Codex/i.test(title)) return '写代码';
   if(/Science|Research|论文|科研/i.test(title)) return '学术';
   if(/Seedream|Seedance|Image|Midjourney/i.test(title)) return '图像与视频';
@@ -1216,7 +1231,7 @@ function renderBlackboardHistoryAttempt(attempt,question,index,total){
   const review=attempt.review&&typeof attempt.review==='object'?attempt.review:{};
   const standard=(attempt.standard&&attempt.standard.length?attempt.standard:question.standard)||[];
   const scores=Array.isArray(review.scoreBreakdown)?review.scoreBreakdown:[];
-  const scoreGrid=scores.length?'<div class="bb-score-grid">'+scores.map(item=>'<div class="bb-score-item"><b><span>'+escapeNotice(item.criterion||'评分项')+'</span><span>'+escapeNotice(item.awarded||0)+' / '+escapeNotice(item.max||25)+'</span></b><p>'+escapeNotice(item.reason||'该次未记录评分说明。')+'</p></div>').join('')+'</div>':'';
+  const scoreGrid=scores.length?'<div class="bb-score-grid">'+scores.map(item=>'<div class="bb-score-item"><b><span>'+escapeNotice(item.criterion||'评分项')+'</span><span>'+escapeNotice(String(item.awarded??0))+' / '+escapeNotice(String(item.max??25))+'</span></b><p>'+escapeNotice(item.reason||'该次未记录评分说明。')+'</p></div>').join('')+'</div>':'';
   const score=review.score||review.scoreSummary||'';
   const completion=score||scoreGrid?'<article class="bb-review-card"><h4>本次完成度</h4>'+(score?'<p>'+escapeNotice(score)+'</p>':'')+scoreGrid+'</article>':'';
   const diagnosis=blackboardListBlock('答案诊断',review.diagnosis);
@@ -1427,7 +1442,7 @@ async function askBlackboardHelper(){
 }
 
 function renderBlackboardResult(q, answer, review){
-  const scoreGrid=review.scoreBreakdown&&review.scoreBreakdown.length?'<div class="bb-score-grid">'+review.scoreBreakdown.map(item=>'<div class="bb-score-item"><b><span>'+escapeNotice(item.criterion||'评分项')+'</span><span>'+escapeNotice(item.awarded||0)+' / '+escapeNotice(item.max||25)+'</span></b><p>'+escapeNotice(item.reason||'')+'</p></div>').join('')+'</div>':'';
+  const scoreGrid=review.scoreBreakdown&&review.scoreBreakdown.length?'<div class="bb-score-grid">'+review.scoreBreakdown.map(item=>'<div class="bb-score-item"><b><span>'+escapeNotice(item.criterion||'评分项')+'</span><span>'+escapeNotice(String(item.awarded??0))+' / '+escapeNotice(String(item.max??25))+'</span></b><p>'+escapeNotice(item.reason||'')+'</p></div>').join('')+'</div>':'';
   return '<section class="bb-question"><div class="eyebrow">批改结果</div><h3>'+escapeNotice(q.title)+' · 答案对照</h3>'+
     (review.score?'<div class="bb-review-card"><h4>本次完成度</h4><p>'+escapeNotice(review.score)+'</p>'+scoreGrid+'<button id="bb-regrade" class="bb-submit" onclick="regradeBlackboardAnswer()">重新核分</button></div>':'')+
     (review.diagnosis&&review.diagnosis.length?'<div class="bb-review-card"><h4>答案诊断</h4><ul>'+review.diagnosis.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>':'')+
@@ -1494,14 +1509,13 @@ function photoAssetId(value){let h=2166136261;for(const char of String(value||''
 
 function seedPhotoAlbums(){
   const saved=readNoticeList('cozy_photo_albums').filter(album=>album.id!=='courtyard_all');
-  const hiddenCourtyardScenes=new Set(readNoticeList('cozy_courtyard_hidden_scenes'));
   const personal=((CORE.estate_state&&CORE.estate_state.wall_photos)||[]).map(p=>({id:p.id||'photo_'+Math.random().toString(36).slice(2),src:p.file||'',caption:p.note||p.title||'随手拍',date:p.date||localCalendarDate()})).filter(p=>p.src);
   const allTrips = JSON.parse(localStorage.getItem('cozy_trips') || '[]').concat((CORE.estate_state&&CORE.estate_state.travel&&CORE.estate_state.travel.history)||[]);
   const travelAlbums=allTrips.map((trip,index)=>({id:'travel_'+(trip.id||index),title:trip.place||'一次旅行',source:'travel',date:trip.date||localCalendarDate(),photos:(trip.photos&&trip.photos.length?trip.photos:[trip.file]).filter(Boolean).map((src,pIndex)=>({id:'travel_photo_'+index+'_'+pIndex,src,caption:trip.line||trip.place||'旅行照片',date:trip.date||localCalendarDate()}))})).filter(album=>album.photos.length);
   const demo={id:'demo_courtyard',title:'小院试运行',source:'demo',date:'2026-08-08',photos:[
     {id:'demo_1',src:'assets/estate/panorama_morning.webp',caption:'清晨场景测试',date:'2026-08-08'},
     {id:'demo_2',src:'assets/estate/panorama_rain.webp',caption:'雨天场景测试',date:'2026-08-08'},
-    {id:'demo_3',src:'assets/plants/orchard_summer.jpg',caption:'夏日成长田',date:'2026-08-08'}
+    {id:'demo_3',src:'assets/plants/orchard_summer.webp',caption:'夏日成长田',date:'2026-08-08'}
   ]};
   let albums=saved.length?saved.slice():[];
   if(!albums.length){if(personal.length)albums.push({id:'personal_initial',title:'八月随手拍',source:'upload',date:personal[0].date,photos:personal});albums.push(...travelAlbums,demo);savePhotoAlbums(albums);}
@@ -1510,10 +1524,10 @@ function seedPhotoAlbums(){
     ['小院 · 晴天','assets/estate/panorama.webp'],['小院 · 清晨','assets/estate/panorama_morning.webp'],['小院 · 阴天','assets/estate/panorama_overcast.webp'],
     ['小院 · 雨天','assets/estate/panorama_rain.webp'],['小院 · 雪天','assets/estate/panorama_snow.webp'],['小院 · 雾天','assets/estate/panorama_fog.webp'],
     ['公告板','assets/news/noticeboard.webp'],['树洞','assets/estate/heart_hollow.webp'],['照片墙','assets/photos/photo_wall.webp'],
-    ['卧室 · 白天','assets/interior/bedroom_day.webp'],['卧室 · 夜晚','assets/interior/bedroom_night.webp'],['成长田','assets/plants/orchard_field.jpg'],
-    ['成长田 · 春','assets/plants/orchard_spring.jpg'],['成长田 · 夏','assets/plants/orchard_summer.jpg'],['成长田 · 秋','assets/plants/orchard_autumn.jpg'],
-    ['成长田 · 冬','assets/plants/orchard_winter.jpg'],['出发旅行','assets/travel/travel_postcard.webp']
-  ].map(([caption,src])=>({id:'scene_'+photoAssetId(src),src,caption,date:''})).filter(scene=>!hiddenCourtyardScenes.has(scene.id));
+    ['卧室 · 白天','assets/interior/bedroom_day.webp'],['卧室 · 夜晚','assets/interior/bedroom_night.webp'],['成长田','assets/plants/orchard_field.webp'],
+    ['成长田 · 春','assets/plants/orchard_spring.webp'],['成长田 · 夏','assets/plants/orchard_summer.webp'],['成长田 · 秋','assets/plants/orchard_autumn.webp'],
+    ['成长田 · 冬','assets/plants/orchard_winter.webp'],['出发旅行','assets/travel/travel_postcard.webp']
+  ].map(([caption,src])=>({id:'scene_'+photoAssetId(src),src,caption,date:''}));
   return [{id:'courtyard_all',title:'小院的所有照片',source:'aggregate',date:localCalendarDate(),photos:courtyardScenes},...albums];
 }
 
@@ -1546,7 +1560,7 @@ function createPhotoAlbum(){
 function openPhotoAlbum(id){
   const box=document.getElementById('photo-library');const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===id);if(!box||!album)return;
   const aggregate=album.source==='aggregate';
-  const photos=(album.photos||[]).map((photo,index)=>'<figure class="photo-detail-item"><img src="'+escapeNotice(photo.src)+'" alt=""><figcaption><span>'+escapeNotice(photo.caption||'照片')+'</span><span class="photo-date-mark">'+escapeNotice(photoDateLabel(photo.date||album.date))+'</span>'+(aggregate?'<span class="photo-detail-controls"><button title="从合集中移除" aria-label="从小院照片合集中移除" onclick="removeCourtyardScene(\''+escapeNotice(photo.id)+'\')">×</button></span>':'<span class="photo-detail-controls"><button title="向前移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',-1)">←</button><button title="向后移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',1)">→</button><button title="删除照片" onclick="removeAlbumPhoto(\''+escapeNotice(id)+'\','+index+')">×</button></span>')+'</figcaption></figure>').join('');
+  const photos=(album.photos||[]).map((photo,index)=>'<figure class="photo-detail-item"><img src="'+escapeNotice(photo.src)+'" alt=""><figcaption><span>'+escapeNotice(photo.caption||'照片')+'</span><span class="photo-date-mark">'+escapeNotice(photoDateLabel(photo.date||album.date))+'</span>'+(aggregate?'':'<span class="photo-detail-controls"><button title="向前移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',-1)">←</button><button title="向后移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',1)">→</button><button title="删除照片" onclick="removeAlbumPhoto(\''+escapeNotice(id)+'\','+index+')">×</button></span>')+'</figcaption></figure>').join('');
   box.innerHTML='<div class="photo-album-toolbar"><button onclick="renderPhotoAlbums()">← 照片集</button><h2>'+escapeNotice(album.title)+'</h2>'+(aggregate?'':'<button onclick="document.getElementById(\'photo-wall-upload\').click()">＋ 照片</button><button class="danger" onclick="deletePhotoAlbum(\''+escapeNotice(id)+'\')">删除整组</button>')+'</div><div class="photo-detail-grid">'+(photos||(aggregate?'<div class="empty-note">小院里还没有照片。</div>':'<div class="photo-album-add" onclick="document.getElementById(\'photo-wall-upload\').click()">＋</div>'))+'</div><div class="photo-wall-status" id="photo-wall-status"></div>'+(aggregate?'':'<input id="photo-wall-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onchange="uploadPhotoWallFiles(this.files,\''+escapeNotice(id)+'\')">');
 }
 
@@ -1572,20 +1586,13 @@ async function uploadPhotoWallFiles(files,albumId){
 }
 
 function moveAlbumPhoto(albumId,index,step){const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===albumId);if(!album)return;const target=index+step;if(target<0||target>=album.photos.length)return;[album.photos[index],album.photos[target]]=[album.photos[target],album.photos[index]];savePhotoAlbums(albums);openPhotoAlbum(albumId);}
-function removeCourtyardScene(sceneId){
-  if(!confirm('从“小院的所有照片”中移除这张场景图吗？'))return;
-  const hidden=readNoticeList('cozy_courtyard_hidden_scenes');
-  if(!hidden.includes(sceneId))hidden.push(sceneId);
-  localStorage.setItem('cozy_courtyard_hidden_scenes',JSON.stringify(hidden));
-  window.CozyButler?.persistLocal(['cozy_courtyard_hidden_scenes']);
-  openPhotoAlbum('courtyard_all');
-}
 function removeAlbumPhoto(albumId,index){if(!confirm('从这组照片里删除这一张吗？'))return;const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===albumId);if(!album)return;album.photos.splice(index,1);savePhotoAlbums(albums);openPhotoAlbum(albumId);}
 function deletePhotoAlbum(albumId){if(!confirm('删除整组照片吗？照片文件不会从其他旅行记录中删除。'))return;savePhotoAlbums(seedPhotoAlbums().filter(item=>item.id!==albumId));renderPhotoAlbums();}
 
-function openNotice(){
+async function openNotice(){
+  await CORE_READY;
   openOverlay('<div class="notice-board-large">'+
-    '<div class="notice-sticky"><div class="notice-board-heading"><h2>公告板 · 阿栗资讯巡报</h2><div class="notice-heading-actions"><button class="notice-refresh" id="notice-refresh" onclick="runWeeklyNow()" aria-label="获取最新资讯" title="获取最新资讯">获取最新资讯</button><span class="butler-connection" id="butler-connection">正在连接阿栗</span></div></div><div class="week-title" id="notice-week-title"></div>'+
+    '<div class="notice-sticky"><div class="notice-board-heading"><h2>公告板 · 阿栗资讯巡报<span class="notice-cadence" id="notice-cadence"></span></h2><div class="notice-heading-actions"><button class="notice-refresh" id="notice-refresh" onclick="runWeeklyNow()" aria-label="获取最新资讯" title="获取最新资讯">获取最新资讯</button><span class="butler-connection" id="butler-connection">正在连接阿栗</span></div></div><div class="week-title" id="notice-week-title"></div>'+
     '<div class="notice-tabs">'+
       '<button class="active" onclick="showNoticeView(\'current\',this)">最新巡报</button>'+
       '<button onclick="showNoticeView(\'weeks\',this)">往期巡报</button>'+
@@ -1602,9 +1609,36 @@ function openNotice(){
     '</div>',
     'notice-panel');
   showNoticeView('current');
+  updateNoticeCadence();
   refreshButlerConnection();
   resumeNoticeTasks();
   resumeNoticeRefresh();
+  refreshNoticeReportsFromCloud();
+}
+
+async function refreshNoticeReportsFromCloud(){
+  if(window.CozyRuntime?.dataSource!=='remote')return false;
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+  try{
+    const response=await fetch('/api/data?key=notice_reports&t='+Date.now(),{
+      cache:'no-store',credentials:'same-origin',signal:controller.signal,
+      headers:{accept:'application/json'}
+    });
+    if(!response.ok)throw new Error('HTTP '+response.status);
+    const reports=await response.json();
+    if(!reports||!Array.isArray(reports.reports))throw new Error('巡报数据格式不完整');
+    CORE.notice_reports=reports;
+    updateNoticeCadence();
+    const active=document.querySelector('.notice-tabs button.active');
+    if(active)showNoticeView(active.textContent.includes('往期')?'weeks':active.textContent.includes('分类')?'categories':active.textContent.includes('稍后')?'inbox':'current',active);
+    return true;
+  }catch(error){
+    if(!getNoticeReports().length){
+      const status=document.getElementById('notice-status');
+      if(status)status.textContent='真实巡报暂时没有读取成功，请点击“获取最新资讯”重试。';
+    }
+    return false;
+  }finally{clearTimeout(timer);}
 }
 
 function getWeekRange(offset=0){
@@ -1624,7 +1658,7 @@ async function runWeeklyNow(){
   try{
     const data=await cozyApi('/api/weekly/run',{force:true},480000);
     if(data.accepted){setNoticeRefreshState('running','巡报正在后台更新，可以先离开公告板。');resumeNoticeRefresh();}
-    else{CORE.notice_reports=data.reports||CORE.notice_reports;setNoticeRefreshState('completed','巡报已经更新完成。');showNoticeView('current',document.querySelector('.notice-tabs button'));}
+    else{CORE.notice_reports=data.reports||CORE.notice_reports;setNoticeRefreshState('completed','巡报已经更新完成。');updateNoticeCadence();showNoticeView('current',document.querySelector('.notice-tabs button'));}
   }catch(error){setNoticeRefreshState('failed','资讯巡报获取失败：'+error.message);}
 }
 
@@ -1644,7 +1678,7 @@ async function resumeNoticeRefresh(){
   const cached=readNoticeRefreshState();if(cached)setNoticeRefreshState(cached.status,cached.message);
   try{
     const data=await cozyApi('/api/automation',undefined,6000),jobs=data.automation?.jobs||{},job=jobs.weekly_report||jobs.notice_report;
-    if(job){const status=job.status==='ready'?'completed':job.status;setNoticeRefreshState(status,job.message||(status==='running'?'阿栗正在更新巡报。':status==='failed'?'巡报更新失败。':'巡报已经更新完成。'));if(status==='completed'){let reports=await cozyApi('/api/data?key=notice_reports',undefined,6000).catch(()=>null);if(!reports?.reports){reports=await fetch('core/notice_reports.json',{cache:'no-store'}).then(response=>response.ok?response.json():null).catch(()=>null);}if(reports?.reports){CORE.notice_reports=reports;const active=document.querySelector('.notice-tabs button.active');if(active?.textContent.includes('最新'))showNoticeView('current',active);}}}
+    if(job){const status=job.status==='ready'?'completed':job.status;setNoticeRefreshState(status,job.message||(status==='running'?'阿栗正在更新巡报。':status==='failed'?'巡报更新失败。':'巡报已经更新完成。'));if(status==='completed'){let reports=await cozyApi('/api/data?key=notice_reports',undefined,6000).catch(()=>null);if(!reports?.reports){reports=await fetch('core/notice_reports.json',{cache:'no-store'}).then(response=>response.ok?response.json():null).catch(()=>null);}if(reports?.reports){CORE.notice_reports=reports;updateNoticeCadence();const active=document.querySelector('.notice-tabs button.active');if(active?.textContent.includes('最新'))showNoticeView('current',active);}}}
   }catch(error){}
   if(readNoticeRefreshState()?.status==='running')noticeRefreshPollTimer=setTimeout(resumeNoticeRefresh,1800);
 }
@@ -1688,7 +1722,16 @@ function flattenReportItems(report){
 
 function getNoticeReports(){
   const reports = CORE.notice_reports && Array.isArray(CORE.notice_reports.reports) ? CORE.notice_reports.reports : [];
-  return reports.length ? reports : [NOTICE_REPORT_FALLBACK()];
+  if(reports.length)return reports;
+  const remote=window.CozyRuntime&&window.CozyRuntime.dataSource==='remote';
+  return remote?[]:[NOTICE_REPORT_FALLBACK()];
+}
+
+function updateNoticeCadence(){
+  const label=document.getElementById('notice-cadence');
+  if(!label)return;
+  const archivedCount=getNoticeReports().filter(report=>report?.id!=='fallback').length;
+  label.textContent='每周一、周三、周五 08:00 更新 · 往期巡报 '+archivedCount+' 版';
 }
 
 function NOTICE_REPORT_FALLBACK(){
@@ -1767,9 +1810,12 @@ function reportCardHtml(item, category){
   const chestActive = isNoticeChestItem(payload);
   const sourceUrl = item.link || item.url || '';
   const link = sourceUrl ? '<a class="source-link" href="'+escapeNotice(sourceUrl)+'" target="_blank" rel="noopener">查看原文</a>' : '';
-  const linkActions = sourceUrl ? '<button class="article-action" data-url="'+escapeNotice(sourceUrl)+'" onclick="copyNoticeLink(this)">复制原链</button><button class="article-action tool-extract-btn" data-url="'+escapeNotice(sourceUrl)+'" data-title="'+escapeNotice(item.title)+'" onclick="extractToolFromNotice(this)">提取工具</button>' : '';
   const aiSummary = noticeAISummary(item);
+  const linkActions = sourceUrl ? '<button class="article-action" data-url="'+escapeNotice(sourceUrl)+'" onclick="copyNoticeLink(this)">复制原链</button><button class="article-action tool-extract-btn" data-url="'+escapeNotice(sourceUrl)+'" data-title="'+escapeNotice(item.title)+'" data-summary="'+escapeNotice(item.summary||'')+'" data-ai-summary="'+escapeNotice(aiSummary)+'" data-category="'+escapeNotice(tag)+'" data-media="'+escapeNotice(item.media||'')+'" onclick="extractToolFromNotice(this)">加入工具箱</button>' : '';
   const originalSummary = item.summary ? '<p class="notice-original-summary">'+escapeNotice(item.summary)+'</p>' : '';
+  const noteKey = noticeItemKey(payload);
+  const savedNote = noticeNoteFor(noteKey);
+  const noteBlock = '<details class="notice-note" data-note-key="'+escapeNotice(noteKey)+'" data-note-title="'+escapeNotice(payload.title)+'" data-note-url="'+escapeNotice(payload.url)+'" '+(savedNote?'open':'')+'><summary>阅读笔记'+(savedNote?' · 已保存':'')+'</summary><div class="notice-note-editor"><textarea maxlength="4000" placeholder="记下重要结论、疑问，或它对产品工作的启发。">'+escapeNotice(savedNote?.content||'')+'</textarea><div class="notice-note-actions"><button type="button" onclick="saveNoticeNote(this)">保存笔记</button><button type="button" class="danger" onclick="deleteNoticeNote(this)">清空</button><span class="notice-note-state">'+escapeNotice(savedNote?.updated_at?'更新于 '+formatNoticeNoteTime(savedNote.updated_at):'仅自己可见，并同步到私人云端')+'</span></div></div></details>';
   return '<article class="report-card"><div class="notice-tag">'+escapeNotice(tag)+'</div><h4>'+escapeNotice(item.title)+'</h4>'+
     originalSummary+
     '<div class="notice-analysis"><div class="notice-analysis-block"><b>AI总结</b><p>'+escapeNotice(aiSummary)+'</p></div></div>'+
@@ -1777,7 +1823,48 @@ function reportCardHtml(item, category){
     '<div class="report-actions">'+link+linkActions+
     '<button class="readlater-btn '+(laterActive ? 'is-active' : '')+'" data-category="'+escapeNotice(payload.category)+'" data-notice-tag="'+escapeNotice(tag)+'" data-title="'+escapeNotice(payload.title)+'" data-summary="'+escapeNotice(payload.summary)+'" data-ai-summary="'+escapeNotice(payload.ai_summary)+'" data-media="'+escapeNotice(payload.media)+'" data-published="'+escapeNotice(payload.published)+'" data-url="'+escapeNotice(payload.url)+'" onclick="toggleNoticeReadLater(this)">'+(laterActive ? '移出稍后看' : '稍后看')+'</button>'+
     '<button class="readlater-btn chest-btn '+(chestActive ? 'is-active' : '')+'" data-category="'+escapeNotice(payload.category)+'" data-notice-tag="'+escapeNotice(tag)+'" data-title="'+escapeNotice(payload.title)+'" data-summary="'+escapeNotice(payload.summary)+'" data-ai-summary="'+escapeNotice(payload.ai_summary)+'" data-media="'+escapeNotice(payload.media)+'" data-published="'+escapeNotice(payload.published)+'" data-url="'+escapeNotice(payload.url)+'" onclick="openChestPicker(this)">'+(chestActive ? '已入栗夹' : '收入栗夹')+'</button>'+
-    '</div></div></article>';
+    '</div></div>'+noteBlock+'</article>';
+}
+
+function noticeNoteFor(key){
+  return readNoticeList('cozy_notice_notes').find(item=>item.key===key)||null;
+}
+
+function noticeNoteId(key){
+  let hash=2166136261;
+  for(let i=0;i<key.length;i++){hash^=key.charCodeAt(i);hash=Math.imul(hash,16777619);}
+  return 'notice_note_'+(hash>>>0).toString(36);
+}
+
+function formatNoticeNoteTime(value){
+  const date=new Date(value);
+  if(Number.isNaN(date.getTime()))return '';
+  return (date.getMonth()+1)+'月'+date.getDate()+'日 '+String(date.getHours()).padStart(2,'0')+':'+String(date.getMinutes()).padStart(2,'0');
+}
+
+function saveNoticeNote(button){
+  const panel=button.closest('.notice-note'),textarea=panel?.querySelector('textarea'),state=panel?.querySelector('.notice-note-state');
+  if(!panel||!textarea)return;
+  const content=textarea.value.trim();
+  if(!content){if(state)state.textContent='先写一点内容再保存';return;}
+  const key=panel.dataset.noteKey,title=panel.dataset.noteTitle||'未命名资讯',url=panel.dataset.noteUrl||'',updated_at=new Date().toISOString();
+  const notes=readNoticeList('cozy_notice_notes').filter(item=>item.key!==key);
+  notes.unshift({key,title,url,content,updated_at});
+  writeNoticeList('cozy_notice_notes',notes,200);
+  panel.querySelector('summary').textContent='阅读笔记 · 已保存';
+  if(state)state.textContent='已保存并同步 · '+formatNoticeNoteTime(updated_at);
+  window.CozyMemory?.add({id:noticeNoteId(key),source:'noticeboard',type:'reading_note',layer:'long',weight:2,content:'资讯：'+title+'\n阅读笔记：'+content+(url?'\n原文：'+url:''),summary:'资讯笔记：'+title});
+}
+
+function deleteNoticeNote(button){
+  const panel=button.closest('.notice-note'),textarea=panel?.querySelector('textarea'),state=panel?.querySelector('.notice-note-state');
+  if(!panel)return;
+  const notes=readNoticeList('cozy_notice_notes').filter(item=>item.key!==panel.dataset.noteKey);
+  writeNoticeList('cozy_notice_notes',notes,200);
+  window.CozyMemory?.forget(noticeNoteId(panel.dataset.noteKey));
+  if(textarea)textarea.value='';
+  panel.querySelector('summary').textContent='阅读笔记';
+  if(state)state.textContent='笔记已清空';
 }
 
 async function copyNoticeLink(btn){
@@ -1798,9 +1885,10 @@ async function extractToolFromNotice(btn){
   const status=document.getElementById('notice-status');
   if(status)status.textContent='阿栗正在读原文，识别其中可直接使用的工具、官网与关键能力。';
   try{
-    const data=await cozyApi('/api/toolbox/import',{url,instruction:'从资讯《'+title+'》提取文中真正可使用的工具；确认官方使用地址、类别、用途、关键能力、适用场景和例子后加入工具箱。'},180000);
+    const source={title,summary:btn.dataset.summary||'',ai_summary:btn.dataset.aiSummary||'',category:btn.dataset.category||'',media:btn.dataset.media||'',url};
+    const data=await cozyApi('/api/toolbox/import',{url,source,instruction:'从资讯《'+title+'》提取文中真正可使用的工具；确认官方使用地址、类别、用途、关键能力、适用场景和例子后加入工具箱。'},180000);
     if(data.state)applyButlerServerState(data.state,false);
-    btn.textContent='已入工具箱';
+    btn.textContent='已加入';
     if(status)status.textContent='已加入工具箱：'+((data.item&&data.item.title)||title);
   }catch(error){btn.disabled=false;btn.textContent=old;if(status)status.textContent='工具提取失败：'+error.message;}
 }
@@ -1998,9 +2086,10 @@ function showNoticeView(view, btn){
   const box = document.getElementById('notice-content');
   if(!title || !box) return;
   const report = activeNoticeReport();
-  title.textContent = '最近更新：' + noticeWeekLabel(report);
+  title.textContent = report?'最近更新：' + noticeWeekLabel(report):'云端暂时没有可显示的巡报';
   setNoticeComposerVisible(view === 'current');
   if(view === 'current'){
+    if(!report){box.innerHTML='<section class="report-section"><div class="notice-empty-line">没有读取到真实巡报内容。可以点击上方“获取最新资讯”重试，页面不会再显示旧版占位巡报。</div></section>';return;}
     const requests = JSON.parse(localStorage.getItem('cozy_notice_requests') || '[]');
     const today = localCalendarDate();
     const dynamicItems = curatedNoticeItems(sectionItemsBy(report, isDynamicItem), 4);
@@ -2035,6 +2124,7 @@ function showNoticeView(view, btn){
       noticeInsightBlock(report)+noticeAdviceBlock(report);
   }else if(view === 'weeks'){
     const reports = getNoticeReports();
+    if(!reports.length){box.innerHTML='<p class="notice-empty-line">还没有已归档的真实巡报。</p>';return;}
     const weeks = reports.map(r=>'<details class="week-card"><summary><div class="week-summary-main"><div class="week-heading"><span class="week-range">'+noticeWeekLabel(r)+'</span><span class="week-focus">'+escapeNotice(r.focus_title || '本期重点')+'</span></div><div class="week-summary-meta">热点 '+((r.hot_items||[]).length || (r.quick||[]).length)+' 条 · 正文 '+flattenReportItems(r).length+' 条</div></div></summary>'+weeklyReportBody(r)+'</details>').join('');
     box.innerHTML = '<div class="week-list">'+weeks+'</div>'+(reports.length===1?'<p class="notice-empty-line">目前只保留了这一期；后续每次巡报都会继续追加，不覆盖旧内容。</p>':'');
   }else if(view === 'categories'){

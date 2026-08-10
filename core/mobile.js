@@ -50,7 +50,7 @@
     `;
     document.head.appendChild(style);
   }
-  const extraPages=new Set(['heart_hollow','travel','bedroom','memory_nook','private_wing']);
+  const extraPages=new Set(['heart_hollow','travel','bedroom','memory_nook']);
   const item=(kind,label,iconName,href,action)=>{
     const active=page===kind||(kind==='more'&&extraPages.has(page));
     const content=`<span class="mobile-nav-mark">${icon(iconName)}</span><span>${label}</span>`;
@@ -70,7 +70,7 @@
       item('blackboard','黑板','blackboard',null,'blackboard')+
       item('orchard','成长田','growth','pages/orchard.html')+
       item('more','更多','more',null,'more');
-    const sheet=document.createElement('div');sheet.className='cozy-mobile-sheet';sheet.id='cozy-mobile-sheet';sheet.innerHTML=`<section class="cozy-mobile-sheet-card"><header class="cozy-mobile-sheet-head"><h2>我的小院</h2><button type="button" data-mobile-action="close" aria-label="关闭">${icon('close')}</button></header><div class="cozy-mobile-grid">${gridItem('heart_hollow','树洞','tree','pages/heart_hollow.html')}${gridItem('travel','旅行','travel','pages/travel.html')}${gridItem('bedroom','卧室','bedroom','pages/bedroom.html')}${gridItem('photos','照片墙','photos',null,'photos')}${gridItem('toolbox','工具箱','toolbox',null,'toolbox')}${gridItem('butler','找阿栗','butler',null,'butler')}${gridItem('private_wing','密阁','private','pages/private_wing.html')}${gridItem('install','保存到主屏幕','install',null,'install')}</div><div class="cozy-mobile-cloud" id="cozy-mobile-cloud">正在确认云端同步</div></section>`;
+    const sheet=document.createElement('div');sheet.className='cozy-mobile-sheet';sheet.id='cozy-mobile-sheet';sheet.innerHTML=`<section class="cozy-mobile-sheet-card"><header class="cozy-mobile-sheet-head"><h2>我的小院</h2><button type="button" data-mobile-action="close" aria-label="关闭">${icon('close')}</button></header><div class="cozy-mobile-grid">${gridItem('heart_hollow','树洞','tree','pages/heart_hollow.html')}${gridItem('travel','旅行','travel','pages/travel.html')}${gridItem('bedroom','卧室','bedroom','pages/bedroom.html')}${gridItem('photos','照片墙','photos',null,'photos')}${gridItem('toolbox','工具箱','toolbox',null,'toolbox')}${gridItem('butler','找阿栗','butler',null,'butler')}${gridItem('memory_nook','密阁','private','pages/memory_nook.html')}${gridItem('install','保存到主屏幕','install',null,'install')}</div><div class="cozy-mobile-cloud" id="cozy-mobile-cloud">正在确认云端同步</div></section>`;
     const dialog=document.createElement('div');dialog.className='cozy-install-dialog';dialog.id='cozy-install-dialog';dialog.innerHTML='<section class="cozy-install-card"><h2>保存到主屏幕</h2><div id="cozy-install-copy"></div><button type="button" data-mobile-action="install-close">知道了</button></section>';
     document.body.append(nav,sheet,dialog);
     document.body.addEventListener('click',handleAction);

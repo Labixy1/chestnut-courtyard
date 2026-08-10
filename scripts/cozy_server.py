@@ -236,21 +236,92 @@ def write_json_atomic(path: Path, value):
     temp.replace(path)
 
 
+def _sync_record_id(item):
+    if not isinstance(item, dict):
+        return "value:" + json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    for key in ("id", "key", "url", "link", "source_url", "questionId", "question_id"):
+        if item.get(key) is not None and str(item.get(key)).strip():
+            return f"{key}:{str(item.get(key)).strip()}"
+    if item.get("date") or item.get("title"):
+        return f"dated:{item.get('date', '')}|{item.get('title', '')}"
+    return "json:" + json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _sync_updated_at(item):
+    if not isinstance(item, dict):
+        return 0
+    value = next((item.get(key) for key in ("updatedAt", "updated_at", "modifiedAt", "modified_at", "createdAt", "created_at") if item.get(key)), "")
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
+    except (TypeError, ValueError):
+        return 0
+
+
 def sync_local_state(payload: dict):
     allowed = {
         "cozy_blackboard_answers", "cozy_blackboard_directions", "cozy_blackboard_starred", "cozy_orchard_seeds", "cozy_orchard_topics",
-        "cozy_orchard_garden", "cozy_orchard_backpack", "cozy_orchard_growth_events", "cozy_orchard_chat_sessions", "cozy_notice_requests",
+        "cozy_orchard_garden", "cozy_orchard_backpack", "cozy_orchard_growth_events", "cozy_orchard_chat_sessions", "cozy_notice_requests", "cozy_notice_notes",
         "cozy_trips", "cozy_trip_reflections", "cozy_heart_entries", "cozy_heart_deleted_entries",
         "cozy_hollow_buried_media", "cozy_memory_events", "cozy_global_butler_history",
         "cozy_toolbox_local_items", "cozy_notice_links", "cozy_notice_chest",
         "cozy_butler_watch_topics", "cozy_butler_local_sources", "cozy_photo_albums",
         "cozy_courtyard_hidden_scenes",
     }
-    current = read_json(LOCAL_STATE_PATH, {"version": 1, "updated_at": "", "values": {}})
+    current = read_json(LOCAL_STATE_PATH, {"version": 2, "updated_at": "", "values": {}, "tombstones": {}})
     values = current.setdefault("values", {})
-    for key, value in (payload or {}).items():
-        if key in allowed and isinstance(value, (list, dict)):
-            values[key] = value
+    tombstones = current.setdefault("tombstones", {})
+    safe_payload = payload if isinstance(payload, dict) else {}
+    changes = safe_payload.get("changes") if isinstance(safe_payload.get("changes"), dict) else None
+    if changes is None:
+        incoming = safe_payload.get("values") if isinstance(safe_payload.get("values"), dict) else safe_payload
+        for key, value in incoming.items():
+            if key in allowed and isinstance(value, (list, dict)):
+                values[key] = value
+    else:
+        changed_at = datetime.now().astimezone().isoformat(timespec="seconds")
+        for key, change in changes.items():
+            if key not in allowed or not isinstance(change, dict):
+                continue
+            field_tombstones = dict(tombstones.get(key) or {})
+            if change.get("type") == "array":
+                records = {_sync_record_id(item): item for item in values.get(key, []) if isinstance(values.get(key), list)}
+                revive = {str(item) for item in change.get("revive", [])} if isinstance(change.get("revive"), list) else set()
+                for record_id in change.get("deleted", []) if isinstance(change.get("deleted"), list) else []:
+                    records.pop(str(record_id), None)
+                    field_tombstones[str(record_id)] = changed_at
+                for item in change.get("upserts", []) if isinstance(change.get("upserts"), list) else []:
+                    record_id = _sync_record_id(item)
+                    deleted_at = _sync_updated_at({"updated_at": field_tombstones.get(record_id)})
+                    item_time = _sync_updated_at(item)
+                    if deleted_at and record_id not in revive and (not item_time or item_time <= deleted_at):
+                        continue
+                    existing = records.get(record_id)
+                    if existing is None or not _sync_updated_at(existing) or not item_time or item_time >= _sync_updated_at(existing):
+                        records[record_id] = item
+                    field_tombstones.pop(record_id, None)
+                values[key] = list(records.values())
+                tombstones[key] = field_tombstones
+            elif change.get("type") == "object":
+                records = dict(values.get(key) or {}) if isinstance(values.get(key), dict) else {}
+                revive = {str(item) for item in change.get("revive", [])} if isinstance(change.get("revive"), list) else set()
+                for record_id in change.get("deleted", []) if isinstance(change.get("deleted"), list) else []:
+                    records.pop(str(record_id), None)
+                    field_tombstones[str(record_id)] = changed_at
+                upserts = change.get("upserts") if isinstance(change.get("upserts"), dict) else {}
+                for record_id, item in upserts.items():
+                    deleted_at = _sync_updated_at({"updated_at": field_tombstones.get(record_id)})
+                    item_time = _sync_updated_at(item)
+                    if deleted_at and record_id not in revive and (not item_time or item_time <= deleted_at):
+                        continue
+                    existing = records.get(record_id)
+                    if existing is None or not _sync_updated_at(existing) or not item_time or item_time >= _sync_updated_at(existing):
+                        records[record_id] = item
+                    field_tombstones.pop(record_id, None)
+                values[key] = records
+                tombstones[key] = field_tombstones
+            elif "value" in change and isinstance(change["value"], (list, dict)):
+                values[key] = change["value"]
+    current["version"] = 2
     current["updated_at"] = datetime.now().astimezone().isoformat(timespec="seconds")
     write_json_atomic(LOCAL_STATE_PATH, current)
     return current
@@ -986,6 +1057,36 @@ def run_notice_assistant_task(task_id: str, message: str, browser_context: dict)
         )
 
 
+def orchard_answer_aligned(message: str, result: dict) -> bool:
+    reply = str(result.get("reply") or "").strip()
+    focus = str(result.get("answer_focus") or "").strip()
+    if len(reply) < 12 or len(focus) < 4:
+        return False
+    ignored = {"what", "why", "how", "which", "help", "about"}
+    anchors = {value.lower() for value in re.findall(r"[A-Za-z][A-Za-z0-9._-]{2,}", message)
+               if value.lower() not in ignored}
+    answer = (focus + "\n" + reply).lower()
+    return all(anchor in answer for anchor in anchors)
+
+
+def blackboard_grade_needs_retry(message: str, context: dict, result: dict) -> bool:
+    scores = result.get("score_breakdown") if isinstance(result.get("score_breakdown"), list) else []
+    if len(scores) < 4:
+        return True
+    compact = re.sub(r"\s+", "", message)
+    empty = len(compact) < 12 and bool(re.fullmatch(
+        r"(不会|好难|不知道|不懂|不会做|答不出|没思路|太难了|不会好难)+",
+        re.sub(r"[，。！？,.!?~～…]", "", compact)))
+    if empty:
+        return False
+    awarded = sum(max(0, int(float(item.get("awarded") or 0))) for item in scores if isinstance(item, dict))
+    reasons = " ".join([str(result.get("score_summary") or ""), " ".join(map(str, result.get("diagnosis") or [])),
+                        " ".join(str(item.get("reason") or "") for item in scores if isinstance(item, dict))])
+    general = bool(re.search(r"假设|如何设计|你会如何|方案|机制|流程", str(context.get("question") or "")))
+    wrong_requirement = bool(re.search(r"没有提供.{0,6}产品信息|缺乏.{0,6}产品信息|产品信息不足|无法评估", reasons))
+    return awarded == 0 and (general or wrong_requirement)
+
+
 def room_reply(room: str, message: str, context: dict) -> dict:
     room = str(room or "").strip()
     message = str(message or "").strip()
@@ -1004,6 +1105,8 @@ def room_reply(room: str, message: str, context: dict) -> dict:
     if room != "heart_hollow":
         MEMORY_STORE.observe_message(message, source=room)
     memory_profile = MEMORY_STORE.prompt_context(message)
+    answer_memory = ({"note": "成长田回答阶段不注入全局记忆，避免其他模块内容干扰当前问题"}
+                     if room == "orchard" else memory_profile)
     heart_mode = str(context.get("mode") or "oracle").strip()
     if room == "heart_hollow" and heart_mode == "oracle" and len(re.sub(r"\s+", "", message)) < 55:
         return {
@@ -1011,7 +1114,7 @@ def room_reply(room: str, message: str, context: dict) -> dict:
             "provider": "local", "deferred": True,
         }
     formats = {
-        "orchard": '只返回 JSON：{"reply":"针对当前问题的直接回答，120-260字；先给结论，再按清晰维度解释原因、差异或适用场景，必要时最多问一个有助于继续讨论的问题","seed_summary":"本轮关注点的简短概括","key_insight":"一句可复习的核心判断","next_step":"一个可选的验证或学习动作，没有必要时留空","knowledge_topic":{"match_id":"能归入上下文现有专题时必须填该id，否则留空","title":"稳定、可继续扩展的专题名，如AI编程助手，不要只用单个产品名","category":"优先复用现有分类，确实不同才新建","entities":["本次涉及的产品或概念"],"summary":"融合旧专题、本轮问答和会话上下文后的专题笔记摘要","knowledge_points":["可独立复习的事实、差异、方法或判断"]}}。必须结合 context.conversation 理解追问中的代词和省略内容。禁止比喻、拟人、诗意散文、田野签语、玄学隐喻和泛泛安慰。涉及产品能力时区分已知事实与推断，不确定或可能过时的内容要明确说明，不要编造。先解决问题，再沉淀知识。',
+        "orchard": '只返回合法 JSON，不要 Markdown 代码围栏：{"reply":"直接回答当前问题的完整中文回复，通常180到500字；结论优先，分段或编号清楚，问题简单时可以更短","answer_focus":"20到50字概括本轮实际回答的问题","seed_summary":"本轮关注点的简短概括","key_insight":"一句可独立复习的核心判断","next_step":"一个确实有帮助的后续动作，没有必要则留空","knowledge_topic":{"match_id":"能归入上下文现有专题时必须填该id，否则留空","title":"稳定、可继续扩展的专题名，不要把一次问题或单个产品机械建成一类","category":"优先复用现有分类，确实不同才新建","entities":["本轮涉及的产品、组织或概念"],"summary":"融合本轮正确答案与已有专题后的可复习摘要","knowledge_points":["3到7条具体事实、差异、方法或判断"],"comparison_rows":[{"item":"比较对象","traits":"主要特点","scenarios":"适用场景","considerations":"限制或注意点"}],"scenarios":["实际应用场景"],"conclusion":"专题当前结论"}}。当前用户消息是唯一主任务，必须准确回答所问对象，不得擅自换题。context.conversation 只用于理解追问指代，context.knowledge_topics 只用于答完后的归档，旧对话和记忆不得盖过当前问题。reply 必须独立完整。禁止比喻、拟人、诗意散文、田野签语、玄学隐喻、泛泛安慰和强制安排几天内实验。涉及产品能力时区分已知事实与推断，不确定或可能过时的内容要明确说明，不要编造。',
         "heart_hollow": (
             '只返回 JSON：{"reply":"一句签语","mode":"oracle","growth_signal":{"should_grow":true或false,"title":"不包含原话和私密细节的成长主题，最多20字","hint":"这段经历正在形成的判断或变化，最多60字","nourishment":1到3}}。'
             '签语必须只有一句、18-45字，像塔罗牌上的句子一样有画面与余味，但不预言命运；必须回应主人刚才说的具体内容，不空泛安慰、不说教、不硬套树的隐喻。'
@@ -1021,9 +1124,9 @@ def room_reply(room: str, message: str, context: dict) -> dict:
             '用60-160字回应主人话里的一个具体细节，可以提供判断或陪伴梳理，最多问一个真正有用的问题；不急着安慰，不硬套树的隐喻。'
             '只有内容具体、包含真实经历或形成了可持续成长线索时 should_grow 才为 true；短促情绪、试音和重复句必须为 false。成长信号不得复述树洞原话、人物、公司、地点或其他私密细节。'
         ),
-        "blackboard": ('只返回 JSON：{"reply":"仅小助手模式使用","material":"仅小助手模式使用的一条可独立阅读的补充资料","score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"方案完整","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"验证与指标","max":25,"awarded":0到25,"reason":"必须引用原答案证据"},{"criterion":"风险与回滚","max":25,"awarded":0到25,"reason":"必须引用原答案证据"}],"score_summary":"一句总评，不自行写总分","diagnosis":["逐点指出原答案已覆盖和遗漏"],"polished_answer":"严格按判断、拆解、验证、边界、例子五段输出的完整回答","standard_points":["4到7条标准答案要点"],"suggestions":["具体修改建议"],"thinking_directions":["后续思考方向"],"next_question":"下一步练习","next_question_reference":["4到6条直接回答下一步练习的参考答案要点"]}。'
+        "blackboard": ('只返回 JSON：{"reply":"仅小助手模式使用","material":"仅小助手模式使用的一条可独立阅读的补充资料","score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25,"reason":"先引用原答案证据，再说明覆盖和缺失"},{"criterion":"方案完整","max":25,"awarded":0到25,"reason":"先引用原答案证据，再说明覆盖和缺失"},{"criterion":"验证与指标","max":25,"awarded":0到25,"reason":"先引用原答案证据，再说明覆盖和缺失"},{"criterion":"风险与回滚","max":25,"awarded":0到25,"reason":"先引用原答案证据，再说明覆盖和缺失"}],"score_summary":"一句总评，不自行写总分","diagnosis":["逐点指出原答案已覆盖和遗漏"],"polished_answer":"严格按判断、拆解、验证、边界、例子五段输出的完整回答","standard_points":["4到7条互不重复、直接回答题目的标准答案要点"],"suggestions":["具体修改建议"],"thinking_directions":["后续思考方向"],"next_question":"下一步练习","next_question_reference":["4到6条直接回答下一步练习的参考答案要点"]}。'
                        '若 context.intent=question_helper：回答必须直接关联当前题目和用户追问；可以使用模型通用知识补足背景，但最新归属、版本、价格和指标未联网核验时必须标注。reply 用80到180字解释，material 必须写成“用户问：问题；阿栗补充：答案摘要”，其余评分字段返回空数组。不得泄露标准答案或替主人完成方案。'
-                       '若 context.intent=grade_answer：没有在原答案明确出现的内容不得给分；“不会、好难、不知道”等只有困惑没有答案的内容四项必须全部为0。polished_answer 严格按“判断：”“拆解：1...2...3...”“验证：”“边界：”“例子：”分段。next_question_reference 必须直接回答 next_question，不能重复当前题目的 standard_points；内容要具体、可执行，适合用户展开后自行对照。'),
+                       '若 context.intent=grade_answer：评分对象是主人答案，不是题目背景资料。必须根据原答案实际观点给部分分，不能因为简短就全0。假设型、通用机制设计题不得要求补充题目没有要求的具体产品信息。没有在原答案明确出现的内容不得给分；只有“不会、好难、不知道”等完全没有观点的答案才四项全部为0。standard_points 必须去重并覆盖机制、执行、验证和风险闭环。polished_answer 严格按“判断：”“拆解：1...2...3...”“验证：”“边界：”“例子：”分段。next_question_reference 必须直接回答 next_question，不能重复当前题目的 standard_points；内容要具体、可执行，适合用户展开后自行对照。'),
         "travel": '只返回 JSON：{"summary":"忠于原话的旅行感悟摘要，120字内","title":"简短名称"}',
     }
     prompt = f"""你在栗壳小院中处理一个房间内任务。
@@ -1031,11 +1134,30 @@ def room_reply(room: str, message: str, context: dict) -> dict:
 {formats[room]}
 不要伪造用户没有说过的经历，不要输出 Markdown。
 房间：{room}
-主人偏好与相关记忆：{json.dumps(memory_profile, ensure_ascii=False)[:8000]}
-上下文：{json.dumps(context, ensure_ascii=False)[:10000]}
-主人内容：{message[:6000]}"""
+当前主人问题（最高优先级）：{message[:6000]}
+辅助上下文（只用于指代消解和归档）：{json.dumps(context, ensure_ascii=False)[:10000]}
+主人偏好与相关记忆（无关内容必须忽略）：{json.dumps(answer_memory, ensure_ascii=False)[:8000]}"""
     raw, provider = call_ai(prompt)
     result = extract_json_object(raw)
+    if room == "orchard" and not orchard_answer_aligned(message, result):
+        raw, provider = call_ai(
+            prompt + "\n\n上一版输出没有准确对齐当前问题，禁止沿用其中无关内容。"
+            "请重新阅读当前主人问题，确保 answer_focus 准确概括问题，reply 明确提到问题中的产品、组织或概念并直接作答。"
+            + "上一版输出：" + raw[:5000]
+        )
+        result = extract_json_object(raw)
+        if not orchard_answer_aligned(message, result):
+            raise RuntimeError("阿栗两次回答都没有对准当前问题，请换一种问法后重试")
+    if (room == "blackboard" and str(context.get("intent") or "grade_answer") == "grade_answer"
+            and blackboard_grade_needs_retry(message, context, result)):
+        raw, provider = call_ai(
+            prompt + "\n\n上一版评分错误地把题目背景不足当成主人没有作答，或对非空答案无证据地给了0分。"
+            "请重新评分：逐项引用主人原答案，承认已覆盖内容，再扣除缺失项。通用假设题不得索要具体产品信息。"
+            + "上一版输出：" + raw[:5000]
+        )
+        result = extract_json_object(raw)
+        if blackboard_grade_needs_retry(message, context, result):
+            raise RuntimeError("评分结果仍缺少对原答案的有效依据，请稍后重新核分")
     return {"reply": result.get("reply") or result.get("summary") or "", "result": result, "provider": provider}
 
 
@@ -1250,7 +1372,7 @@ class CozyHandler(SimpleHTTPRequestHandler):
                 state = BUTLER_TOOLS.sync_exact(payload.get("state") or payload)
                 self.send_json(200, {"ok": True, "state": state})
             elif self.path == "/api/local-state":
-                state = sync_local_state(payload.get("values") or payload)
+                state = sync_local_state(payload)
                 self.send_json(200, {"ok": True, "state": state})
             elif self.path == "/api/permissions":
                 state = SYSTEM_RUNTIME.set_steward_mode(bool(payload.get("steward_mode")))

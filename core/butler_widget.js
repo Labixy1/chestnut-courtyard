@@ -3,10 +3,12 @@
   const RUNTIME=window.CozyRuntime||{mode:'dev',readOnly:false,apiBase:location.protocol==='file:'?'http://127.0.0.1:8766':''};
   const API_ORIGIN=RUNTIME.apiBase;
   const HISTORY_KEY=RUNTIME.mode==='preview'?'cozy_preview_butler_history':'cozy_global_butler_history';
+  const SYNC_META_KEY='cozy_sync_shadow_v2';
   const RUNNING_TASK_TIMEOUT=3*60*1000;
-  const STATE_KEYS=['cozy_blackboard_answers','cozy_blackboard_directions','cozy_blackboard_starred','cozy_orchard_seeds','cozy_orchard_topics','cozy_orchard_garden','cozy_orchard_backpack','cozy_orchard_growth_events','cozy_orchard_chat_sessions','cozy_notice_requests','cozy_trips','cozy_trip_reflections','cozy_heart_entries','cozy_heart_deleted_entries','cozy_hollow_buried_media','cozy_memory_events','cozy_global_butler_history','cozy_toolbox_local_items','cozy_notice_links','cozy_notice_chest','cozy_butler_watch_topics','cozy_butler_local_sources','cozy_photo_albums','cozy_courtyard_hidden_scenes'];
+  const STATE_KEYS=['cozy_blackboard_answers','cozy_blackboard_directions','cozy_blackboard_starred','cozy_orchard_seeds','cozy_orchard_topics','cozy_orchard_garden','cozy_orchard_backpack','cozy_orchard_growth_events','cozy_orchard_chat_sessions','cozy_notice_requests','cozy_notice_notes','cozy_trips','cozy_trip_reflections','cozy_heart_entries','cozy_heart_deleted_entries','cozy_hollow_buried_media','cozy_memory_events','cozy_global_butler_history','cozy_toolbox_local_items','cozy_notice_links','cozy_notice_chest','cozy_butler_watch_topics','cozy_butler_local_sources','cozy_photo_albums','cozy_courtyard_hidden_scenes'];
   let busy=false;
   let activeDictation=null;
+  let syncQueue=Promise.resolve();
   function esc(v){return String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function isProfilePermissionError(value){return /Operation not permitted[\s\S]*user_profile\.yaml/i.test(String(value||''));}
   function isLegacyIntro(value){return String(value||'').trim().startsWith('当前能力：');}
@@ -29,24 +31,70 @@
     }catch(e){return [];}
   }
   function save(items){localStorage.setItem(HISTORY_KEY,JSON.stringify(items.slice(-40)));if(!RUNTIME.readOnly)persistLocal([HISTORY_KEY]);}
-  function localValues(){const out={};STATE_KEYS.forEach(key=>{try{out[key]=JSON.parse(localStorage.getItem(key)||'null');}catch(e){}});return out;}
-  async function syncLocalState(){
+  function localValues(){const out={};STATE_KEYS.forEach(key=>{try{const raw=localStorage.getItem(key);if(raw!==null)out[key]=JSON.parse(raw);}catch(e){}});return out;}
+  function stableStringify(value){
+    if(Array.isArray(value))return '['+value.map(stableStringify).join(',')+']';
+    if(value&&typeof value==='object')return '{'+Object.keys(value).sort().map(key=>JSON.stringify(key)+':'+stableStringify(value[key])).join(',')+'}';
+    return JSON.stringify(value);
+  }
+  function syncRecordId(item){
+    if(item===null||typeof item!=='object')return 'value:'+JSON.stringify(item);
+    for(const key of ['id','key','url','link','source_url','questionId','question_id'])if(item[key]!==undefined&&item[key]!==null&&String(item[key]).trim())return key+':'+String(item[key]).trim();
+    if(item.date||item.title)return 'dated:'+String(item.date||'')+'|'+String(item.title||'');
+    return 'json:'+stableStringify(item);
+  }
+  function syncDescriptor(value){
+    if(Array.isArray(value)){const records={};value.forEach(item=>{records[syncRecordId(item)]=stableStringify(item);});return{type:'array',hash:stableStringify(value),records};}
+    if(value&&typeof value==='object'){const records={};Object.entries(value).forEach(([key,item])=>{records[key]=stableStringify(item);});return{type:'object',hash:stableStringify(value),records};}
+    return{type:'value',hash:stableStringify(value),records:{}};
+  }
+  function syncMeta(){try{const value=JSON.parse(localStorage.getItem(SYNC_META_KEY)||'{}');return value&&typeof value==='object'?value:{};}catch(_error){return {};}}
+  function buildSyncChange(value,shadow){
+    const current=syncDescriptor(value),before=shadow||{type:current.type,records:{}};
+    if(current.type==='array'){
+      const upserts=value.filter(item=>before.records?.[syncRecordId(item)]!==stableStringify(item));
+      const revive=upserts.map(syncRecordId).filter(id=>!Object.prototype.hasOwnProperty.call(before.records||{},id));
+      const ids=new Set(value.map(syncRecordId)),deleted=Object.keys(before.records||{}).filter(id=>!ids.has(id));
+      return{type:'array',upserts,deleted,revive};
+    }
+    if(current.type==='object'){
+      const upserts={};Object.entries(value||{}).forEach(([key,item])=>{if(before.records?.[key]!==stableStringify(item))upserts[key]=item;});
+      const revive=Object.keys(upserts).filter(key=>!Object.prototype.hasOwnProperty.call(before.records||{},key));
+      const deleted=Object.keys(before.records||{}).filter(key=>!Object.prototype.hasOwnProperty.call(value||{},key));
+      return{type:'object',upserts,deleted,revive};
+    }
+    return{type:'value',value};
+  }
+  async function runLocalSync(requestedKeys){
     if(RUNTIME.readOnly)return;
     try{
-      const data=await api('/api/local-state'),remoteState=data.state||{},remote=remoteState.values||{},local=localValues(),next={};
+      const local=localValues(),before={};STATE_KEYS.forEach(key=>{before[key]=syncDescriptor(local[key]);});
+      const data=await api('/api/local-state'),remoteState=data.state||{},remote=remoteState.values||{},meta=syncMeta();
       const initialized=!!remoteState.updated_at;
       const previousHistory=localStorage.getItem(HISTORY_KEY)||'';
-      STATE_KEYS.forEach(key=>{
-        const hasRemote=Object.prototype.hasOwnProperty.call(remote,key);
-        next[key]=initialized&&hasRemote?remote[key]:local[key];
-        if(next[key]!=null)localStorage.setItem(key,JSON.stringify(next[key]));
+      const keys=meta.initialized?(requestedKeys?.length?requestedKeys:STATE_KEYS):STATE_KEYS;
+      let finalState=remoteState;
+      if(!meta.initialized){
+        const missing={};keys.forEach(key=>{if(!Object.prototype.hasOwnProperty.call(remote,key)&&Object.prototype.hasOwnProperty.call(local,key))missing[key]=local[key];});
+        if(Object.keys(missing).length)finalState=(await api('/api/local-state',{values:missing},12000)).state||remoteState;
+      }else{
+        const changes={};keys.forEach(key=>{const current=before[key],shadow=meta.fields?.[key];if(current.hash!==shadow?.hash)changes[key]=buildSyncChange(local[key],shadow);});
+        if(Object.keys(changes).length)finalState=(await api('/api/local-state',{changes},12000)).state||remoteState;
+      }
+      const finalValues=finalState.values||{};
+      meta.initialized=true;meta.fields=meta.fields||{};meta.updated_at=finalState.updated_at||new Date().toISOString();
+      keys.forEach(key=>{
+        const currentRaw=localStorage.getItem(key),currentValue=currentRaw===null?undefined:(()=>{try{return JSON.parse(currentRaw);}catch(_error){return undefined;}})();
+        if(syncDescriptor(currentValue).hash!==before[key].hash)return;
+        if(Object.prototype.hasOwnProperty.call(finalValues,key)){localStorage.setItem(key,JSON.stringify(finalValues[key]));meta.fields[key]=syncDescriptor(finalValues[key]);}
+        else if(!initialized&&Object.prototype.hasOwnProperty.call(local,key))meta.fields[key]=syncDescriptor(local[key]);
       });
-      const missing={};STATE_KEYS.forEach(key=>{if(!Object.prototype.hasOwnProperty.call(remote,key)&&next[key]!=null)missing[key]=next[key];});
-      if(Object.keys(missing).length)await api('/api/local-state',{values:missing},12000);
+      localStorage.setItem(SYNC_META_KEY,JSON.stringify(meta));
       if((localStorage.getItem(HISTORY_KEY)||'')!==previousHistory)render();
       window.dispatchEvent(new CustomEvent('cozy:state-synced'));
     }catch(e){}
   }
+  function syncLocalState(keys){syncQueue=syncQueue.catch(()=>{}).then(()=>runLocalSync(keys));return syncQueue;}
   async function reconcileRunningTasks(){
     if(RUNTIME.readOnly)return;
     const items=history(),running=items.filter(item=>item.status==='running'||(item.status==='failed'&&String(item.text||'').startsWith('无法执行：任务没有在限定时间内')));if(!running.length)return;
@@ -64,9 +112,7 @@
   }
   async function persistLocal(keys){
     if(RUNTIME.readOnly)return;
-    const values={};(keys||STATE_KEYS).forEach(key=>{if(!STATE_KEYS.includes(key))return;try{const value=JSON.parse(localStorage.getItem(key)||'null');if(value!=null)values[key]=value;}catch(e){}});
-    if(!Object.keys(values).length)return;
-    try{await api('/api/local-state',{values},12000);}catch(e){}
+    return syncLocalState((keys||STATE_KEYS).filter(key=>STATE_KEYS.includes(key)));
   }
   function api(path,payload,timeout=900000){
     if(RUNTIME.readOnly&&payload!==undefined)return Promise.reject(new Error('当前是公开预览，只能浏览，数据不会写入'));

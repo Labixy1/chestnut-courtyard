@@ -185,11 +185,11 @@ with tempfile.TemporaryDirectory(prefix="cozy_system_test_") as directory:
     assert automation.run_scheduled_weekly(scheduled_time) is True and runs == [True]
     assert automation.run_scheduled_weekly(scheduled_time + timedelta(minutes=1)) is False
     weekly_job = automation.status()["jobs"]["weekly_report"]
-    assert weekly_job["schedule"] == "每周一、周三、周六 08:00" and weekly_job["last_scheduled_date"] == monday.isoformat()
+    assert weekly_job["schedule"] == "每周一、周三、周五 08:00" and weekly_job["last_scheduled_date"] == monday.isoformat()
     wednesday = scheduled_time + timedelta(days=2)
     assert automation.next_weekly_run(scheduled_time) == wednesday
     assert automation.run_scheduled_weekly(wednesday) is True and runs == [True, True]
-    saturday = scheduled_time + timedelta(days=5)
-    assert automation.next_weekly_run(wednesday) == saturday
+    friday = scheduled_time + timedelta(days=4)
+    assert automation.next_weekly_run(wednesday) == friday
 
-print("system smoke test ok: permanent permission; API patch agent; rollback; evidence-backed memory; tools; 2-3 day report schedule")
+print("system smoke test ok: permanent permission; API patch agent; rollback; evidence-backed memory; tools; Mon/Wed/Fri report schedule")

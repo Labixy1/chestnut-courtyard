@@ -52,7 +52,7 @@ def main():
         assert weather["location"].get("city")
 
         automation = request("/api/automation")["automation"]
-        assert automation["jobs"]["weekly_report"]["schedule"] == "每周一、周三、周六 08:00"
+        assert automation["jobs"]["weekly_report"]["schedule"] == "每周一、周三、周五 08:00"
         assert automation["jobs"]["weekly_report"].get("next_run")
 
         distillation = request("/api/memory/distillation")["distillation"]

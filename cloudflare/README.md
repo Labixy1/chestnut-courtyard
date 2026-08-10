@@ -43,7 +43,17 @@ separate `COZY_BACKUP` KV keeps immutable per-write versions and scheduled full
 snapshots. A private `COZY_PRIVATE` R2 bucket can replace that backup layer once
 R2 is enabled. `/api/backup/status` always reports which layer is active.
 
-The owner Worker cron runs at 08:00 Asia/Shanghai every two days. It collects
+Cloud status, backup and pull can use Wrangler as a transport when Python HTTPS
+is intercepted by a corporate network. This keeps certificate verification on:
+
+```sh
+python3 scripts/cloud_sync.py status --transport wrangler
+python3 scripts/cloud_sync.py backup --transport wrangler
+python3 scripts/cloud_sync.py pull --transport wrangler
+```
+
+The owner Worker cron runs every Monday, Wednesday, and Friday at 08:00
+Asia/Shanghai. It collects
 recent AI news candidates, asks the configured text model to keep only the
 important items, and appends a new `notice_reports` entry. The same pipeline is
 available from `/api/weekly/run` for a manual refresh. Blackboard questions and

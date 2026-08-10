@@ -137,17 +137,107 @@ export async function seedDemoState(env) {
   return {ok: true, seeded_at: now()};
 }
 
-export async function mergeLocalState(env, values) {
+const stableSyncJson = value => {
+  if (Array.isArray(value)) return `[${value.map(stableSyncJson).join(",")}]`;
+  if (value && typeof value === "object") return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${stableSyncJson(value[key])}`).join(",")}}`;
+  return JSON.stringify(value);
+};
+
+const syncRecordId = item => {
+  if (item === null || typeof item !== "object") return `value:${JSON.stringify(item)}`;
+  for (const key of ["id", "key", "url", "link", "source_url", "questionId", "question_id"]) {
+    if (item[key] !== undefined && item[key] !== null && String(item[key]).trim()) return `${key}:${String(item[key]).trim()}`;
+  }
+  if (item.date || item.title) return `dated:${String(item.date || "")}|${String(item.title || "")}`;
+  return `json:${stableSyncJson(item)}`;
+};
+
+const syncUpdatedAt = item => {
+  if (!item || typeof item !== "object") return 0;
+  const value = item.updatedAt || item.updated_at || item.modifiedAt || item.modified_at || item.createdAt || item.created_at || "";
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+function mergeArrayRecords(current, change, fieldTombstones, changedAt) {
+  const records = new Map((Array.isArray(current) ? current : []).map(item => [syncRecordId(item), item]));
+  const tombstones = {...(fieldTombstones || {})};
+  const revive = new Set(Array.isArray(change.revive) ? change.revive.map(String) : []);
+  for (const id of Array.isArray(change.deleted) ? change.deleted : []) {
+    records.delete(String(id));
+    tombstones[String(id)] = changedAt;
+  }
+  for (const item of Array.isArray(change.upserts) ? change.upserts : []) {
+    const id = syncRecordId(item);
+    const deletedAt = Date.parse(tombstones[id] || "") || 0;
+    const itemTime = syncUpdatedAt(item);
+    if (deletedAt && !revive.has(id) && (!itemTime || itemTime <= deletedAt)) continue;
+    const existing = records.get(id);
+    if (!existing || !syncUpdatedAt(existing) || !itemTime || itemTime >= syncUpdatedAt(existing)) records.set(id, item);
+    delete tombstones[id];
+  }
+  return {value: [...records.values()], tombstones};
+}
+
+function mergeObjectRecords(current, change, fieldTombstones, changedAt) {
+  const value = current && typeof current === "object" && !Array.isArray(current) ? {...current} : {};
+  const tombstones = {...(fieldTombstones || {})};
+  const revive = new Set(Array.isArray(change.revive) ? change.revive.map(String) : []);
+  for (const key of Array.isArray(change.deleted) ? change.deleted : []) {
+    delete value[String(key)];
+    tombstones[String(key)] = changedAt;
+  }
+  const upserts = change.upserts && typeof change.upserts === "object" && !Array.isArray(change.upserts) ? change.upserts : {};
+  for (const [key, item] of Object.entries(upserts)) {
+    const deletedAt = Date.parse(tombstones[key] || "") || 0;
+    const itemTime = syncUpdatedAt(item);
+    if (deletedAt && !revive.has(key) && (!itemTime || itemTime <= deletedAt)) continue;
+    const existing = value[key];
+    if (existing === undefined || !syncUpdatedAt(existing) || !itemTime || itemTime >= syncUpdatedAt(existing)) value[key] = item;
+    delete tombstones[key];
+  }
+  return {value, tombstones};
+}
+
+export async function mergeLocalState(env, input) {
   const current = await readData(env, "local_state");
-  const safe = values && typeof values === "object" && !Array.isArray(values) ? values : {};
-  const next = {...current, version: 1, updated_at: now(), values: {...(current.values || {}), ...safe}};
+  const next = {
+    ...current,
+    version: 2,
+    updated_at: now(),
+    values: {...(current.values || {})},
+    tombstones: {...(current.tombstones || {})}
+  };
+  const payload = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+  const changes = payload.changes && typeof payload.changes === "object" ? payload.changes : null;
+  if (!changes) {
+    const values = payload.values && typeof payload.values === "object" && !Array.isArray(payload.values) ? payload.values : payload;
+    next.values = {...next.values, ...values};
+    return writeData(env, "local_state", next);
+  }
+  const changedAt = now();
+  for (const [key, change] of Object.entries(changes)) {
+    if (!change || typeof change !== "object") continue;
+    if (change.type === "array") {
+      const merged = mergeArrayRecords(next.values[key], change, next.tombstones[key], changedAt);
+      next.values[key] = merged.value;
+      next.tombstones[key] = merged.tombstones;
+    } else if (change.type === "object") {
+      const merged = mergeObjectRecords(next.values[key], change, next.tombstones[key], changedAt);
+      next.values[key] = merged.value;
+      next.tombstones[key] = merged.tombstones;
+    } else if (Object.prototype.hasOwnProperty.call(change, "value")) {
+      next.values[key] = change.value;
+    }
+  }
   return writeData(env, "local_state", next);
 }
 
 function uniqueItems(items, max = 150) {
   const seen = new Set();
   return items.filter(item => {
-    const key = String(item?.id || item?.url || item?.title || item?.name || item || "").trim().toLowerCase();
+    const url = String(item?.source_url || item?.url || item?.link || "").trim().toLowerCase().replace(/#.*$/, "").replace(/\/$/, "");
+    const key = url ? `url:${url}` : String(item?.id || item?.title || item?.name || item || "").trim().toLowerCase();
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;

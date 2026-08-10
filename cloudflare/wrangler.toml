@@ -41,4 +41,4 @@ binding = "COZY_BACKUP"
 id = "6e1a1d6c02934bf185c01e44046d99b5"
 
 [triggers]
-crons = ["0 0 */2 * *"]
+crons = ["0 0 * * 1,3,5"]

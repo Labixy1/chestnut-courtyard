@@ -51,6 +51,16 @@
     }
     return item;
   }
+  function forget(id){
+    const key=String(id||'').trim();
+    if(READ_ONLY||!key)return false;
+    writeJson(EVENT_KEY,all().filter(item=>String(item.id||'')!==key));
+    writeJson(SERVER_KEY,readJson(SERVER_KEY,[]).filter(item=>String(item.id||'')!==key));
+    fetch(API_ORIGIN+'/api/memory/action',{
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'forget',id:key})
+    }).catch(()=>{});
+    return true;
+  }
   function persist(item){
     if(READ_ONLY)return;
     fetch(API_ORIGIN + '/api/memory/event',{
@@ -139,6 +149,6 @@
       count:grouped[key].length
     }));
   }
-  window.CozyMemory = {add, all, merged, longTerm, short, hydrate};
+  window.CozyMemory = {add, forget, all, merged, longTerm, short, hydrate};
   hydrate();
 })();
