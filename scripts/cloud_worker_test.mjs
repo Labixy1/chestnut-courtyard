@@ -136,7 +136,7 @@ const aiEnv = {
     }
     if (prompt.includes("资讯巡报")) {
       const id = prompt.match(/\"id\":\"([^\"]+)/)?.[1] || "candidate-0";
-      const item = {source_id: id, category: "模型与技术", original_summary: "模型发布了新的能力更新。", ai_summary: "本次更新改变了模型能力边界，产品设计需要重新验证关键任务、成本和稳定性，并更新评测基线。"};
+      const item = {source_id: id, category: "模型与技术", translation_zh: "该模型以更低价格增加了新的推理能力。", ai_summary: "本次更新改变了模型能力边界，产品设计需要重新验证关键任务、成本和稳定性，并更新评测基线。"};
       return {response: JSON.stringify({focus_title: "模型能力边界更新", hot_items: [item], sections: [], insights: ["旧评测基线需要重跑"], advice: ["先挑三个高频任务做前后对比，再决定是否迁移。"]})};
     }
     if (prompt.includes("工具箱整理员")) return {response: JSON.stringify({

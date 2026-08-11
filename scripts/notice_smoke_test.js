@@ -89,6 +89,7 @@ storage.set('cozy_notice_chest', JSON.stringify([{
   category: '记忆系统',
   title: 'An actionable archive test',
   summary: 'This is the original English summary.',
+  translation_zh: '这是原始英文摘要的中文翻译。',
   ai_summary: '这是中文摘要。',
   media: '测试媒体',
   published: '2026-08-06',
@@ -97,12 +98,16 @@ storage.set('cozy_notice_chest', JSON.stringify([{
 vm.runInContext("CORE={notice_reports:{reports:[{sections:[],insights:[],hot_items:[]}]}}", context);
 context.showNoticeView('categories');
 const rendered = node('notice-content').innerHTML;
-for (const expected of ['An actionable archive test', 'This is the original English summary.', '查看中文摘要', '这是中文摘要。', '查看原文', '稍后看', '已入栗夹']) {
+for (const expected of ['An actionable archive test', 'This is the original English summary.', '查看中文翻译', '这是原始英文摘要的中文翻译。', 'AI总结', '这是中文摘要。', '查看原文', '稍后看', '已入栗夹']) {
   if (!rendered.includes(expected)) throw new Error('category card missing: ' + expected);
 }
 if (!rendered.includes('<details class="notice-translation">')) throw new Error('Chinese summary must be collapsed by default');
 const cyberSummary = context.noticeAISummary({title:'Expanding Daybreak as the Cyber Defense Window Narrows', summary:'Meet GPT-5.6-Cyber for authorized vulnerability research and security testing.'});
 if (!/网络安全|漏洞研究/.test(cyberSummary) || /价格性能|单位成本/.test(cyberSummary)) throw new Error('cyber article was summarized as a generic GPT-5.6 update');
+const chineseCard = context.reportCardHtml({title:'中文资讯',summary:'这是一段本来就是中文的原始摘要，不应该再显示翻译入口。',ai_summary:'这是单独保留的 AI 总结。',url:'https://example.com/chinese'},'行业动态');
+if (chineseCard.includes('查看中文翻译') || !chineseCard.includes('AI总结')) throw new Error('Chinese source should skip translation but keep AI summary');
+const openaiLinks = context.reportCardHtml({title:'OpenAI update',summary:'English summary.',translation_zh:'中文翻译。',ai_summary:'AI 总结。',url:'https://openai.com/index/example-update/'},'模型与技术');
+if (!openaiLinks.includes('查看中文全文') || !openaiLinks.includes('/zh-Hans-CN/index/example-update/') || !openaiLinks.includes('英文原文')) throw new Error('OpenAI article should prefer the Chinese full-text link');
 
 storage.set('cozy_notice_requests', JSON.stringify([{
   date:'2026-08-01',
