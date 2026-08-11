@@ -139,6 +139,7 @@ const aiEnv = {
       const item = {source_id: id, category: "模型与技术", translation_zh: "该模型以更低价格增加了新的推理能力。", ai_summary: "本次更新改变了模型能力边界，产品设计需要重新验证关键任务、成本和稳定性，并更新评测基线。"};
       return {response: JSON.stringify({focus_title: "模型能力边界更新", hot_items: [item], sections: [], insights: ["旧评测基线需要重跑"], advice: ["先挑三个高频任务做前后对比，再决定是否迁移。"]})};
     }
+    if (prompt.includes("资讯翻译与编辑")) return {response: JSON.stringify({items: [{id: "0", translation_zh: "这是忠实的中文翻译。", ai_summary: "这篇文章介绍了具体能力更新、适用场景和限制，并给出了值得核验的产品结论。"}]})};
     if (prompt.includes("工具箱整理员")) return {response: JSON.stringify({
       is_tool: true, title: "Google Vids", category: "图像与视频", purpose: "使用 AI 生成和编辑视频。",
       key_capabilities: ["文本生成视频", "个人数字分身", "视频编辑"], use_cases: ["制作产品演示", "生成培训视频"],
@@ -279,6 +280,14 @@ result = await payload(await request("/api/weekly/run", {force: true}, aiEnv));
 assert.equal(result.status, 202);
 await Promise.all(pendingTasks.splice(0));
 assert.equal((await payload(await request("/api/automation", undefined, aiEnv))).body.automation.jobs.notice_report.status, "failed");
+const repairEnv = {...aiEnv, COZY_STATE: new MemoryKV()};
+await payload(await request("/api/data", {key: "notice_reports", value: {version: 1, reports: [{id: "needs-repair", generated_at: new Date().toISOString(), hot_items: [{title: "English source", summary: "An English source summary.", ai_summary: "自动中文整理暂时没有可靠完成，先保留来源。", media: "Test"}], sections: []}]}}, repairEnv));
+result = await payload(await request("/api/weekly/run", {force: true}, repairEnv));
+await Promise.all(pendingTasks.splice(0));
+const repairedReport = (await payload(await request("/api/data?key=notice_reports", undefined, repairEnv))).body.reports[0];
+assert.equal(repairedReport.hot_items[0].translation_zh, "这是忠实的中文翻译。");
+assert.doesNotMatch(repairedReport.hot_items[0].ai_summary, /暂时没有可靠完成/);
+assert.equal((await payload(await request("/api/automation", undefined, repairEnv))).body.automation.jobs.notice_report.status, "completed");
 globalThis.fetch = async url => {
   if (String(url).includes("openai.com/news/rss.xml")) return new Response(newsXml("OpenAI 发布第二项重要更新", "https://news.example/model-2"), {status: 200});
   return new Response("upstream unavailable", {status: 503});

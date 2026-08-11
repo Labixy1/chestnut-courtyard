@@ -511,6 +511,16 @@ async function runCloudReport(env, force = false) {
   const settled = await Promise.allSettled([...queries.map(fetchNewsRss), ...DIRECT_NEWS_FEEDS.map(fetchNewsFeed)]);
   const fulfilled = settled.filter(item => item.status === "fulfilled");
   if (!fulfilled.length) {
+    if(force&&latest&&reportItems(latest).some(reportItemNeedsLanguageRepair)){
+      const repaired=await repairReportLanguages(env,latest);
+      if(repaired.repaired){
+        const next={...reportsData,updated_at:now(),reports:[repaired.report,...(reportsData.reports||[]).slice(1)]};
+        await writeData(env,"notice_reports",next);
+        const message=`已补全本期中文翻译与 AI 总结；保留 ${next.reports.length} 版巡报`;
+        await writeState(env,"automation:status",{last_check:now(),jobs:{notice_report:{status:"completed",last_success:now(),repaired:true,message}}});
+        return {...repaired.report,unchanged:true,repaired:true,report_count:next.reports.length};
+      }
+    }
     const reasons = settled.map(item => item.status === "rejected" ? String(item.reason?.message || item.reason || "连接失败") : "").filter(Boolean);
     throw new Error(`资讯源全部连接失败：${[...new Set(reasons)].join("；").slice(0, 260)}`);
   }
