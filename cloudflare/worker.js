@@ -385,19 +385,47 @@ function rssText(value) {
   return cleanHtml(String(value || "").replace(/<!\[CDATA\[|\]\]>/g, " "));
 }
 
-async function fetchNewsRss(query) {
-  const endpoint = `https://news.google.com/rss/search?${new URLSearchParams({q: query, hl: "zh-CN", gl: "CN", ceid: "CN:zh-Hans"})}`;
-  const response = await fetch(endpoint, {headers: {"user-agent": "ChestnutCourtyard/1.0"}});
-  if (!response.ok) throw new Error(`资讯源返回 HTTP ${response.status}`);
-  const xml = await response.text();
-  return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)].slice(0, 18).map((match, index) => {
-    const body = match[1];
+function parseNewsFeed(xml, source) {
+  const blocks = [...String(xml || "").matchAll(/<(item|entry)\b[^>]*>([\s\S]*?)<\/\1>/gi)].slice(0, 24);
+  return blocks.map((match, index) => {
+    const body = match[2];
     const field = tag => rssText(body.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"))?.[1]);
     const sourceMatch = body.match(/<source[^>]*url=["']([^"']+)["'][^>]*>([\s\S]*?)<\/source>/i);
-    return {id: `${query.slice(0, 12)}-${index}`, title: field("title"), link: field("link"), published_at: field("pubDate"),
-      media: rssText(sourceMatch?.[2] || "Google News"), source_url: sourceMatch?.[1] || "", summary: field("description")};
+    const atomLink = body.match(/<link[^>]+href=["']([^"']+)["'][^>]*\/?\s*>/i)?.[1] || "";
+    const link = field("link") || rssText(atomLink);
+    return {
+      id: `${source.id}-${index}`, title: field("title"), link,
+      published_at: field("pubDate") || field("published") || field("updated"),
+      media: rssText(sourceMatch?.[2] || source.name),
+      source_url: sourceMatch?.[1] || source.url,
+      summary: field("description") || field("summary") || field("content")
+    };
   }).filter(item => item.title && item.link);
 }
+
+async function fetchNewsFeed(source) {
+  const response = await fetch(source.url, {headers: {"user-agent": "ChestnutCourtyard/1.0", accept: "application/rss+xml, application/atom+xml, application/xml, text/xml"}});
+  if (!response.ok) throw new Error(`${source.name} 返回 HTTP ${response.status}`);
+  const xml = await response.text();
+  const items = parseNewsFeed(xml, source);
+  if (!items.length) throw new Error(`${source.name} 没有返回可解析资讯`);
+  return items;
+}
+
+async function fetchNewsRss(query) {
+  return fetchNewsFeed({
+    id: `google-${Math.abs([...query].reduce((sum, char) => sum + char.charCodeAt(0), 0))}`,
+    name: "Google News",
+    url: `https://news.google.com/rss/search?${new URLSearchParams({q: query, hl: "zh-CN", gl: "CN", ceid: "CN:zh-Hans"})}`
+  });
+}
+
+const DIRECT_NEWS_FEEDS = [
+  {id: "openai", name: "OpenAI News", url: "https://openai.com/news/rss.xml"},
+  {id: "google-ai", name: "Google AI Blog", url: "https://blog.google/technology/ai/rss/"},
+  {id: "deepmind", name: "Google DeepMind", url: "https://deepmind.google/blog/rss.xml"},
+  {id: "verge-ai", name: "The Verge AI", url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"}
+];
 
 async function runCloudReport(env, force = false) {
   const reportsData = await readData(env, "notice_reports");
@@ -413,7 +441,7 @@ async function runCloudReport(env, force = false) {
     '(AI 产品 原型 OR Agent 评测 OR 记忆系统 OR AI 工作流) when:7d',
     ...watchTopics.map(topic => `${topic.replace(/[()"']/g, " ").slice(0, 80)} when:7d`)
   ];
-  const settled = await Promise.allSettled(queries.map(fetchNewsRss));
+  const settled = await Promise.allSettled([...queries.map(fetchNewsRss), ...DIRECT_NEWS_FEEDS.map(fetchNewsFeed)]);
   const fulfilled = settled.filter(item => item.status === "fulfilled");
   if (!fulfilled.length) {
     const reasons = settled.map(item => item.status === "rejected" ? String(item.reason?.message || item.reason || "连接失败") : "").filter(Boolean);
@@ -459,7 +487,7 @@ async function runCloudReport(env, force = false) {
   const hotItems = (curated.hot_items || []).map(hydrate).filter(Boolean).slice(0, 4);
   const sections = (curated.sections || []).slice(0, 3).map(section => ({name: String(section.name || "动态"), items: (section.items || []).map(hydrate).filter(Boolean).slice(0, 5)})).filter(section => section.items.length);
   if (!hotItems.length && !sections.length) throw new Error("模型没有选出可用资讯");
-  const report = {id: `report_${Date.now()}`, generated_at: now(), week_start: dateInShanghai(-6), week_end: dateInShanghai(),
+  const report = {id: `report_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, generated_at: now(), week_start: dateInShanghai(-6), week_end: dateInShanghai(),
     focus_title: String(curated.focus_title || hotItems[0]?.title || "近期 AI 进展").slice(0, 120), hot_items: hotItems, sections,
     insights: (curated.insights || []).slice(0, 5).map(String), advice: (curated.advice || []).slice(0, 5).map(String), provider: result.provider};
   const next = {version: 1, updated_at: now(), reports: [report, ...(reportsData.reports || []).filter(item => item.id !== report.id)].slice(0, 30)};

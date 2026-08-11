@@ -210,6 +210,8 @@ assert.equal(alignmentAttempts, 2);
 assert.match(result.body.reply, /Cursor/);
 
 const nativeFetch = globalThis.fetch;
+const isDirectNewsFeed = value => ["openai.com/news/rss.xml", "blog.google/technology/ai/rss/", "deepmind.google/blog/rss.xml", "theverge.com/rss/ai-artificial-intelligence"].some(part => String(value).includes(part));
+const newsXml = (title = "OpenAI 发布重要模型更新", link = "https://news.example/model") => `<?xml version="1.0"?><rss><channel><item><title>${title}</title><link>${link}</link><pubDate>Fri, 08 Aug 2026 00:00:00 GMT</pubDate><description>模型能力与价格更新</description><source url="https://news.example">测试媒体</source></item></channel></rss>`;
 const fallbackEnv = {
   ...baseEnv,
   COZY_TEXT_PROVIDER: "deepseek", COZY_TEXT_FALLBACK_PROVIDER: "openai",
@@ -229,7 +231,8 @@ result = await payload(await request("/api/providers", undefined, fallbackEnv));
 assert.deepEqual(result.body.providers.text_route, ["deepseek", "openai"]);
 
 globalThis.fetch = async (url, options) => {
-  if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(`<?xml version="1.0"?><rss><channel><item><title>OpenAI 发布重要模型更新</title><link>https://news.example/model</link><pubDate>Fri, 08 Aug 2026 00:00:00 GMT</pubDate><description>模型能力与价格更新</description><source url="https://news.example">测试媒体</source></item></channel></rss>`, {status: 200});
+  if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(newsXml(), {status: 200});
+  if (isDirectNewsFeed(url)) return new Response("unavailable", {status: 503});
   return nativeFetch(url, options);
 };
 result = await payload(await request("/api/weekly/run", {force: true}, aiEnv));
@@ -241,7 +244,8 @@ assert.equal((await payload(await request("/api/data?key=notice_reports", undefi
 assert.equal((await payload(await request("/api/automation", undefined, aiEnv))).body.automation.jobs.notice_report.status, "completed");
 
 globalThis.fetch = async (url, options) => {
-  if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(`<?xml version="1.0"?><rss><channel><item><title>OpenAI 发布重要模型更新</title><link>https://news.example/model</link><pubDate>Fri, 08 Aug 2026 00:00:00 GMT</pubDate><description>模型能力与价格更新</description><source url="https://news.example">测试媒体</source></item></channel></rss>`, {status: 200});
+  if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(newsXml(), {status: 200});
+  if (isDirectNewsFeed(url)) return new Response("unavailable", {status: 503});
   return nativeFetch(url, options);
 };
 result = await payload(await request("/api/weekly/run", {force: true}, aiEnv));
@@ -258,13 +262,14 @@ result = await payload(await request("/api/weekly/run", {force: true}, aiEnv));
 assert.equal(result.status, 202);
 await Promise.all(pendingTasks.splice(0));
 assert.equal((await payload(await request("/api/automation", undefined, aiEnv))).body.automation.jobs.notice_report.status, "failed");
-globalThis.fetch = async (url, options) => {
-  if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(`<?xml version="1.0"?><rss><channel><item><title>OpenAI 发布重要模型更新</title><link>https://news.example/model</link><pubDate>Fri, 08 Aug 2026 00:00:00 GMT</pubDate><description>模型能力与价格更新</description><source url="https://news.example">测试媒体</source></item></channel></rss>`, {status: 200});
-  return nativeFetch(url, options);
+globalThis.fetch = async url => {
+  if (String(url).includes("openai.com/news/rss.xml")) return new Response(newsXml("OpenAI 发布第二项重要更新", "https://news.example/model-2"), {status: 200});
+  return new Response("upstream unavailable", {status: 503});
 };
 result = await payload(await request("/api/weekly/run", {force: true}, aiEnv));
 await Promise.all(pendingTasks.splice(0));
 assert.equal((await payload(await request("/api/automation", undefined, aiEnv))).body.automation.jobs.notice_report.status, "completed");
+assert.equal((await payload(await request("/api/data?key=notice_reports", undefined, aiEnv))).body.reports.length, 2);
 globalThis.fetch = nativeFetch;
 
 globalThis.fetch = async url => new Response("blocked", {status: 403});
