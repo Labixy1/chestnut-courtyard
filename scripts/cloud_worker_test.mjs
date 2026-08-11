@@ -275,6 +275,16 @@ result = await payload(await request("/api/weekly/run", {force: true}, aiEnv));
 await Promise.all(pendingTasks.splice(0));
 assert.equal((await payload(await request("/api/automation", undefined, aiEnv))).body.automation.jobs.notice_report.status, "completed");
 assert.equal((await payload(await request("/api/data?key=notice_reports", undefined, aiEnv))).body.reports.length, 2);
+
+const slowCurationEnv = {...baseEnv, COZY_STATE: new MemoryKV(), COZY_NEWS_AI_TIMEOUT_MS: "10", AI: {run: async () => new Promise(() => {})}};
+globalThis.fetch = async url => {
+  if (String(url).includes("openai.com/news/rss.xml")) return new Response(newsXml("模型整理超时时仍可归档", "https://news.example/source-fallback"), {status: 200});
+  return new Response("upstream unavailable", {status: 503});
+};
+result = await payload(await request("/api/weekly/run", {force: true}, slowCurationEnv));
+await Promise.all(pendingTasks.splice(0));
+assert.equal((await payload(await request("/api/automation", undefined, slowCurationEnv))).body.automation.jobs.notice_report.status, "completed");
+assert.equal((await payload(await request("/api/data?key=notice_reports", undefined, slowCurationEnv))).body.reports[0].provider, "source-fallback");
 globalThis.fetch = nativeFetch;
 
 globalThis.fetch = async url => new Response("blocked", {status: 403});

@@ -476,8 +476,31 @@ async function runCloudReport(env, force = false) {
 热点速览只放行业级重要发布；国内外动态兼顾 OpenAI、Anthropic、Google 与国内 DeepSeek、Kimi、通义、豆包；产品相关动态只放评测、记忆、Agent、原型、工作流等真正能提升产品能力的案例。分类只用模型与技术、产品与实践、行业动态、学术研究。不得编造候选中没有的价格、指标和事实。
 主人关注方向：${JSON.stringify(watchTopics)}。只有候选中确实有直接相关内容时才增加“主人关注”栏目；没有匹配内容就不要生成该栏目，不能拿普通 AI 新闻凑数。
 候选：${JSON.stringify(pool).slice(0, 30000)}`;
-  const result = await callText(env, prompt, 3600);
-  const curated = extractJson(result.text);
+  let result = {provider: "source-fallback"};
+  let curated;
+  try {
+    const curationTimeout = Math.max(10, Number(env.COZY_NEWS_AI_TIMEOUT_MS) || 16000);
+    result = await Promise.race([
+      callText(env, prompt, 3600),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("资讯整理模型响应超时")), curationTimeout))
+    ]);
+    curated = extractJson(result.text);
+  } catch (_error) {
+    const selected = pool.slice(0, 9);
+    const shape = item => ({
+      source_id: item.id,
+      category: categoryForArticle(item.title),
+      original_summary: item.summary || item.title,
+      ai_summary: item.summary || item.title
+    });
+    curated = {
+      focus_title: selected[0]?.title || "近期 AI 进展",
+      hot_items: selected.slice(0, 4).map(shape),
+      sections: selected.length > 4 ? [{name: "近期动态", items: selected.slice(4).map(shape)}] : [],
+      insights: ["本期先按来源原始信息归档，后续可继续补充深度判断。"],
+      advice: ["先核对与你当前产品最相关的变化，再决定是否调整评测、模型或工作流。"]
+    };
+  }
   const byId = new Map(pool.map(item => [item.id, item]));
   const hydrate = raw => {
     const source = byId.get(String(raw?.source_id || ""));
