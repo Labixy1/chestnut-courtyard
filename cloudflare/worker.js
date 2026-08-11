@@ -302,11 +302,50 @@ function dateInShanghai(offsetDays = 0) {
   return new Date(Date.now() + offsetDays * 86400000).toLocaleDateString("en-CA", {timeZone: "Asia/Shanghai"});
 }
 
+function validCloudBlackboardQuestion(item, date) {
+  if (!item || item.date !== date || String(item.question || "").trim().length < 18) return false;
+  const points = Array.isArray(item.standard_points) ? item.standard_points.map(value => String(value).trim()).filter(Boolean) : [];
+  if (points.length < 4 || points.some(value => value.length < 8)) return false;
+  return !points.some(value => /^\d*\s*到?\s*\d*\s*条?\s*(参考答案)?要点[。.]?$/.test(value));
+}
+
+function fallbackCloudBlackboardQuestion(date, variant, reports) {
+  const topics = [
+    ["失败恢复设计", "一个 AI 助手执行多步骤任务时，怎样设计进度、重试、人工接管和结果核验，避免用户只看到无限等待？"],
+    ["记忆边界设计", "如果你负责长期陪伴型 AI，怎样决定哪些内容可以自动记住、哪些需要确认、哪些必须封存或彻底遗忘？"],
+    ["评测集设计", "准备上线一个 AI 搜索功能时，你会怎样设计正常、边界、对抗和失败样例，并用哪些指标决定是否上线？"],
+    ["Agent 权限", "当 AI 可以修改用户数据时，你会怎样划分权限等级、确认时机、审计记录和失败回滚？"],
+    ["原型验证", "只有三天验证一个 AI 产品想法时，你会做什么最小原型、选择哪些真实用户任务，并依据什么信号继续或停止？"],
+    ["模型路由", "面对质量、速度和成本不同的多个模型，你会怎样按任务风险设计路由、兜底和降级提示？"],
+    ["信息可信度", "一个资讯整理 AI 怎样区分事实、来源摘要和模型判断，并在来源冲突或全部失败时向用户表达？"],
+    ["人工接管", "在客服 Agent 中，哪些信号应触发人工接管，怎样交接上下文，并如何衡量接管机制是否有效？"],
+    ["多端同步", "一个同时在手机和电脑使用的个人 AI 产品，怎样处理离线修改、并发冲突、删除防复活和媒体文件同步？"],
+    ["商业验证", "一个 AI 功能调用成本较高时，你会怎样验证用户价值、付费意愿和单位经济模型，而不是只看使用次数？"]
+  ];
+  const seed = [...`${date}|${variant}`].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const [title, question] = topics[seed % topics.length];
+  const latest = (reports?.reports || [])[0];
+  const source = [...(latest?.hot_items || []), ...(latest?.sections || []).flatMap(section => section.items || [])][0];
+  return {
+    id: `cloud-${date}-${variant || "daily"}`, date, title, type: "产品场景",
+    types: ["产品场景", "方法设计", "边界判断"], question,
+    materials: source?.title ? [`近期资讯：${String(source.title).slice(0, 160)}`] : [],
+    standard: [
+      "先明确目标用户、具体任务、成功标准和不可接受的风险。",
+      "把方案拆成输入、执行、反馈、异常处理和人工接管环节。",
+      "为关键环节设置可观察指标，并说明数据如何采集和比较。",
+      "覆盖边界与失败情况，明确什么时候不应继续自动执行。",
+      "先用小范围真实任务验证核心假设，再依据结果决定是否扩大。"
+    ],
+    provider: "deterministic-fallback"
+  };
+}
+
 async function cloudBlackboardQuestion(env, variant = "") {
   const date = dateInShanghai();
   const cacheKey = `blackboard:question:${date}${variant ? `:${variant}` : ""}`;
   const cached = await readState(env, cacheKey, null);
-  if (cached) return cached;
+  if (validCloudBlackboardQuestion(cached, date)) return cached;
   const [reports, local, memory] = await Promise.all([
     readData(env, "notice_reports"), readData(env, "local_state"), memoryContext(env)
   ]);
@@ -321,17 +360,23 @@ async function cloudBlackboardQuestion(env, variant = "") {
 近期巡报：${JSON.stringify((reports.reports || []).slice(0, 2)).slice(0, 9000)}
 相关记忆：${JSON.stringify(memory).slice(0, 5000)}`;
   const finalPrompt = prompt + (variant ? `\n这是同一天的换题请求（编号 ${variant}）。必须避开最近答案中已有题目的核心问题，换一个训练方向。` : "");
-  const result = await callText(env, finalPrompt, 1400);
-  const parsed = extractJson(result.text);
-  if (!parsed.question || !Array.isArray(parsed.standard_points)) throw new Error("模型生成的题目结构不完整");
-  const question = {
-    id: `cloud-${date}-${variant || "daily"}`, date, title: String(parsed.title || "今天的产品判断").slice(0, 40),
-    type: String((parsed.types || ["产品场景"])[0] || "产品场景"),
-    types: (parsed.types || ["产品场景"]).slice(0, 4), question: String(parsed.question).slice(0, 2000),
-    materials: (parsed.materials || []).slice(0, 2).map(String),
-    standard: parsed.standard_points.slice(0, 7).map(String), standard_points: parsed.standard_points.slice(0, 7).map(String),
-    provider: result.provider
-  };
+  let question;
+  try {
+    const result = await callText(env, finalPrompt, 1400);
+    const parsed = extractJson(result.text);
+    const points = Array.isArray(parsed.standard_points) ? parsed.standard_points.slice(0, 7).map(String) : [];
+    question = {
+      id: `cloud-${date}-${variant || "daily"}`, date, title: String(parsed.title || "今天的产品判断").slice(0, 40),
+      type: String((parsed.types || ["产品场景"])[0] || "产品场景"),
+      types: (parsed.types || ["产品场景"]).slice(0, 4), question: String(parsed.question || "").slice(0, 2000),
+      materials: (parsed.materials || []).slice(0, 2).map(String),
+      standard: points, standard_points: points, provider: result.provider
+    };
+    if (!validCloudBlackboardQuestion(question, date)) throw new Error("模型生成的题目结构不完整");
+  } catch (_error) {
+    question = fallbackCloudBlackboardQuestion(date, variant, reports);
+    question.standard_points = question.standard;
+  }
   await writeState(env, cacheKey, question, {expirationTtl: 60 * 60 * 24 * 45});
   return question;
 }

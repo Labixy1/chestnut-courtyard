@@ -111,7 +111,7 @@ const aiEnv = {
     const prompt = input.messages?.[0]?.content || "";
     if (prompt.includes("产品黑板出题人")) return {response: JSON.stringify({
       title: "评测边界", question: "如何为一个会调用工具的 Agent 构建评测集？", types: ["AI评测"],
-      materials: ["关注任务成功率与副作用"], standard_points: ["分层定义任务", "覆盖失败路径", "记录工具副作用", "设置回归集"]
+      materials: ["关注任务成功率与副作用"], standard_points: ["按风险分层定义真实任务", "覆盖超时和越权等失败路径", "记录每次工具调用产生的副作用", "建立固定回归集并设置通过阈值"]
     })};
     if (prompt.includes("产品黑板") && prompt.includes("standard_points")) return {response: JSON.stringify({
       score_breakdown: [
@@ -152,6 +152,15 @@ result = await payload(await request("/api/blackboard/today", undefined, aiEnv))
 assert.equal(result.status, 200);
 assert.equal(result.body.question.type, "AI评测");
 assert.equal(result.body.question.standard_points.length, 4);
+const invalidQuestionEnv = {...baseEnv, COZY_STATE: new MemoryKV(), AI: {run: async () => ({response: JSON.stringify({
+  title: "空壳题", question: "如果模型只返回格式要求，你会怎样处理这个无效题目并确保用户拿到当天可回答的新题？", types: ["产品场景"],
+  materials: [], standard_points: ["4到7条参考答案要点"]
+})})}};
+result = await payload(await request("/api/blackboard/today", undefined, invalidQuestionEnv));
+assert.equal(result.status, 200);
+assert.equal(result.body.question.provider, "deterministic-fallback");
+assert.ok(result.body.question.standard_points.length >= 4);
+assert.equal(result.body.question.standard_points.some(item => /参考答案要点/.test(item)), false);
 result = await payload(await request("/api/room", {room: "blackboard", message: "我会先看任务成功率", context: {question: "如何构建评测集？"}}, aiEnv));
 assert.equal(result.body.result.standard_points.length, 4);
 

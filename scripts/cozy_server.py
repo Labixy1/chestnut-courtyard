@@ -429,12 +429,21 @@ def fallback_daily_question(today: str, latest_report: dict, seeds: list, varian
     }
 
 
+def valid_daily_question(item: dict, today: str):
+    if not isinstance(item, dict) or item.get("date") != today or len(str(item.get("question") or "").strip()) < 18:
+        return False
+    points = [str(value).strip() for value in item.get("standard_points", []) if str(value).strip()] if isinstance(item.get("standard_points"), list) else []
+    if len(points) < 4 or any(len(value) < 8 for value in points):
+        return False
+    return not any(re.fullmatch(r"\d*\s*到?\s*\d*\s*条?\s*(参考答案)?要点[。.]?", value) for value in points)
+
+
 def get_daily_question(variant: str = ""):
     today = datetime.now().strftime("%Y-%m-%d")
     path = ROOT / "core/daily_questions.json"
     data = read_json(path, {"version": 1, "items": []})
     existing = next((item for item in data.get("items", []) if item.get("date") == today and not variant), None)
-    if existing:
+    if valid_daily_question(existing, today):
         return existing
     reports = read_json(ROOT / "core/notice_reports.json", {}).get("reports", [])
     latest = reports[0] if reports else {}
@@ -457,9 +466,10 @@ def get_daily_question(variant: str = ""):
     try:
         raw, provider = call_ai(prompt)
         generated = extract_json_object(raw)
-        if not generated.get("question") or not isinstance(generated.get("standard_points"), list):
+        candidate = {**fallback, **generated, "id": "question-" + today + "-" + (variant or "daily"), "date": today, "source": provider}
+        if not valid_daily_question(candidate, today):
             raise ValueError("每日题结构不完整")
-        item = {**fallback, **generated, "id": "question-" + today + "-" + (variant or "daily"), "date": today, "source": provider}
+        item = candidate
     except Exception:
         item = fallback
     data.setdefault("items", []).insert(0, item)
@@ -1442,6 +1452,7 @@ class CozyHandler(SimpleHTTPRequestHandler):
         raw = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "private, no-store")
         self.send_header("Content-Length", str(len(raw)))
         self.end_headers()
         self.wfile.write(raw)

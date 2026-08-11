@@ -1072,32 +1072,51 @@ async function openBlackboard(){
     'blackboard-panel'
   );
   const saved = JSON.parse(localStorage.getItem('cozy_blackboard_answers') || '[]');
-  window.BB_STATE = {today, history, questionData:getBlackboardQuestionData(today),locked:false,submitting:false,refreshing:false};
+  const requiresFreshQuestion=location.protocol!=='file:';
+  window.BB_STATE = {today, history, questionData:getBlackboardQuestionData(today),locked:false,submitting:false,refreshing:false,loading:requiresFreshQuestion,loadError:''};
   const initialSaved = findSavedBlackboardAnswer(saved,window.BB_STATE.questionData);
   if(initialSaved){window.BB_STATE.answer=initialSaved.answer;window.BB_STATE.review=initialSaved.review;window.BB_STATE.nextQuestion=initialSaved.next_question||'';window.BB_STATE.nextQuestionReference=initialSaved.next_question_reference||[];window.BB_STATE.questionData.supplementalMaterials=initialSaved.supplementalMaterials||[];window.BB_STATE.locked=true;}
   showBlackboardMode('question');
+  await loadTodayBlackboardQuestion(saved,requiresFreshQuestion);
+}
+
+async function loadTodayBlackboardQuestion(saved=[],showFailure=true){
+  const state=window.BB_STATE;
+  if(!state)return;
+  const expectedDate=localCalendarDate(),fallback=state.today||{title:'每日产品题',tags:['产品判断']};
+  state.loading=showFailure;state.loadError='';
+  if(showFailure)showBlackboardMode('question');
   try{
-    const data = await cozyApi('/api/blackboard/today',undefined,90000);
+    const data = await cozyApi('/api/blackboard/today?date='+encodeURIComponent(expectedDate)+'&_='+Date.now(),undefined,90000);
     const item = data.question || {};
-    window.BB_STATE.today = {title:item.title || today.title,tags:item.types || today.tags};
-    window.BB_STATE.questionData = {
-      title:item.title || today.title,
+    if(!item.question||item.date!==expectedDate)throw new Error('服务没有返回 '+expectedDate+' 的新题目');
+    state.today = {title:item.title || fallback.title,tags:item.types || fallback.tags};
+    state.questionData = {
+      id:item.id||('daily-'+expectedDate),
+      title:item.title || fallback.title,
       types:item.types || ['产品场景'],
-      question:item.question || getBlackboardQuestionData(today).question,
+      question:item.question,
       materials:item.materials || [],
-      standard:item.standard_points || getBlackboardQuestionData(today).standard,
+      standard:item.standard_points || [],
       seedHint:'',
       date:item.date
     };
-    delete window.BB_STATE.answer;
-    delete window.BB_STATE.review;
-    delete window.BB_STATE.nextQuestion;
-    delete window.BB_STATE.nextQuestionReference;
-    window.BB_STATE.locked=false;
-    const submitted=findSavedBlackboardAnswer(saved,window.BB_STATE.questionData);
-    if(submitted){window.BB_STATE.answer=submitted.answer;window.BB_STATE.review=submitted.review;window.BB_STATE.nextQuestion=submitted.next_question||'';window.BB_STATE.nextQuestionReference=submitted.next_question_reference||[];window.BB_STATE.questionData.supplementalMaterials=submitted.supplementalMaterials||[];window.BB_STATE.locked=true;}
+    state.history=[state.questionData,...(state.history||[]).filter(old=>blackboardQuestionKey(old)!==blackboardQuestionKey(state.questionData))];
+    delete state.answer;delete state.review;delete state.nextQuestion;delete state.nextQuestionReference;
+    state.locked=false;
+    const submitted=findSavedBlackboardAnswer(saved,state.questionData);
+    if(submitted){state.answer=submitted.answer;state.review=submitted.review;state.nextQuestion=submitted.next_question||'';state.nextQuestionReference=submitted.next_question_reference||[];state.questionData.supplementalMaterials=submitted.supplementalMaterials||[];state.locked=true;}
+  }catch(error){
+    if(showFailure)state.loadError=String(error&&error.message||'今日题目加载失败');
+  }finally{
+    state.loading=false;
     showBlackboardMode('question');
-  }catch(error){ /* 双击打开时继续使用本地题 */ }
+  }
+}
+
+function retryTodayBlackboardQuestion(){
+  const saved=JSON.parse(localStorage.getItem('cozy_blackboard_answers')||'[]');
+  loadTodayBlackboardQuestion(saved,true);
 }
 
 async function refreshBlackboardQuestion(){
@@ -1137,6 +1156,8 @@ function showBlackboardMode(mode){
   if(active) active.classList.add('active');
   const content = document.getElementById('bb-content');
   if(!content) return;
+  if(mode==='question'&&s.loading){content.innerHTML='<section class="bb-question"><div class="eyebrow">今日题目</div><h3>阿栗正在读取 '+escapeNotice(localCalendarDate())+' 的新题目…</h3><p class="bb-note">手机端不会再用旧题代替今天的题。</p></section>';return;}
+  if(mode==='question'&&s.loadError){content.innerHTML='<section class="bb-question"><div class="eyebrow">今日题目</div><h3>今天的新题还没有加载出来</h3><p class="bb-note">'+escapeNotice(s.loadError)+'</p><button class="bb-submit" onclick="retryTodayBlackboardQuestion()">重新加载今日题目</button></section>';return;}
   if(mode === 'question'){
     content.innerHTML = renderBlackboardQuestion(q, s.answer || '');
   }else if(mode === 'result'){
@@ -1418,7 +1439,7 @@ function renderBlackboardQuestion(q, answer){
   const materials = allMaterials.length ? '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list">'+allMaterials.map((x,index)=>'<li'+(index>=(q.materials||[]).length?' class="bb-added-material"':'')+'>'+escapeNotice(x)+'</li>').join('')+'</ul></div>' : '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list"></ul></div>';
   const refreshing=!!(window.BB_STATE&&window.BB_STATE.refreshing);
   const starred=isBlackboardStarred(q);
-  return '<section class="bb-question"><div class="bb-question-head"><div class="eyebrow">今日题目</div><div class="bb-question-tools"><button type="button" class="bb-star '+(starred?'active':'')+'" onclick="toggleCurrentBlackboardStar()" aria-label="'+(starred?'取消星标':'星标题目')+'" aria-pressed="'+starred+'" title="'+(starred?'取消星标':'星标题目')+'">★</button><button class="bb-refresh-question" onclick="refreshBlackboardQuestion()" '+(refreshing?'disabled':'')+' title="换一道新题" aria-label="换一道新题">'+(refreshing?'…':'↻')+'</button></div></div>'+
+  return '<section class="bb-question"><div class="bb-question-head"><div class="eyebrow">今日题目 · '+escapeNotice(q.date||localCalendarDate())+'</div><div class="bb-question-tools"><button type="button" class="bb-star '+(starred?'active':'')+'" onclick="toggleCurrentBlackboardStar()" aria-label="'+(starred?'取消星标':'星标题目')+'" aria-pressed="'+starred+'" title="'+(starred?'取消星标':'星标题目')+'">★</button><button class="bb-refresh-question" onclick="refreshBlackboardQuestion()" '+(refreshing?'disabled':'')+' title="换一道新题" aria-label="换一道新题">'+(refreshing?'…':'↻')+'</button></div></div>'+
     '<h3>'+escapeNotice(q.question)+'</h3><div class="bb-pills">'+pills+'</div>'+
     (q.seedHint ? '<p>'+escapeNotice(q.seedHint)+'</p>' : '')+materials+renderBlackboardHelper()+
     '<textarea id="bb-answer-input" class="bb-answer-box" placeholder="写你的答案。可以按 1、2、3 列，也可以先用几句话说清楚。"'+(window.BB_STATE&&window.BB_STATE.locked?' disabled':'')+'>'+escapeNotice(answer)+'</textarea>'+
@@ -2400,11 +2421,13 @@ async function cozyApi(path, payload, timeout=165000){
   const controller = new AbortController();
   const timer = setTimeout(()=>controller.abort(), timeout);
   try{
-    const options = payload === undefined ? {signal:controller.signal} : {
+    const options = payload === undefined ? {signal:controller.signal,cache:'no-store',credentials:'same-origin'} : {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify(payload),
-      signal:controller.signal
+      signal:controller.signal,
+      cache:'no-store',
+      credentials:'same-origin'
     };
     const response = await fetch(COZY_API_ORIGIN + path, options);
     let data = {};

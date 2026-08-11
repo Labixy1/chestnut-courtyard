@@ -32,6 +32,9 @@ if (!orchard.includes("slice(0,-1).slice(-8)") || !orchard.includes("current_top
 if (!orchard.includes('openEmptyPlotPanel()') || !orchard.includes('这块空地的知识专题')) throw new Error('empty orchard plots must open a knowledge-topic empty state');
 if (!orchard.includes('fingerprint===knowledgeRenderFingerprint') || !orchard.includes("details[open][data-topic-id]") || orchard.includes("open=first?' open':''")) throw new Error('knowledge topics must preserve manual collapse state across sync renders');
 if (!home.includes('String(item.awarded??0)') || !home.includes('String(item.max??25)')) throw new Error('blackboard must display explicit zero scores');
+if (!home.includes("loading:requiresFreshQuestion") || !home.includes("/api/blackboard/today?date=") || !home.includes("重新加载今日题目")) throw new Error('online blackboard must wait for a fresh dated question and expose retry');
+if (!home.includes("今日题目 · '+escapeNotice(q.date||localCalendarDate())")) throw new Error('blackboard must show the active question date');
+if (!home.includes("cache:'no-store',credentials:'same-origin'")) throw new Error('API GET requests must bypass stale mobile caches');
 if (!serviceWorker.includes("url.pathname.includes('/assets/')")) throw new Error('static assets must use the cache-first path');
 if (!serviceWorker.includes("cozy-shell-v8") || !fs.readFileSync('core/pwa.js','utf8').includes("updateViaCache:'none'")) throw new Error('PWA shell updates must bypass stale service worker cache');
 if (!home.includes("return remote?[]:[NOTICE_REPORT_FALLBACK()]") || !home.includes('页面不会再显示旧版占位巡报')) throw new Error('remote noticeboard must not show bundled fallback reports');
