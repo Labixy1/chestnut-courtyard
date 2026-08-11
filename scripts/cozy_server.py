@@ -398,6 +398,13 @@ def upload_media(payload: dict):
     return {"item": item, "estate_state": estate, "local_state": local_state}
 
 
+def blackboard_source_summary(item: dict) -> str:
+    text = " ".join(str(item.get(key) or "") for key in ("title", "summary", "ai_summary", "main_takeaway"))
+    if re.search(r"Daybreak|GPT-5\.6-Cyber|vulnerability research|cybersecurity-specific", text, re.I):
+        return "OpenAI 扩展 Daybreak 网络安全计划，并提供面向授权漏洞研究、漏洞利用验证和安全测试的 GPT-5.6-Cyber；重点是专业网络安全能力的授权使用与治理边界。"
+    return str(item.get("ai_summary") or item.get("main_takeaway") or item.get("summary") or "").strip()
+
+
 def fallback_daily_question(today: str, latest_report: dict, seeds: list, variant: str = ""):
     topics = [
         ("评测集设计", "如果要判断一个 AI 功能是否真的变好，你会怎样设计一套包含正常、边界和失败样例的评测集？"),
@@ -409,12 +416,23 @@ def fallback_daily_question(today: str, latest_report: dict, seeds: list, varian
         ("工作流设计", "怎样把一次 AI 回答变成可持续的工作流，同时设计进度、重试、人工接管和结果追踪？"),
     ]
     title, question = topics[sum(ord(char) for char in today + variant) % len(topics)]
-    hot = (latest_report.get("hot_items") or [])[:1]
+    report_items = list(latest_report.get("hot_items") or [])
+    for section in latest_report.get("sections") or []:
+        report_items.extend(section.get("items") or [])
+    hot = report_items[:1]
     materials = []
     if hot:
-        materials.append("本周资料：" + str(hot[0].get("title") or "") + "。" + str(hot[0].get("main_takeaway") or hot[0].get("summary") or "")[:180])
+        source_title = str(hot[0].get("title") or "近期 AI 资讯").strip()
+        source_summary = blackboard_source_summary(hot[0])
+        title = "资讯判断"
+        question = (f"结合资讯“{source_title}”，如果你负责一款 AI 产品，会怎样判断这项变化是否值得接入？"
+                    "请从用户任务、能力变化、成本与限制、验证指标和上线边界回答。")
+        materials.append("资讯原题：" + source_title)
+        if source_summary:
+            materials.append("中文摘要：" + source_summary[:220])
     if seeds:
-        materials.append("果园线索：" + str(seeds[0].get("text") or "")[:120])
+        if not hot:
+            materials.append("果园线索：" + str(seeds[0].get("text") or "")[:120])
     return {
         "date": today, "title": title, "question": question,
         "types": ["产品场景", "方法设计", "边界判断"], "materials": materials,
@@ -425,12 +443,15 @@ def fallback_daily_question(today: str, latest_report: dict, seeds: list, varian
             "覆盖边界情况，并说明什么时候不应该使用 AI。",
             "用一个足够小的实验验证最关键假设，再决定是否扩大投入。",
         ],
-        "source": "local_fallback",
+        "source": "local_fallback", "source_title": str(hot[0].get("title") or "") if hot else "",
+        "alignment_version": 3,
     }
 
 
 def valid_daily_question(item: dict, today: str):
     if not isinstance(item, dict) or item.get("date") != today or len(str(item.get("question") or "").strip()) < 18:
+        return False
+    if int(item.get("alignment_version") or 0) < 3:
         return False
     points = [str(value).strip() for value in item.get("standard_points", []) if str(value).strip()] if isinstance(item.get("standard_points"), list) else []
     if len(points) < 4 or any(len(value) < 8 for value in points):
@@ -442,21 +463,23 @@ def get_daily_question(variant: str = ""):
     today = datetime.now().strftime("%Y-%m-%d")
     path = ROOT / "core/daily_questions.json"
     data = read_json(path, {"version": 1, "items": []})
+    reports = read_json(ROOT / "core/notice_reports.json", {}).get("reports", [])
+    latest = reports[0] if reports else {}
     existing = next((item for item in data.get("items", []) if item.get("date") == today and not variant), None)
     if valid_daily_question(existing, today):
         return existing
-    reports = read_json(ROOT / "core/notice_reports.json", {}).get("reports", [])
-    latest = reports[0] if reports else {}
     local = read_json(LOCAL_STATE_PATH, {"values": {}}).get("values", {})
     seeds = local.get("cozy_orchard_seeds", []) if isinstance(local.get("cozy_orchard_seeds"), list) else []
     directions = local.get("cozy_blackboard_directions", []) if isinstance(local.get("cozy_blackboard_directions"), list) else []
     prior_answers = local.get("cozy_blackboard_answers", []) if isinstance(local.get("cozy_blackboard_answers"), list) else []
     fallback = fallback_daily_question(today, latest, seeds, variant)
-    prompt = f"""你是栗壳小院黑板的产品教练。基于近期真实资讯、果园成长线索、历史作答和主人偶尔想练的方向，出一道有思考价值、可以列点回答的产品问答题。
+    primary_source = ((latest.get("hot_items") or []) + [item for section in (latest.get("sections") or []) for item in (section.get("items") or [])])[:1]
+    primary_source = primary_source[0] if primary_source else {}
+    prompt = f"""你是栗壳小院黑板的产品教练。基于指定的近期真实资讯出一道有思考价值、可以列点回答的产品问答题。
 只返回 JSON：{{"title":"10字内题名","question":"明确的开放问答题","types":["类型"],"materials":["最多2条具体资料"],"standard_points":["4到6条标准答案要点"]}}
-要求：题目不能是选择题；避免空泛；资料不够时不要编造事实；答案必须包含方法、具体动作、边界或验证标准。主人留言的方向只占选题权重的一部分，必须在基础理论、产品场景、时事判断、评测、原型、Agent、记忆与商业判断之间保持多样性，避免连续重复同类题。
+要求：有指定资讯时，题目必须直接讨论该资讯，question 中必须完整引用它的原标题；materials 也只能解释同一篇资讯，不能拼接无关题目。题目不能是选择题；避免空泛；资料不够时不要编造事实；答案必须包含方法、具体动作、边界或验证标准。
 日期：{today}
-本周资讯：{json.dumps(latest, ensure_ascii=False)[:10000]}
+指定资讯：{json.dumps(primary_source, ensure_ascii=False)[:5000]}
 果园种子：{json.dumps(seeds[:5], ensure_ascii=False)[:3000]}
 主人想练的方向：{json.dumps(directions[:8], ensure_ascii=False)[:2500]}
 最近作答：{json.dumps(prior_answers[:5], ensure_ascii=False)[:5000]}
@@ -466,7 +489,13 @@ def get_daily_question(variant: str = ""):
     try:
         raw, provider = call_ai(prompt)
         generated = extract_json_object(raw)
-        candidate = {**fallback, **generated, "id": "question-" + today + "-" + (variant or "daily"), "date": today, "source": provider}
+        candidate = {**fallback, **generated, "id": "question-" + today + "-" + (variant or "daily"), "date": today, "source": provider, "alignment_version": 3}
+        source_title = str(primary_source.get("title") or "").strip()
+        if source_title and source_title not in str(candidate.get("question") or ""):
+            raise ValueError("每日题与指定资讯不一致")
+        if source_title:
+            candidate["source_title"] = source_title
+            candidate["materials"] = fallback["materials"]
         if not valid_daily_question(candidate, today):
             raise ValueError("每日题结构不完整")
         item = candidate

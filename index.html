@@ -343,6 +343,12 @@
   .hot-report-section .notice-tag,.dynamic-report-section .notice-tag{color:#9d2030;background:rgba(255,239,232,.88);border-color:rgba(184,42,60,.16)}
   .notice-analysis{display:grid;gap:8px;margin-top:9px}
   .notice-original-summary{font-size:13px;line-height:1.65;color:rgba(104,65,75,.78);margin:8px 0 0}
+  .notice-translation{margin-top:9px}
+  .notice-translation>summary{width:max-content;max-width:100%;list-style:none;cursor:pointer;color:#657368;font-size:12px;font-weight:650}
+  .notice-translation>summary::-webkit-details-marker{display:none}
+  .notice-translation>summary:after{content:" \2193";font-weight:500}
+  .notice-translation[open]>summary:after{content:" \2191"}
+  .notice-translation .notice-analysis-block{margin-top:8px}
   .notice-analysis-block{background:rgba(255,250,247,.58);border:1px solid rgba(184,112,128,.12);
      border-radius:14px;padding:10px 11px}
   .notice-analysis-block b{display:block;font-size:12px;color:#8b5360;margin-bottom:4px}
@@ -372,7 +378,7 @@
     .report-meta>span{line-height:1.5;overflow-wrap:anywhere}
     .report-actions{width:100%;justify-content:flex-start;gap:6px}
     .report-actions .source-link,.report-actions .article-action,.report-actions .readlater-btn{font-size:11px;padding:5px 8px}
-    .report-card,.report-card h4,.notice-original-summary,.notice-analysis,.notice-analysis-block,.notice-analysis-block p{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}
+    .report-card,.report-card h4,.notice-original-summary,.notice-translation,.notice-analysis,.notice-analysis-block,.notice-analysis-block p{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}
   }
   .hot-label{display:inline-block;font-size:12px;font-weight:700;color:#1d6fd8;margin-right:6px}
   .chest-picker{margin-top:10px;background:rgba(255,252,247,.86);border:1px solid rgba(151,102,67,.16);
@@ -523,7 +529,7 @@
     .report-section{margin:24px 0}
     .report-card,.hot-report-section .report-card,.dynamic-report-section .report-card{padding:18px 0}
     .report-card h4,.hot-report-section .report-card h4,.dynamic-report-section .report-card h4{font-size:15px;overflow-wrap:anywhere;word-break:break-word}
-    .notice-original-summary,.notice-analysis-block p{overflow-wrap:anywhere;word-break:break-word}
+    .notice-original-summary,.notice-translation,.notice-analysis-block p{overflow-wrap:anywhere;word-break:break-word}
     .notice-analysis-block{padding:10px 11px}
     .report-actions{gap:2px}
     .report-actions .source-link,.report-actions .article-action,.report-actions .readlater-btn{padding:6px 7px;color:#5e6e61}
@@ -1860,16 +1866,19 @@ function reportCardHtml(item, category){
   const sourceUrl = item.link || item.url || '';
   const link = sourceUrl ? '<a class="source-link" href="'+escapeNotice(sourceUrl)+'" target="_blank" rel="noopener">查看原文</a>' : '';
   const displayTitle=cleanNoticeDisplayText(item.title);
-  const displaySummary=cleanNoticeDisplayText(item.summary);
+  const displaySummary=cleanNoticeDisplayText(item.source_summary||item.original_summary||item.summary);
   const aiSummary = cleanNoticeDisplayText(noticeAISummary(item));
   const linkActions = sourceUrl ? '<button class="article-action" data-url="'+escapeNotice(sourceUrl)+'" onclick="copyNoticeLink(this)">复制原链</button><button class="article-action tool-extract-btn" data-url="'+escapeNotice(sourceUrl)+'" data-title="'+escapeNotice(item.title)+'" data-summary="'+escapeNotice(item.summary||'')+'" data-ai-summary="'+escapeNotice(aiSummary)+'" data-category="'+escapeNotice(tag)+'" data-media="'+escapeNotice(item.media||'')+'" onclick="extractToolFromNotice(this)">加入工具箱</button>' : '';
-  const originalSummary = displaySummary ? '<p class="notice-original-summary">'+escapeNotice(displaySummary)+'</p>' : '';
+  const originalSummary = displaySummary ? '<p class="notice-original-summary" lang="en">'+escapeNotice(displaySummary)+'</p>' : '';
+  const chineseSummary = aiSummary && aiSummary !== displaySummary
+    ? '<details class="notice-translation"><summary>查看中文摘要</summary><div class="notice-analysis"><div class="notice-analysis-block"><b>中文摘要</b><p lang="zh-CN">'+escapeNotice(aiSummary)+'</p></div></div></details>'
+    : '';
   const noteKey = noticeItemKey(payload);
   const savedNote = noticeNoteFor(noteKey);
   const noteBlock = '<details class="notice-note" data-note-key="'+escapeNotice(noteKey)+'" data-note-title="'+escapeNotice(payload.title)+'" data-note-url="'+escapeNotice(payload.url)+'" '+(savedNote?'open':'')+'><summary>阅读笔记'+(savedNote?' · 已保存':'')+'</summary><div class="notice-note-editor"><textarea maxlength="4000" placeholder="记下重要结论、疑问，或它对产品工作的启发。">'+escapeNotice(savedNote?.content||'')+'</textarea><div class="notice-note-actions"><button type="button" onclick="saveNoticeNote(this)">保存笔记</button><button type="button" class="danger" onclick="deleteNoticeNote(this)">清空</button><span class="notice-note-state">'+escapeNotice(savedNote?.updated_at?'更新于 '+formatNoticeNoteTime(savedNote.updated_at):'仅自己可见，并同步到私人云端')+'</span></div></div></details>';
   return '<article class="report-card"><div class="notice-tag">'+escapeNotice(tag)+'</div><h4>'+escapeNotice(displayTitle)+'</h4>'+
     originalSummary+
-    '<div class="notice-analysis"><div class="notice-analysis-block"><b>AI总结</b><p>'+escapeNotice(aiSummary)+'</p></div></div>'+
+    chineseSummary+
     '<div class="report-meta"><span>'+escapeNotice(item.published || '本周')+' · '+escapeNotice(item.media || '阿栗整理')+'</span>'+
     '<div class="report-actions">'+link+linkActions+
     '<button class="readlater-btn '+(laterActive ? 'is-active' : '')+'" data-category="'+escapeNotice(payload.category)+'" data-notice-tag="'+escapeNotice(tag)+'" data-title="'+escapeNotice(payload.title)+'" data-summary="'+escapeNotice(payload.summary)+'" data-ai-summary="'+escapeNotice(payload.ai_summary)+'" data-media="'+escapeNotice(payload.media)+'" data-published="'+escapeNotice(payload.published)+'" data-url="'+escapeNotice(payload.url)+'" onclick="toggleNoticeReadLater(this)">'+(laterActive ? '移出稍后看' : '稍后看')+'</button>'+
@@ -1996,6 +2005,9 @@ function noticeAISummary(item){
   const title = item.title || '';
   const summary = item.summary || '';
   const text = [title, summary, item.media].join(' ');
+  if(/Daybreak|GPT-5\.6-Cyber|vulnerability research|cybersecurity-specific/i.test(text)){
+    return 'OpenAI 扩展 Daybreak 网络安全计划，并提供面向授权漏洞研究、漏洞利用验证和安全测试的 GPT-5.6-Cyber。重点是让可信合作方使用专业网络安全模型，同时明确授权、审计和防止滥用的治理边界。';
+  }
   if(/price-performance frontier|Advancing the price-performance frontier/i.test(text)){
     return '这篇的核心是 GPT-5.6 的价格性能继续下探：Luna/Terra 等模型成本降低，让企业把更多 AI 工作流从“试点”推到“常态使用”。值得关注的是默认模型选择、调用预算和原本因成本太高而不能上线的功能。';
   }

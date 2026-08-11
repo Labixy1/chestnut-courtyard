@@ -87,9 +87,9 @@ if (node('notice-send-btn').disabled || node('notice-parse-btn').disabled || nod
 
 storage.set('cozy_notice_chest', JSON.stringify([{
   category: '记忆系统',
-  title: '可操作的归档测试资料',
-  summary: '这是原始摘要。',
-  ai_summary: '这是 AI 总结。',
+  title: 'An actionable archive test',
+  summary: 'This is the original English summary.',
+  ai_summary: '这是中文摘要。',
   media: '测试媒体',
   published: '2026-08-06',
   url: 'https://example.com/article',
@@ -97,9 +97,12 @@ storage.set('cozy_notice_chest', JSON.stringify([{
 vm.runInContext("CORE={notice_reports:{reports:[{sections:[],insights:[],hot_items:[]}]}}", context);
 context.showNoticeView('categories');
 const rendered = node('notice-content').innerHTML;
-for (const expected of ['可操作的归档测试资料', '查看原文', '稍后看', '已入栗夹', '这是 AI 总结。']) {
+for (const expected of ['An actionable archive test', 'This is the original English summary.', '查看中文摘要', '这是中文摘要。', '查看原文', '稍后看', '已入栗夹']) {
   if (!rendered.includes(expected)) throw new Error('category card missing: ' + expected);
 }
+if (!rendered.includes('<details class="notice-translation">')) throw new Error('Chinese summary must be collapsed by default');
+const cyberSummary = context.noticeAISummary({title:'Expanding Daybreak as the Cyber Defense Window Narrows', summary:'Meet GPT-5.6-Cyber for authorized vulnerability research and security testing.'});
+if (!/网络安全|漏洞研究/.test(cyberSummary) || /价格性能|单位成本/.test(cyberSummary)) throw new Error('cyber article was summarized as a generic GPT-5.6 update');
 
 storage.set('cozy_notice_requests', JSON.stringify([{
   date:'2026-08-01',

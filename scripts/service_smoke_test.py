@@ -62,6 +62,13 @@ def main():
         first = request("/api/blackboard/today")["question"]
         second = request("/api/blackboard/today")["question"]
         assert first["date"] == second["date"] and first["question"] == second["question"]
+        assert first.get("alignment_version") == 3
+        if first.get("source_title"):
+            assert first["source_title"] in first["question"]
+            assert first["source_title"] in " ".join(first.get("materials", []))
+            if "Daybreak" in first["source_title"]:
+                joined_materials = " ".join(first.get("materials", []))
+                assert "网络安全" in joined_materials and "漏洞" in joined_materials
 
         pending_id = "service_smoke_pending"
         state = request("/api/local-state")["state"]

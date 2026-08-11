@@ -477,7 +477,10 @@ def enrich_item(item):
     title = item.get("title", "")
     summary = item.get("summary", "")
     text = title + " " + summary
-    if re.search(r"GPT-5\.6|GPT‑5\.6", text, re.I):
+    if re.search(r"Daybreak|GPT-5\.6-Cyber|vulnerability research|cybersecurity-specific", text, re.I):
+        main = "这篇介绍 OpenAI 的 Daybreak 网络安全计划和 GPT-5.6-Cyber：用于获授权的漏洞研究、漏洞利用验证与安全测试，重点是把专业网络安全能力交给可信合作方并保留治理边界。"
+        points = ["关注谁可以获得该能力，以及授权研究与滥用之间怎样划界。", "看漏洞验证、审计记录和客户交付是否形成完整治理流程。", "评估网络安全专用模型是否真正减少研究时间，同时不扩大攻击风险。"]
+    elif re.search(r"GPT-5\.6|GPT‑5\.6", text, re.I):
         main = "这篇主要讲 GPT-5.6 在智能水平、推理效率、价格性能和 Agent 工作流上的改进，重点是单位成本能交付更多可用智能。"
         points = ["关注价格性能是否会改变产品默认模型选择。", "看长任务、Agent、推理保留和压缩是否能减少失败率。", "不要只看模型更强，要看同样预算下能不能支撑更多用户任务。"]
     elif re.search(r"Claude Science|科研Skills|科研 Skills|Science", text, re.I):

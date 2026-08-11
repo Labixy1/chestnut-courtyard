@@ -304,6 +304,7 @@ function dateInShanghai(offsetDays = 0) {
 
 function validCloudBlackboardQuestion(item, date) {
   if (!item || item.date !== date || String(item.question || "").trim().length < 18) return false;
+  if (Number(item.alignment_version || 0) < 3) return false;
   const points = Array.isArray(item.standard_points) ? item.standard_points.map(value => String(value).trim()).filter(Boolean) : [];
   if (points.length < 4 || points.some(value => value.length < 8)) return false;
   return !points.some(value => /^\d*\s*到?\s*\d*\s*条?\s*(参考答案)?要点[。.]?$/.test(value));
@@ -323,13 +324,22 @@ function fallbackCloudBlackboardQuestion(date, variant, reports) {
     ["商业验证", "一个 AI 功能调用成本较高时，你会怎样验证用户价值、付费意愿和单位经济模型，而不是只看使用次数？"]
   ];
   const seed = [...`${date}|${variant}`].reduce((sum, char) => sum + char.charCodeAt(0), 0);
-  const [title, question] = topics[seed % topics.length];
+  let [title, question] = topics[seed % topics.length];
   const latest = (reports?.reports || [])[0];
   const source = [...(latest?.hot_items || []), ...(latest?.sections || []).flatMap(section => section.items || [])][0];
+  let materials=[];
+  if(source?.title){
+    const sourceTitle=String(source.title).trim();
+    const sourceSummary=ensureChineseAiSummary(source.ai_summary || source.summary,source,source.category || "AI 产品").slice(0,220);
+    title="资讯判断";
+    question=`结合资讯“${sourceTitle}”，如果你负责一款 AI 产品，会怎样判断这项变化是否值得接入？请从用户任务、能力变化、成本与限制、验证指标和上线边界回答。`;
+    materials=[`资讯原题：${sourceTitle}`];
+    if(sourceSummary)materials.push(`中文摘要：${sourceSummary}`);
+  }
   return {
     id: `cloud-${date}-${variant || "daily"}`, date, title, type: "产品场景",
     types: ["产品场景", "方法设计", "边界判断"], question,
-    materials: source?.title ? [`近期资讯摘要：${ensureChineseAiSummary(source.ai_summary || source.summary, source, source.category || "AI 产品").slice(0, 220)}`] : [],
+    materials,
     standard: [
       "先明确目标用户、具体任务、成功标准和不可接受的风险。",
       "把方案拆成输入、执行、反馈、异常处理和人工接管环节。",
@@ -337,13 +347,13 @@ function fallbackCloudBlackboardQuestion(date, variant, reports) {
       "覆盖边界与失败情况，明确什么时候不应继续自动执行。",
       "先用小范围真实任务验证核心假设，再依据结果决定是否扩大。"
     ],
-    provider: "deterministic-fallback"
+    provider: "deterministic-fallback", source_title: source?.title || "", alignment_version: 3
   };
 }
 
 async function cloudBlackboardQuestion(env, variant = "") {
   const date = dateInShanghai();
-  const cacheKey = `blackboard:question:${date}${variant ? `:${variant}` : ""}`;
+  const cacheKey = `blackboard:question:v3:${date}${variant ? `:${variant}` : ""}`;
   const cached = await readState(env, cacheKey, null);
   if (validCloudBlackboardQuestion(cached, date)) return cached;
   const [reports, local, memory] = await Promise.all([
@@ -351,13 +361,15 @@ async function cloudBlackboardQuestion(env, variant = "") {
   ]);
   const directions = Array.isArray(local?.values?.cozy_blackboard_directions) ? local.values.cozy_blackboard_directions.slice(0, 8) : [];
   const answers = Array.isArray(local?.values?.cozy_blackboard_answers) ? local.values.cozy_blackboard_answers.slice(0, 6) : [];
+  const latest=(reports.reports||[])[0];
+  const primarySource=[...(latest?.hot_items||[]),...(latest?.sections||[]).flatMap(section=>section.items||[])][0]||null;
   const prompt = `你是栗壳小院的产品黑板出题人。生成一道今天的开放问答题，训练 AI 产品经理的真实判断力。
 必须只返回 JSON：{"title":"10字内题名","question":"明确题目","types":["题型"],"materials":["最多2条具体资料"],"standard_points":["4到6条参考要点"]}。
-题型要在基础理论、产品场景、模型能力、评测、Agent、记忆系统、安全权限、原型与工作流、时事判断之间轮换。主人留言的方向只是参考，不能长期垄断出题。标准要点需要可操作、可举例，但不得编造主人经历。
+有指定资讯时，题目必须直接讨论该资讯，question 中必须完整引用它的原标题；materials 也只能解释同一篇资讯，不能把通用题目与随机资讯拼在一起。题型可在产品场景、模型能力、评测、Agent、安全权限、时事判断之间轮换。标准要点需要可操作、可举例，但不得编造主人经历。
 日期：${date}
 出题方向留言：${JSON.stringify(directions)}
 最近答案：${JSON.stringify(answers).slice(0, 5000)}
-近期巡报：${JSON.stringify((reports.reports || []).slice(0, 2)).slice(0, 9000)}
+指定资讯：${JSON.stringify(primarySource).slice(0, 5000)}
 相关记忆：${JSON.stringify(memory).slice(0, 5000)}`;
   const finalPrompt = prompt + (variant ? `\n这是同一天的换题请求（编号 ${variant}）。必须避开最近答案中已有题目的核心问题，换一个训练方向。` : "");
   let question;
@@ -370,8 +382,14 @@ async function cloudBlackboardQuestion(env, variant = "") {
       type: String((parsed.types || ["产品场景"])[0] || "产品场景"),
       types: (parsed.types || ["产品场景"]).slice(0, 4), question: String(parsed.question || "").slice(0, 2000),
       materials: (parsed.materials || []).slice(0, 2).map(String),
-      standard: points, standard_points: points, provider: result.provider
+      standard: points, standard_points: points, provider: result.provider, alignment_version: 3
     };
+    if(primarySource?.title&&!question.question.includes(String(primarySource.title)))throw new Error("每日题与指定资讯不一致");
+    if(primarySource?.title){
+      const alignedFallback=fallbackCloudBlackboardQuestion(date,variant,reports);
+      question.source_title=String(primarySource.title);
+      question.materials=alignedFallback.materials;
+    }
     if (!validCloudBlackboardQuestion(question, date)) throw new Error("模型生成的题目结构不完整");
   } catch (_error) {
     question = fallbackCloudBlackboardQuestion(date, variant, reports);
@@ -387,6 +405,10 @@ function rssText(value) {
 
 function ensureChineseAiSummary(value, source, category) {
   const text = String(value || "").trim();
+  const sourceText=`${source?.title || ""} ${source?.summary || ""}`;
+  if(/Daybreak|GPT-5\.6-Cyber|vulnerability research|cybersecurity-specific/i.test(sourceText)){
+    return "OpenAI 扩展 Daybreak 网络安全计划，并提供面向授权漏洞研究、漏洞利用验证和安全测试的 GPT-5.6-Cyber。重点是让可信合作方使用专业网络安全模型，同时明确授权、审计和防止滥用的治理边界。";
+  }
   if ((text.match(/[\u4e00-\u9fff]/g) || []).length >= 8) return text.slice(0, 1200);
   const media = String(source?.media || "原始来源").trim();
   const title = String(source?.title || "这项更新").trim();
@@ -514,9 +536,11 @@ async function runCloudReport(env, force = false) {
     const source = byId.get(String(raw?.source_id || ""));
     if (!source) return null;
     const category = String(raw.category || categoryForArticle(source.title));
+    const sourceSummary = String(source.summary || source.title).slice(0, 1200);
     return {...source, category,
-      original_summary: String(raw.original_summary || source.summary || source.title).slice(0, 600),
-      summary: String(raw.original_summary || source.summary || source.title).slice(0, 600),
+      source_summary: sourceSummary,
+      original_summary: sourceSummary,
+      summary: sourceSummary,
       ai_summary: ensureChineseAiSummary(raw.ai_summary, source, category)};
   };
   const hotItems = (curated.hot_items || []).map(hydrate).filter(Boolean).slice(0, 4);

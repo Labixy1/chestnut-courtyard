@@ -236,7 +236,7 @@ assert.equal(result.body.automation.jobs.notice_report.status, "failed");
 assert.match(result.body.automation.jobs.notice_report.message, /更新超时/);
 
 globalThis.fetch = async (url, options) => {
-  if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(newsXml(), {status: 200});
+  if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(newsXml("OpenAI launches an important model update", "https://news.example/model", "The model adds new reasoning capabilities at a lower price."), {status: 200});
   if (isDirectNewsFeed(url)) return new Response("unavailable", {status: 503});
   return nativeFetch(url, options);
 };
@@ -245,11 +245,23 @@ assert.equal(result.status, 202);
 assert.equal(result.body.status, "running");
 await Promise.all(pendingTasks.splice(0));
 globalThis.fetch = nativeFetch;
+const firstNoticeReport = (await payload(await request("/api/data?key=notice_reports", undefined, aiEnv))).body.reports[0];
+assert.equal(firstNoticeReport.title, undefined);
+assert.equal(firstNoticeReport.hot_items[0].title, "OpenAI launches an important model update");
+assert.equal(firstNoticeReport.hot_items[0].summary, "The model adds new reasoning capabilities at a lower price.");
+assert.equal(firstNoticeReport.hot_items[0].source_summary, "The model adds new reasoning capabilities at a lower price.");
+assert.match(firstNoticeReport.hot_items[0].ai_summary, /[\u4e00-\u9fff]/);
 assert.equal((await payload(await request("/api/data?key=notice_reports", undefined, aiEnv))).body.reports.length, 1);
+result = await payload(await request("/api/blackboard/today?refresh=aligned-news", undefined, aiEnv));
+assert.equal(result.status, 200);
+assert.equal(result.body.question.alignment_version, 3);
+assert.match(result.body.question.question, /OpenAI launches an important model update/);
+assert.match(result.body.question.materials.join(" "), /OpenAI launches an important model update/);
+assert.doesNotMatch(result.body.question.question, /如何为一个会调用工具的 Agent 构建评测集/);
 assert.equal((await payload(await request("/api/automation", undefined, aiEnv))).body.automation.jobs.notice_report.status, "completed");
 
 globalThis.fetch = async (url, options) => {
-  if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(newsXml(), {status: 200});
+  if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(newsXml("OpenAI launches an important model update", "https://news.example/model", "The model adds new reasoning capabilities at a lower price."), {status: 200});
   if (isDirectNewsFeed(url)) return new Response("unavailable", {status: 503});
   return nativeFetch(url, options);
 };
