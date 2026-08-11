@@ -385,6 +385,14 @@ function rssText(value) {
   return cleanHtml(String(value || "").replace(/<!\[CDATA\[|\]\]>/g, " "));
 }
 
+function ensureChineseAiSummary(value, source, category) {
+  const text = String(value || "").trim();
+  if ((text.match(/[\u4e00-\u9fff]/g) || []).length >= 8) return text.slice(0, 1200);
+  const media = String(source?.media || "原始来源").trim();
+  const title = String(source?.title || "这项更新").trim();
+  return `这条资讯来自 ${media}，属于${category || "AI 产品"}方向，主题是“${title}”。自动中文整理暂时没有可靠完成，阿栗先保留来源，避免把英文原文误当成中文总结；可以打开原文核对详情。`.slice(0, 1200);
+}
+
 function parseNewsFeed(xml, source) {
   const blocks = [...String(xml || "").matchAll(/<(item|entry)\b[^>]*>([\s\S]*?)<\/\1>/gi)].slice(0, 24);
   return blocks.map((match, index) => {
@@ -481,7 +489,7 @@ async function runCloudReport(env, force = false) {
   try {
     const curationTimeout = Math.max(10, Number(env.COZY_NEWS_AI_TIMEOUT_MS) || 16000);
     result = await Promise.race([
-      callText(env, prompt, 3600),
+      env.AI ? callTextProvider(env, "workers-ai", prompt, 3600) : callText(env, prompt, 3600),
       new Promise((_, reject) => setTimeout(() => reject(new Error("资讯整理模型响应超时")), curationTimeout))
     ]);
     curated = extractJson(result.text);
@@ -491,7 +499,7 @@ async function runCloudReport(env, force = false) {
       source_id: item.id,
       category: categoryForArticle(item.title),
       original_summary: item.summary || item.title,
-      ai_summary: item.summary || item.title
+      ai_summary: ensureChineseAiSummary("", item, categoryForArticle(item.title))
     });
     curated = {
       focus_title: selected[0]?.title || "近期 AI 进展",
@@ -505,10 +513,11 @@ async function runCloudReport(env, force = false) {
   const hydrate = raw => {
     const source = byId.get(String(raw?.source_id || ""));
     if (!source) return null;
-    return {...source, category: String(raw.category || categoryForArticle(source.title)),
+    const category = String(raw.category || categoryForArticle(source.title));
+    return {...source, category,
       original_summary: String(raw.original_summary || source.summary || source.title).slice(0, 600),
       summary: String(raw.original_summary || source.summary || source.title).slice(0, 600),
-      ai_summary: String(raw.ai_summary || "").slice(0, 1200)};
+      ai_summary: ensureChineseAiSummary(raw.ai_summary, source, category)};
   };
   const hotItems = (curated.hot_items || []).map(hydrate).filter(Boolean).slice(0, 4);
   const sections = (curated.sections || []).slice(0, 3).map(section => ({name: String(section.name || "动态"), items: (section.items || []).map(hydrate).filter(Boolean).slice(0, 5)})).filter(section => section.items.length);
