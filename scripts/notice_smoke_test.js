@@ -108,6 +108,8 @@ const chineseCard = context.reportCardHtml({title:'中文资讯',summary:'这是
 if (chineseCard.includes('查看中文翻译') || !chineseCard.includes('AI总结')) throw new Error('Chinese source should skip translation but keep AI summary');
 const openaiLinks = context.reportCardHtml({title:'OpenAI update',summary:'English summary.',translation_zh:'中文翻译。',ai_summary:'AI 总结。',url:'https://openai.com/index/example-update/'},'模型与技术');
 if (!openaiLinks.includes('查看中文全文') || !openaiLinks.includes('/zh-Hans-CN/index/example-update/') || !openaiLinks.includes('英文原文')) throw new Error('OpenAI article should prefer the Chinese full-text link');
+const fallbackTranslationCard = context.reportCardHtml({title:'English update',summary:'English source summary.',ai_summary:'已有的中文 AI 总结。',url:'https://example.com/english'},'模型与技术');
+if (!fallbackTranslationCard.includes('查看中文翻译') || !fallbackTranslationCard.includes('AI总结')) throw new Error('English source must keep both Chinese translation access and AI summary');
 
 storage.set('cozy_notice_requests', JSON.stringify([{
   date:'2026-08-01',

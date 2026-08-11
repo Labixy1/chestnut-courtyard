@@ -488,7 +488,7 @@ async function repairReportLanguages(env,report){
     const refined=byId.get(String(index));if(!refined)return;
     const original=String(item.source_summary||item.original_summary||item.summary||'');
     const originalChinese=(original.match(/[\u4e00-\u9fff]/g)||[]).length>=8;
-    replacements.set(item,{...item,translation_zh:originalChinese?'':String(refined.translation_zh||'').slice(0,1200),ai_summary:String(refined.ai_summary||item.ai_summary||'').slice(0,1600)});
+    replacements.set(item,{...item,translation_zh:originalChinese?'':String(refined.translation_zh||refined.ai_summary||'').slice(0,1200),ai_summary:String(refined.ai_summary||item.ai_summary||'').slice(0,1600)});
   });
   const replace=item=>replacements.get(item)||item;
   return {report:{...report,hot_items:(report.hot_items||[]).map(replace),sections:(report.sections||[]).map(section=>({...section,items:(section.items||[]).map(replace)})),language_repaired_at:now(),provider:result.provider||report.provider},repaired:replacements.size>0};
@@ -596,7 +596,7 @@ async function runCloudReport(env, force = false) {
       source_summary: sourceSummary,
       original_summary: sourceSummary,
       summary: sourceSummary,
-      translation_zh: (sourceSummary.match(/[\u4e00-\u9fff]/g)||[]).length>=8?'':String(raw.translation_zh||raw.original_summary||'').slice(0,1200),
+      translation_zh: (sourceSummary.match(/[\u4e00-\u9fff]/g)||[]).length>=8?'':String(raw.translation_zh||raw.original_summary||raw.ai_summary||'').slice(0,1200),
       ai_summary: ensureChineseAiSummary(raw.ai_summary, source, category)};
   };
   const hotItems = (curated.hot_items || []).map(hydrate).filter(Boolean).slice(0, 4);
