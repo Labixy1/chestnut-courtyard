@@ -26,7 +26,7 @@
     --shadow:rgba(90,74,58,.18);
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html,body{height:100%}
+  html,body{height:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%}
   button,input,textarea,select{font-family:inherit;letter-spacing:0}
   body{
     font-family:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",serif;
@@ -372,6 +372,7 @@
     .report-meta>span{line-height:1.5;overflow-wrap:anywhere}
     .report-actions{width:100%;justify-content:flex-start;gap:6px}
     .report-actions .source-link,.report-actions .article-action,.report-actions .readlater-btn{font-size:11px;padding:5px 8px}
+    .report-card,.report-card h4,.notice-original-summary,.notice-analysis,.notice-analysis-block,.notice-analysis-block p{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:break-word}
   }
   .hot-label{display:inline-block;font-size:12px;font-weight:700;color:#1d6fd8;margin-right:6px}
   .chest-picker{margin-top:10px;background:rgba(255,252,247,.86);border:1px solid rgba(151,102,67,.16);
@@ -521,7 +522,8 @@
     .notice-tabs button{flex:1 0 auto;padding:7px 10px;font-size:12px}
     .report-section{margin:24px 0}
     .report-card,.hot-report-section .report-card,.dynamic-report-section .report-card{padding:18px 0}
-    .report-card h4,.hot-report-section .report-card h4,.dynamic-report-section .report-card h4{font-size:15px}
+    .report-card h4,.hot-report-section .report-card h4,.dynamic-report-section .report-card h4{font-size:15px;overflow-wrap:anywhere;word-break:break-word}
+    .notice-original-summary,.notice-analysis-block p{overflow-wrap:anywhere;word-break:break-word}
     .notice-analysis-block{padding:10px 11px}
     .report-actions{gap:2px}
     .report-actions .source-link,.report-actions .article-action,.report-actions .readlater-btn{padding:6px 7px;color:#5e6e61}
@@ -1433,10 +1435,24 @@ function getBlackboardQuestionData(today){
   };
 }
 
+function readableBlackboardMaterial(value){
+  const raw=String(value||'').trim();
+  const latinWords=(raw.match(/[A-Za-z]{3,}/g)||[]).length;
+  if(latinWords<8)return raw;
+  const reports=CORE.notice_reports?.reports||[];
+  const items=reports.flatMap(report=>[...(report.hot_items||[]),...(report.sections||[]).flatMap(section=>section.items||[])]);
+  const item=items.find(candidate=>candidate.title&&raw.includes(candidate.title))||items[0];
+  const summary=item?cleanNoticeDisplayText(noticeAISummary(item)):'';
+  const summaryLatin=(summary.match(/[A-Za-z]{3,}/g)||[]).length;
+  if((summary.match(/[\u4e00-\u9fff]/g)||[]).length>=12&&summaryLatin<8)return '近期资讯摘要：'+summary;
+  if(/Criminal Scam Operation/i.test(item?.title||raw))return '近期资讯摘要：OpenAI 披露并协助打击一个利用 ChatGPT 支持投资、情感、赌博和身份冒充诈骗的犯罪网络，重点是模型滥用监测、账号处置和平台责任。';
+  return '近期资讯摘要：这条资料来自'+(item?.media||'公开来源')+'，与'+normalizeNoticeCategory(item?.category||'',item||{})+'相关。当前可靠中文摘要尚未补齐，作答时可先关注题目本身，不需要理解英文原文。';
+}
+
 function renderBlackboardQuestion(q, answer){
   const pills = q.types.map(t=>'<span class="bb-pill">'+escapeNotice(t)+'</span>').join('');
   const allMaterials=[...(q.materials||[]),...(q.supplementalMaterials||[])];
-  const materials = allMaterials.length ? '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list">'+allMaterials.map((x,index)=>'<li'+(index>=(q.materials||[]).length?' class="bb-added-material"':'')+'>'+escapeNotice(x)+'</li>').join('')+'</ul></div>' : '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list"></ul></div>';
+  const materials = allMaterials.length ? '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list">'+allMaterials.map((x,index)=>'<li'+(index>=(q.materials||[]).length?' class="bb-added-material"':'')+'>'+escapeNotice(readableBlackboardMaterial(x))+'</li>').join('')+'</ul></div>' : '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list"></ul></div>';
   const refreshing=!!(window.BB_STATE&&window.BB_STATE.refreshing);
   const starred=isBlackboardStarred(q);
   return '<section class="bb-question"><div class="bb-question-head"><div class="eyebrow">今日题目 · '+escapeNotice(q.date||localCalendarDate())+'</div><div class="bb-question-tools"><button type="button" class="bb-star '+(starred?'active':'')+'" onclick="toggleCurrentBlackboardStar()" aria-label="'+(starred?'取消星标':'星标题目')+'" aria-pressed="'+starred+'" title="'+(starred?'取消星标':'星标题目')+'">★</button><button class="bb-refresh-question" onclick="refreshBlackboardQuestion()" '+(refreshing?'disabled':'')+' title="换一道新题" aria-label="换一道新题">'+(refreshing?'…':'↻')+'</button></div></div>'+
@@ -1824,6 +1840,18 @@ function normalizeNoticeCategory(category, item={}){
   return legacy[raw] || recommendedNoticeCategory(Object.assign({},item,{category:raw || item.category}));
 }
 
+function cleanNoticeDisplayText(value){
+  let text=String(value||'');
+  for(let pass=0;pass<2;pass+=1){
+    text=text.replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&nbsp;/gi,' ')
+      .replace(/&quot;/gi,'"').replace(/&#39;|&apos;/gi,"'")
+      .replace(/&#(\d+);/g,(_match,code)=>String.fromCodePoint(Number(code)))
+      .replace(/&#x([0-9a-f]+);/gi,(_match,code)=>String.fromCodePoint(parseInt(code,16)))
+      .replace(/&amp;/gi,'&');
+  }
+  return text.replace(/<script[\s\S]*?<\/script>/gi,' ').replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
+}
+
 function reportCardHtml(item, category){
   const tag = normalizeNoticeCategory(category || item.category,item);
   const payload = noticeItemPayload(item, tag);
@@ -1831,13 +1859,15 @@ function reportCardHtml(item, category){
   const chestActive = isNoticeChestItem(payload);
   const sourceUrl = item.link || item.url || '';
   const link = sourceUrl ? '<a class="source-link" href="'+escapeNotice(sourceUrl)+'" target="_blank" rel="noopener">查看原文</a>' : '';
-  const aiSummary = noticeAISummary(item);
+  const displayTitle=cleanNoticeDisplayText(item.title);
+  const displaySummary=cleanNoticeDisplayText(item.summary);
+  const aiSummary = cleanNoticeDisplayText(noticeAISummary(item));
   const linkActions = sourceUrl ? '<button class="article-action" data-url="'+escapeNotice(sourceUrl)+'" onclick="copyNoticeLink(this)">复制原链</button><button class="article-action tool-extract-btn" data-url="'+escapeNotice(sourceUrl)+'" data-title="'+escapeNotice(item.title)+'" data-summary="'+escapeNotice(item.summary||'')+'" data-ai-summary="'+escapeNotice(aiSummary)+'" data-category="'+escapeNotice(tag)+'" data-media="'+escapeNotice(item.media||'')+'" onclick="extractToolFromNotice(this)">加入工具箱</button>' : '';
-  const originalSummary = item.summary ? '<p class="notice-original-summary">'+escapeNotice(item.summary)+'</p>' : '';
+  const originalSummary = displaySummary ? '<p class="notice-original-summary">'+escapeNotice(displaySummary)+'</p>' : '';
   const noteKey = noticeItemKey(payload);
   const savedNote = noticeNoteFor(noteKey);
   const noteBlock = '<details class="notice-note" data-note-key="'+escapeNotice(noteKey)+'" data-note-title="'+escapeNotice(payload.title)+'" data-note-url="'+escapeNotice(payload.url)+'" '+(savedNote?'open':'')+'><summary>阅读笔记'+(savedNote?' · 已保存':'')+'</summary><div class="notice-note-editor"><textarea maxlength="4000" placeholder="记下重要结论、疑问，或它对产品工作的启发。">'+escapeNotice(savedNote?.content||'')+'</textarea><div class="notice-note-actions"><button type="button" onclick="saveNoticeNote(this)">保存笔记</button><button type="button" class="danger" onclick="deleteNoticeNote(this)">清空</button><span class="notice-note-state">'+escapeNotice(savedNote?.updated_at?'更新于 '+formatNoticeNoteTime(savedNote.updated_at):'仅自己可见，并同步到私人云端')+'</span></div></div></details>';
-  return '<article class="report-card"><div class="notice-tag">'+escapeNotice(tag)+'</div><h4>'+escapeNotice(item.title)+'</h4>'+
+  return '<article class="report-card"><div class="notice-tag">'+escapeNotice(tag)+'</div><h4>'+escapeNotice(displayTitle)+'</h4>'+
     originalSummary+
     '<div class="notice-analysis"><div class="notice-analysis-block"><b>AI总结</b><p>'+escapeNotice(aiSummary)+'</p></div></div>'+
     '<div class="report-meta"><span>'+escapeNotice(item.published || '本周')+' · '+escapeNotice(item.media || '阿栗整理')+'</span>'+

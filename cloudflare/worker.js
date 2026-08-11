@@ -329,7 +329,7 @@ function fallbackCloudBlackboardQuestion(date, variant, reports) {
   return {
     id: `cloud-${date}-${variant || "daily"}`, date, title, type: "产品场景",
     types: ["产品场景", "方法设计", "边界判断"], question,
-    materials: source?.title ? [`近期资讯：${String(source.title).slice(0, 160)}`] : [],
+    materials: source?.title ? [`近期资讯摘要：${ensureChineseAiSummary(source.ai_summary || source.summary, source, source.category || "AI 产品").slice(0, 220)}`] : [],
     standard: [
       "先明确目标用户、具体任务、成功标准和不可接受的风险。",
       "把方案拆成输入、执行、反馈、异常处理和人工接管环节。",
@@ -632,10 +632,17 @@ async function refreshVideo(env, id) {
 }
 
 function cleanHtml(value) {
-  return String(value || "")
+  let text = String(value || "");
+  for (let pass = 0; pass < 2; pass += 1) {
+    text = text.replace(/&lt;/gi, "<").replace(/&gt;/gi, ">").replace(/&nbsp;/gi, " ")
+      .replace(/&quot;/gi, "\"").replace(/&#39;|&apos;/gi, "'")
+      .replace(/&#(\d+);/g, (_match, code) => String.fromCodePoint(Number(code)))
+      .replace(/&#x([0-9a-f]+);/gi, (_match, code) => String.fromCodePoint(parseInt(code, 16)))
+      .replace(/&amp;/gi, "&");
+  }
+  return text
     .replace(/<script[\s\S]*?<\/script>/gi, " ").replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<[^>]+>/g, " ").replace(/&nbsp;/gi, " ").replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, "\"").replace(/&#39;/gi, "'").replace(/\s+/g, " ").trim();
+    .replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function embeddedDocumentText(html, limit = 160000) {

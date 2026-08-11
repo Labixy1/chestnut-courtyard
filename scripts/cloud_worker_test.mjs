@@ -211,7 +211,7 @@ assert.match(result.body.reply, /Cursor/);
 
 const nativeFetch = globalThis.fetch;
 const isDirectNewsFeed = value => ["openai.com/news/rss.xml", "blog.google/technology/ai/rss/", "deepmind.google/blog/rss.xml", "theverge.com/rss/ai-artificial-intelligence"].some(part => String(value).includes(part));
-const newsXml = (title = "OpenAI 发布重要模型更新", link = "https://news.example/model") => `<?xml version="1.0"?><rss><channel><item><title>${title}</title><link>${link}</link><pubDate>Fri, 08 Aug 2026 00:00:00 GMT</pubDate><description>模型能力与价格更新</description><source url="https://news.example">测试媒体</source></item></channel></rss>`;
+const newsXml = (title = "OpenAI 发布重要模型更新", link = "https://news.example/model", summary = "模型能力与价格更新") => `<?xml version="1.0"?><rss><channel><item><title>${title}</title><link>${link}</link><pubDate>Fri, 08 Aug 2026 00:00:00 GMT</pubDate><description>${summary}</description><source url="https://news.example">测试媒体</source></item></channel></rss>`;
 const fallbackEnv = {
   ...baseEnv,
   COZY_TEXT_PROVIDER: "deepseek", COZY_TEXT_FALLBACK_PROVIDER: "openai",
@@ -278,7 +278,7 @@ assert.equal((await payload(await request("/api/data?key=notice_reports", undefi
 
 const slowCurationEnv = {...baseEnv, COZY_STATE: new MemoryKV(), COZY_NEWS_AI_TIMEOUT_MS: "10", AI: {run: async () => new Promise(() => {})}};
 globalThis.fetch = async url => {
-  if (String(url).includes("openai.com/news/rss.xml")) return new Response(newsXml("模型整理超时时仍可归档", "https://news.example/source-fallback"), {status: 200});
+  if (String(url).includes("openai.com/news/rss.xml")) return new Response(newsXml("模型整理超时时仍可归档", "https://news.example/source-fallback", "&lt;a href=&quot;https://news.example&quot;&gt;模型能力与价格更新&lt;/a&gt;"), {status: 200});
   return new Response("upstream unavailable", {status: 503});
 };
 result = await payload(await request("/api/weekly/run", {force: true}, slowCurationEnv));
@@ -288,6 +288,7 @@ const sourceFallbackReport = (await payload(await request("/api/data?key=notice_
 assert.equal(sourceFallbackReport.provider, "source-fallback");
 assert.match(sourceFallbackReport.hot_items[0].ai_summary, /模型能力与价格更新/);
 assert.ok((sourceFallbackReport.hot_items[0].ai_summary.match(/[\u4e00-\u9fff]/g) || []).length >= 8);
+assert.doesNotMatch(sourceFallbackReport.hot_items[0].summary, /&lt;|href=|<a/);
 globalThis.fetch = nativeFetch;
 
 globalThis.fetch = async url => new Response("blocked", {status: 403});
