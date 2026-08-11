@@ -30,6 +30,7 @@ if (!fs.readFileSync('pages/orchard.html', 'utf8').includes('orchard_field.webp'
 const orchard = fs.readFileSync('pages/orchard.html', 'utf8');
 if (!orchard.includes("slice(0,-1).slice(-8)") || !orchard.includes("current_topic_id:chat?.topicId||''")) throw new Error('orchard chat must send prior turns separately from the current question');
 if (!orchard.includes('openEmptyPlotPanel()') || !orchard.includes('这块空地的知识专题')) throw new Error('empty orchard plots must open a knowledge-topic empty state');
+if (!orchard.includes('fingerprint===knowledgeRenderFingerprint') || !orchard.includes("details[open][data-topic-id]") || orchard.includes("open=first?' open':''")) throw new Error('knowledge topics must preserve manual collapse state across sync renders');
 if (!home.includes('String(item.awarded??0)') || !home.includes('String(item.max??25)')) throw new Error('blackboard must display explicit zero scores');
 if (!serviceWorker.includes("url.pathname.includes('/assets/')")) throw new Error('static assets must use the cache-first path');
 if (!serviceWorker.includes("cozy-shell-v8") || !fs.readFileSync('core/pwa.js','utf8').includes("updateViaCache:'none'")) throw new Error('PWA shell updates must bypass stale service worker cache');
