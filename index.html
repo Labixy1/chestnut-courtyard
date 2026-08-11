@@ -1889,7 +1889,7 @@ function reportCardHtml(item, category){
   const displayTitle=cleanNoticeDisplayText(item.title);
   const displaySummary=cleanNoticeDisplayText(item.source_summary||item.original_summary||item.summary);
   const aiSummary = cleanNoticeDisplayText(noticeAISummary(item));
-  const translatedSummary=noticeTextIsChinese(displaySummary)?'':cleanNoticeDisplayText(item.translation_zh||item.summary_zh||aiSummary||'');
+  const translatedSummary=noticeTextIsChinese(displaySummary)?'':cleanNoticeDisplayText(item.translation_zh||item.summary_zh||'');
   const linkActions = sourceUrl ? '<button class="article-action" data-url="'+escapeNotice(sourceUrl)+'" onclick="copyNoticeLink(this)">复制原链</button><button class="article-action tool-extract-btn" data-url="'+escapeNotice(sourceUrl)+'" data-title="'+escapeNotice(item.title)+'" data-summary="'+escapeNotice(item.summary||'')+'" data-ai-summary="'+escapeNotice(aiSummary)+'" data-category="'+escapeNotice(tag)+'" data-media="'+escapeNotice(item.media||'')+'" onclick="extractToolFromNotice(this)">加入工具箱</button>' : '';
   const originalSummary = displaySummary ? '<p class="notice-original-summary" lang="'+(noticeTextIsChinese(displaySummary)?'zh-CN':'en')+'">'+escapeNotice(displaySummary)+'</p>' : '';
   const chineseSummary = translatedSummary

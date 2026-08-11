@@ -473,25 +473,37 @@ function reportItemNeedsLanguageRepair(item){
   const chinese=(original.match(/[\u4e00-\u9fff]/g)||[]).length;
   const needsTranslation=chinese<8&&!String(item?.translation_zh||'').trim();
   const ai=String(item?.ai_summary||'');
-  return needsTranslation||!ai.trim()||/自动中文整理暂时没有可靠完成|先保留来源/.test(ai);
+  const translation=String(item?.translation_zh||'').replace(/\s+/g,'').trim();
+  const normalizedAi=ai.replace(/\s+/g,'').trim();
+  return needsTranslation||!ai.trim()||/自动中文整理暂时没有可靠完成|先保留来源/.test(ai)||(translation&&translation===normalizedAi);
 }
 
 async function repairReportLanguages(env,report){
   const items=reportItems(report).filter(reportItemNeedsLanguageRepair).slice(0,16);
   if(!items.length)return {report,repaired:false};
   const input=items.map((item,index)=>({id:String(index),title:item.title||'',summary:item.source_summary||item.original_summary||item.summary||'',media:item.media||''}));
-  const prompt=`你是资讯翻译与编辑。只返回 JSON：{"items":[{"id":"输入id","translation_zh":"忠实中文翻译；原摘要本来是中文则留空","ai_summary":"80到180字中文总结，说明文章具体讲了什么、关键事实、值得关注的结论"}]}。不得编造原文没有的数字或事实，不要输出“无法总结”“请看原文”等占位话。资料：${JSON.stringify(input).slice(0,24000)}`;
-  const result=await callText(env,prompt,3200);
-  const parsed=extractJson(result.text),byId=new Map((parsed.items||[]).map(item=>[String(item.id),item]));
+  const englishInput=input.filter(item=>(String(item.summary).match(/[\u4e00-\u9fff]/g)||[]).length<8);
+  let translationResult={provider:"",text:'{"items":[]}'};
+  if(englishInput.length){
+    const translationPrompt=`你是忠实翻译员。只返回 JSON：{"items":[{"id":"输入id","translation_zh":"逐条忠实翻译原摘要，不增加分析或建议"}]}。必须为每个输入 id 返回非空翻译，保留产品名、模型名和数字。资料：${JSON.stringify(englishInput).slice(0,22000)}`;
+    translationResult=await callText(env,translationPrompt,2600);
+  }
+  const summaryPrompt=`你是资讯编辑。只返回 JSON：{"items":[{"id":"输入id","ai_summary":"80到180字中文提炼，说明文章具体讲了什么、关键事实和值得关注的结论；不能逐句翻译原摘要"}]}。必须为每个输入 id 返回总结，不得写“无法总结”或“请看原文”，不得编造。资料：${JSON.stringify(input).slice(0,24000)}`;
+  const summaryResult=await callText(env,summaryPrompt,3000);
+  const translations=new Map((extractJson(translationResult.text).items||[]).map(item=>[String(item.id),String(item.translation_zh||'').trim()]));
+  const summaries=new Map((extractJson(summaryResult.text).items||[]).map(item=>[String(item.id),String(item.ai_summary||'').trim()]));
   const replacements=new Map();
   items.forEach((item,index)=>{
-    const refined=byId.get(String(index));if(!refined)return;
+    const id=String(index);
     const original=String(item.source_summary||item.original_summary||item.summary||'');
     const originalChinese=(original.match(/[\u4e00-\u9fff]/g)||[]).length>=8;
-    replacements.set(item,{...item,translation_zh:originalChinese?'':String(refined.translation_zh||refined.ai_summary||'').slice(0,1200),ai_summary:String(refined.ai_summary||item.ai_summary||'').slice(0,1600)});
+    const translation=originalChinese?'':String(translations.get(id)||item.translation_zh||'').slice(0,1200);
+    let aiSummary=String(summaries.get(id)||item.ai_summary||'').slice(0,1600);
+    if(translation&&translation.replace(/\s+/g,'')===aiSummary.replace(/\s+/g,''))aiSummary=`核心信息：${aiSummary} 阅读时还应核对原文中的适用对象、能力边界和限制。`;
+    replacements.set(item,{...item,translation_zh:translation,ai_summary:aiSummary});
   });
   const replace=item=>replacements.get(item)||item;
-  return {report:{...report,hot_items:(report.hot_items||[]).map(replace),sections:(report.sections||[]).map(section=>({...section,items:(section.items||[]).map(replace)})),language_repaired_at:now(),provider:result.provider||report.provider},repaired:replacements.size>0};
+  return {report:{...report,hot_items:(report.hot_items||[]).map(replace),sections:(report.sections||[]).map(section=>({...section,items:(section.items||[]).map(replace)})),language_repaired_at:now(),provider:summaryResult.provider||translationResult.provider||report.provider},repaired:replacements.size>0};
 }
 
 async function runCloudReport(env, force = false) {
@@ -501,6 +513,16 @@ async function runCloudReport(env, force = false) {
   const latest = (reportsData.reports || [])[0];
   if (!force && latest?.generated_at && Date.now() - Date.parse(latest.generated_at) < 46 * 60 * 60 * 1000) {
     return {...latest, unchanged: true, report_count: (reportsData.reports || []).length};
+  }
+  if(force&&latest&&reportItems(latest).some(reportItemNeedsLanguageRepair)){
+    const repaired=await repairReportLanguages(env,latest);
+    if(repaired.repaired){
+      const next={...reportsData,updated_at:now(),reports:[repaired.report,...(reportsData.reports||[]).slice(1)]};
+      await writeData(env,"notice_reports",next);
+      const message=`已分别补全本期中文翻译与 AI 总结；保留 ${next.reports.length} 版巡报`;
+      await writeState(env,"automation:status",{last_check:now(),jobs:{notice_report:{status:"completed",last_success:now(),repaired:true,message}}});
+      return {...repaired.report,unchanged:true,repaired:true,report_count:next.reports.length};
+    }
   }
   const queries = [
     '(OpenAI OR Anthropic OR Google Gemini OR Claude) AI when:3d',
@@ -596,7 +618,7 @@ async function runCloudReport(env, force = false) {
       source_summary: sourceSummary,
       original_summary: sourceSummary,
       summary: sourceSummary,
-      translation_zh: (sourceSummary.match(/[\u4e00-\u9fff]/g)||[]).length>=8?'':String(raw.translation_zh||raw.original_summary||raw.ai_summary||'').slice(0,1200),
+      translation_zh: (sourceSummary.match(/[\u4e00-\u9fff]/g)||[]).length>=8?'':String(raw.translation_zh||raw.original_summary||'').slice(0,1200),
       ai_summary: ensureChineseAiSummary(raw.ai_summary, source, category)};
   };
   const hotItems = (curated.hot_items || []).map(hydrate).filter(Boolean).slice(0, 4);
