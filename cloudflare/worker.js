@@ -404,7 +404,10 @@ function parseNewsFeed(xml, source) {
 }
 
 async function fetchNewsFeed(source) {
-  const response = await fetch(source.url, {headers: {"user-agent": "ChestnutCourtyard/1.0", accept: "application/rss+xml, application/atom+xml, application/xml, text/xml"}});
+  const response = await fetch(source.url, {
+    headers: {"user-agent": "ChestnutCourtyard/1.0", accept: "application/rss+xml, application/atom+xml, application/xml, text/xml"},
+    signal: AbortSignal.timeout(7000)
+  });
   if (!response.ok) throw new Error(`${source.name} 返回 HTTP ${response.status}`);
   const xml = await response.text();
   const items = parseNewsFeed(xml, source);
@@ -1093,7 +1096,14 @@ export async function handleRequest(request, env, ctx = {}) {
       "listen-tree-hollow", "manage-memory", "manage-toolbox", "run-automation"
     ].map(name => ({name, origin: "bundled", status: "installed", kind: "guide", permission: "normal"})),
     can_build: false, health: {ok: true, summary: "云端内置能力已连接"}}});
-    if (request.method === "GET" && url.pathname === "/api/automation") return json({ok: true, automation: await readState(env, "automation:status", {last_check: "", jobs: {}})});
+    if (request.method === "GET" && url.pathname === "/api/automation") {
+      const automation = await readState(env, "automation:status", {last_check: "", jobs: {}});
+      const notice = automation.jobs?.notice_report;
+      if (notice?.status === "running" && Date.now() - Date.parse(automation.last_check || "") > 2 * 60 * 1000) {
+        automation.jobs.notice_report = {status: "failed", last_error: now(), message: "上次更新超时，请重新获取资讯"};
+      }
+      return json({ok: true, automation});
+    }
     if (request.method === "GET" && url.pathname === "/api/voice/status") return json({ok: true, active: false, ready: false, phase: "browser_only", transcript: ""});
     if (request.method === "GET" && url.pathname === "/api/blackboard/today") {
       await requireDemoAi(env);

@@ -230,6 +230,11 @@ assert.match(result.body.reply, /云端兜底成功/);
 result = await payload(await request("/api/providers", undefined, fallbackEnv));
 assert.deepEqual(result.body.providers.text_route, ["deepseek", "openai"]);
 
+await kv.put("automation:status", JSON.stringify({last_check: new Date(Date.now() - 3 * 60 * 1000).toISOString(), jobs: {notice_report: {status: "running", message: "阿栗正在巡逻近期资讯"}}}));
+result = await payload(await request("/api/automation", undefined, aiEnv));
+assert.equal(result.body.automation.jobs.notice_report.status, "failed");
+assert.match(result.body.automation.jobs.notice_report.message, /更新超时/);
+
 globalThis.fetch = async (url, options) => {
   if (String(url).startsWith("https://news.google.com/rss/search")) return new Response(newsXml(), {status: 200});
   if (isDirectNewsFeed(url)) return new Response("unavailable", {status: 503});
