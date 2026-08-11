@@ -499,7 +499,7 @@ async function runCloudReport(env, force = false) {
       source_id: item.id,
       category: categoryForArticle(item.title),
       original_summary: item.summary || item.title,
-      ai_summary: ensureChineseAiSummary("", item, categoryForArticle(item.title))
+      ai_summary: ensureChineseAiSummary(item.summary, item, categoryForArticle(item.title))
     });
     curated = {
       focus_title: selected[0]?.title || "近期 AI 进展",

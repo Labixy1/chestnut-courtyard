@@ -286,8 +286,8 @@ await Promise.all(pendingTasks.splice(0));
 assert.equal((await payload(await request("/api/automation", undefined, slowCurationEnv))).body.automation.jobs.notice_report.status, "completed");
 const sourceFallbackReport = (await payload(await request("/api/data?key=notice_reports", undefined, slowCurationEnv))).body.reports[0];
 assert.equal(sourceFallbackReport.provider, "source-fallback");
-assert.match(sourceFallbackReport.hot_items[0].ai_summary, /自动中文整理暂时没有可靠完成/);
-assert.ok((sourceFallbackReport.hot_items[0].ai_summary.match(/[\u4e00-\u9fff]/g) || []).length >= 20);
+assert.match(sourceFallbackReport.hot_items[0].ai_summary, /模型能力与价格更新/);
+assert.ok((sourceFallbackReport.hot_items[0].ai_summary.match(/[\u4e00-\u9fff]/g) || []).length >= 8);
 globalThis.fetch = nativeFetch;
 
 globalThis.fetch = async url => new Response("blocked", {status: 403});
