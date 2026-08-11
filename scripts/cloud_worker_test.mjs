@@ -212,7 +212,7 @@ assert.equal(alignmentAttempts, 2);
 assert.match(result.body.reply, /Cursor/);
 
 const nativeFetch = globalThis.fetch;
-const isDirectNewsFeed = value => ["openai.com/news/rss.xml", "blog.google/technology/ai/rss/", "deepmind.google/blog/rss.xml", "theverge.com/rss/ai-artificial-intelligence"].some(part => String(value).includes(part));
+const isDirectNewsFeed = value => ["openai.com/news/rss.xml", "blog.google/technology/ai/rss/", "deepmind.google/blog/rss.xml", "theverge.com/rss/ai-artificial-intelligence", "techcrunch.com/category/artificial-intelligence/feed", "technologyreview.com/topic/artificial-intelligence/feed", "github.blog/ai-and-ml/feed", "aws.amazon.com/blogs/machine-learning/feed", "export.arxiv.org/api/query", "qbitai.com/feed/", "gateway.36kr.com/api/mis/nav/newsflash/flow", "api.rss2json.com/v1/api.json"].some(part => String(value).includes(part));
 const newsXml = (title = "OpenAI 发布重要模型更新", link = "https://news.example/model", summary = "模型能力与价格更新") => `<?xml version="1.0"?><rss><channel><item><title>${title}</title><link>${link}</link><pubDate>Fri, 08 Aug 2026 00:00:00 GMT</pubDate><description>${summary}</description><source url="https://news.example">测试媒体</source></item></channel></rss>`;
 const fallbackEnv = {
   ...baseEnv,
@@ -254,6 +254,32 @@ assert.equal(firstNoticeReport.hot_items[0].summary, "The model adds new reasoni
 assert.equal(firstNoticeReport.hot_items[0].source_summary, "The model adds new reasoning capabilities at a lower price.");
 assert.match(firstNoticeReport.hot_items[0].ai_summary, /[\u4e00-\u9fff]/);
 assert.equal((await payload(await request("/api/data?key=notice_reports", undefined, aiEnv))).body.reports.length, 1);
+
+const chineseMediaEnv = {...aiEnv, COZY_STATE: new MemoryKV()};
+globalThis.fetch = async url => {
+  if (String(url).includes("gateway.36kr.com/api/mis/nav/newsflash/flow")) return new Response(JSON.stringify({code: 0, data: {itemList: [{itemId: 12345, templateMaterial: {publishTime: Date.now(), widgetTitle: "36氪测试 AI 产品更新", widgetContent: "一家 AI 产品发布了新的智能体工作流能力。"}}]}}), {status: 200, headers: {"content-type": "application/json"}});
+  return new Response("upstream unavailable", {status: 503});
+};
+result = await payload(await request("/api/weekly/run", {force: true}, chineseMediaEnv));
+await Promise.all(pendingTasks.splice(0));
+const chineseMediaReport = (await payload(await request("/api/data?key=notice_reports", undefined, chineseMediaEnv))).body.reports[0];
+assert.equal(chineseMediaReport.hot_items[0].media, "36氪");
+assert.match(chineseMediaReport.hot_items[0].link, /36kr\.com\/newsflashes\/12345/);
+globalThis.fetch = nativeFetch;
+
+const rssProxyEnv = {...aiEnv, COZY_STATE: new MemoryKV()};
+globalThis.fetch = async url => {
+  const value=String(url);
+  if(value.includes("api.rss2json.com/v1/api.json")&&decodeURIComponent(value).includes("qbitai.com/feed/")) return new Response(JSON.stringify({status:"ok",items:[{title:"量子位测试 AI 更新",link:"https://www.qbitai.com/2026/08/test.html",pubDate:"2026-08-11 20:00:00",description:"量子位报道了一项新的智能体产品能力。"}]}),{status:200,headers:{"content-type":"application/json"}});
+  return new Response("upstream unavailable",{status:503});
+};
+result = await payload(await request("/api/weekly/run", {force: true}, rssProxyEnv));
+await Promise.all(pendingTasks.splice(0));
+const rssProxyReport=(await payload(await request("/api/data?key=notice_reports",undefined,rssProxyEnv))).body.reports[0];
+assert.equal(rssProxyReport.hot_items[0].media,"量子位");
+assert.match(rssProxyReport.hot_items[0].link,/qbitai\.com/);
+globalThis.fetch=nativeFetch;
+
 result = await payload(await request("/api/blackboard/today?refresh=aligned-news", undefined, aiEnv));
 assert.equal(result.status, 200);
 assert.equal(result.body.question.alignment_version, 3);
@@ -280,7 +306,10 @@ globalThis.fetch = async () => new Response("upstream unavailable", {status: 503
 result = await payload(await request("/api/weekly/run", {force: true}, aiEnv));
 assert.equal(result.status, 202);
 await Promise.all(pendingTasks.splice(0));
-assert.equal((await payload(await request("/api/automation", undefined, aiEnv))).body.automation.jobs.notice_report.status, "failed");
+const degradedAutomation=(await payload(await request("/api/automation",undefined,aiEnv))).body.automation.jobs.notice_report;
+assert.equal(degradedAutomation.status,"completed");
+assert.equal(degradedAutomation.degraded,true);
+assert.match(degradedAutomation.message,/资讯源暂时不可用/);
 const repairEnv = {...aiEnv, COZY_STATE: new MemoryKV()};
 await payload(await request("/api/data", {key: "notice_reports", value: {version: 1, reports: [{id: "needs-repair", generated_at: new Date().toISOString(), hot_items: [{title: "English source", summary: "An English source summary.", ai_summary: "自动中文整理暂时没有可靠完成，先保留来源。", media: "Test"}], sections: []}]}}, repairEnv));
 result = await payload(await request("/api/weekly/run", {force: true}, repairEnv));

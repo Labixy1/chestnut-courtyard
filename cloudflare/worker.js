@@ -438,6 +438,21 @@ function parseNewsFeed(xml, source) {
   }).filter(item => item.title && item.link);
 }
 
+async function fetchNewsFeedJson(source){
+  const endpoint=new URL("https://api.rss2json.com/v1/api.json");
+  endpoint.searchParams.set("rss_url",source.url);
+  const response=await fetch(endpoint,{headers:{"user-agent":"ChestnutCourtyard/1.0",accept:"application/json"},signal:AbortSignal.timeout(12000)});
+  if(!response.ok)throw new Error(`RSS 代理返回 HTTP ${response.status}`);
+  const payload=await response.json();
+  if(payload?.status!=="ok")throw new Error(String(payload?.message||"RSS 代理没有返回资讯"));
+  const items=(payload.items||[]).slice(0,24).map((item,index)=>{
+    const suffix=String(item.title||'').match(/\s+-\s+([^–—-]{2,40})$/)?.[1]||'';
+    return {id:`${source.id}-proxy-${index}`,title:rssText(item.title),link:String(item.link||''),published_at:item.pubDate||item.published||'',media:suffix||source.name,source_url:source.url,summary:rssText(item.description||item.content||item.title)};
+  }).filter(item=>item.title&&item.link);
+  if(!items.length)throw new Error(`${source.name} 的 RSS 代理没有返回可解析资讯`);
+  return items;
+}
+
 async function fetchNewsFeed(source) {
   const response = await fetch(source.url, {
     headers: {"user-agent": "ChestnutCourtyard/1.0", accept: "application/rss+xml, application/atom+xml, application/xml, text/xml"},
@@ -451,9 +466,11 @@ async function fetchNewsFeed(source) {
 }
 
 async function fetchNewsRss(query) {
+  const host=String(query).match(/site:([^\s)]+)/)?.[1]?.replace(/^www\./,'')||'';
+  const knownNames={"36kr.com":"36氪","qbitai.com":"量子位","jiqizhixin.com":"机器之心","infoq.cn":"InfoQ 中文"};
   return fetchNewsFeed({
     id: `google-${Math.abs([...query].reduce((sum, char) => sum + char.charCodeAt(0), 0))}`,
-    name: "Google News",
+    name: knownNames[host]||"Google News",
     url: `https://news.google.com/rss/search?${new URLSearchParams({q: query, hl: "zh-CN", gl: "CN", ceid: "CN:zh-Hans"})}`
   });
 }
@@ -462,55 +479,138 @@ const DIRECT_NEWS_FEEDS = [
   {id: "openai", name: "OpenAI News", url: "https://openai.com/news/rss.xml"},
   {id: "google-ai", name: "Google AI Blog", url: "https://blog.google/technology/ai/rss/"},
   {id: "deepmind", name: "Google DeepMind", url: "https://deepmind.google/blog/rss.xml"},
-  {id: "verge-ai", name: "The Verge AI", url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"}
+  {id: "verge-ai", name: "The Verge AI", url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"},
+  {id: "techcrunch-ai", name: "TechCrunch AI", url: "https://techcrunch.com/category/artificial-intelligence/feed/"},
+  {id: "mit-tech-review-ai", name: "MIT Technology Review", url: "https://www.technologyreview.com/topic/artificial-intelligence/feed/"},
+  {id: "github-ai", name: "GitHub AI & ML", url: "https://github.blog/ai-and-ml/feed/"},
+  {id: "aws-ml", name: "AWS Machine Learning", url: "https://aws.amazon.com/blogs/machine-learning/feed/"},
+  {id: "arxiv-ai", name: "arXiv cs.AI", url: "https://export.arxiv.org/api/query?search_query=cat%3Acs.AI&start=0&max_results=10&sortBy=submittedDate&sortOrder=descending"}
 ];
+
+const PROXIED_NEWS_FEEDS=[
+  {id:"qbitai",name:"量子位",url:"https://www.qbitai.com/feed/"},
+  {id:"36kr-search",name:"36氪",url:`https://news.google.com/rss/search?${new URLSearchParams({q:"site:36kr.com (AI OR 人工智能 OR 大模型) when:14d",hl:"zh-CN",gl:"CN",ceid:"CN:zh-Hans"})}`}
+];
+
+async function fetch36KrNewsflashes(){
+  const response=await fetch("https://gateway.36kr.com/api/mis/nav/newsflash/flow",{
+    method:"POST",
+    headers:{"content-type":"application/json","user-agent":"ChestnutCourtyard/1.0"},
+    body:JSON.stringify({partner_id:"web",param:{platformId:1,siteId:1,pageSize:20,pageEvent:0,pageCallback:""}}),
+    signal:AbortSignal.timeout(7000)
+  });
+  if(!response.ok)throw new Error(`36氪 返回 HTTP ${response.status}`);
+  const payload=await response.json();
+  const rows=payload?.data?.itemList||[];
+  const items=rows.map(row=>{
+    const material=row?.templateMaterial||{};
+    const id=String(row?.itemId||material.itemId||'');
+    return {id:`36kr-${id}`,title:rssText(material.widgetTitle),link:id?`https://36kr.com/newsflashes/${id}`:"",published_at:material.publishTime?new Date(Number(material.publishTime)).toISOString():"",media:"36氪",source_url:"https://36kr.com/",summary:rssText(material.widgetContent)};
+  }).filter(item=>item.title&&item.link);
+  if(!items.length)throw new Error("36氪 没有返回可解析资讯");
+  return items;
+}
+
+const CHINESE_TECH_MEDIA_QUERIES = [
+  'site:36kr.com (AI OR 人工智能 OR 大模型) when:14d',
+  'site:qbitai.com (AI OR 大模型 OR 智能体) when:14d',
+  'site:jiqizhixin.com (AI OR 大模型 OR 智能体) when:14d',
+  'site:infoq.cn (AI OR 大模型 OR 智能体) when:14d'
+];
+
+function interleaveNewsGroups(groups,limit=80){
+  const output=[];
+  const maxLength=Math.max(0,...groups.map(group=>group.length));
+  for(let index=0;index<maxLength&&output.length<limit;index+=1){
+    for(const group of groups){
+      if(group[index])output.push(group[index]);
+      if(output.length>=limit)break;
+    }
+  }
+  return output;
+}
 
 function reportItems(report){
   return [...(report?.hot_items||[]),...(report?.sections||[]).flatMap(section=>section.items||[])];
 }
 
-function reportItemNeedsLanguageRepair(item){
+function noticeTextSimilarity(left,right){
+  const normalize=value=>String(value||'').toLowerCase().replace(/[^a-z0-9\u4e00-\u9fff]+/g,'');
+  const a=normalize(left),b=normalize(right);
+  if(!a||!b)return 0;
+  if(a===b)return 1;
+  const grams=value=>new Set([...Array(Math.max(0,value.length-1))].map((_item,index)=>value.slice(index,index+2)));
+  const aGrams=grams(a),bGrams=grams(b);
+  if(!aGrams.size||!bGrams.size)return 0;
+  let shared=0;
+  aGrams.forEach(value=>{if(bGrams.has(value))shared+=1;});
+  return shared/new Set([...aGrams,...bGrams]).size;
+}
+
+function reportItemLanguageState(item){
   const original=String(item?.source_summary||item?.original_summary||item?.summary||'');
   const chinese=(original.match(/[\u4e00-\u9fff]/g)||[]).length;
   const needsTranslation=chinese<8&&!String(item?.translation_zh||'').trim();
   const ai=String(item?.ai_summary||'');
   const translation=String(item?.translation_zh||'').replace(/\s+/g,'').trim();
   const normalizedAi=ai.replace(/\s+/g,'').trim();
-  return needsTranslation||!ai.trim()||/自动中文整理暂时没有可靠完成|先保留来源/.test(ai)||(translation&&translation===normalizedAi);
+  const needsSummary=Number(item?.ai_summary_version||0)<2||!ai.trim()||/自动中文整理暂时没有可靠完成|先保留来源/.test(ai)||(translation&&noticeTextSimilarity(translation,normalizedAi)>=0.55);
+  return {original,originalChinese:chinese>=8,needsTranslation,needsSummary};
+}
+
+function reportItemNeedsLanguageRepair(item){
+  const state=reportItemLanguageState(item);
+  return state.needsTranslation||state.needsSummary;
 }
 
 async function repairReportLanguages(env,report){
-  const items=reportItems(report).filter(reportItemNeedsLanguageRepair).slice(0,16);
+  const items=reportItems(report).filter(reportItemNeedsLanguageRepair).slice(0,12);
   if(!items.length)return {report,repaired:false};
   const input=items.map((item,index)=>({id:String(index),title:item.title||'',summary:item.source_summary||item.original_summary||item.summary||'',media:item.media||''}));
-  const englishInput=input.filter(item=>(String(item.summary).match(/[\u4e00-\u9fff]/g)||[]).length<8);
-  let translationResult={provider:"",text:'{"items":[]}'};
-  if(englishInput.length){
-    const translationPrompt=`你是忠实翻译员。只返回 JSON：{"items":[{"id":"输入id","translation_zh":"逐条忠实翻译原摘要，不增加分析或建议"}]}。必须为每个输入 id 返回非空翻译，保留产品名、模型名和数字。资料：${JSON.stringify(englishInput).slice(0,22000)}`;
-    translationResult=await callText(env,translationPrompt,2600);
-  }
-  const summaryPrompt=`你是资讯编辑。只返回 JSON：{"items":[{"id":"输入id","ai_summary":"80到180字中文提炼，说明文章具体讲了什么、关键事实和值得关注的结论；不能逐句翻译原摘要"}]}。必须为每个输入 id 返回总结，不得写“无法总结”或“请看原文”，不得编造。资料：${JSON.stringify(input).slice(0,24000)}`;
-  const summaryResult=await callText(env,summaryPrompt,3000);
-  const translations=new Map((extractJson(translationResult.text).items||[]).map(item=>[String(item.id),String(item.translation_zh||'').trim()]));
-  const summaries=new Map((extractJson(summaryResult.text).items||[]).map(item=>[String(item.id),String(item.ai_summary||'').trim()]));
+  const fieldText=(text,field)=>{
+    try{
+      const parsed=extractJson(text);
+      return String(parsed?.[field]||parsed?.items?.[0]?.[field]||'').trim();
+    }catch(_error){
+      return String(text||'').replace(/^```(?:json)?\s*|\s*```$/gi,'').replace(new RegExp(`^(?:${field}|中文翻译|AI总结|AI 总结)\\s*[：:]\\s*`),'').trim();
+    }
+  };
+  // One item per request is more reliable for the small Workers AI model than
+  // asking it to preserve several ids in one JSON array.
+  const jobs=input.flatMap((value,index)=>{
+    const state=reportItemLanguageState(items[index]);
+    const context=JSON.stringify({title:value.title,source_summary:value.summary,media:value.media,translation_zh:items[index].translation_zh||''}).slice(0,5000);
+    const result=[];
+    if(state.needsTranslation)result.push(callText(env,`你是忠实翻译员。把下面英文摘要忠实翻译为简体中文，保留产品名、模型名和数字，不增加分析或建议。只返回翻译正文，不要 JSON、标题或解释。资料：${context}`,500).then(response=>({index,field:'translation_zh',value:fieldText(response.text,'translation_zh'),provider:response.provider})));
+    if(state.needsSummary)result.push(callText(env,`你是中文资讯编辑。根据下面资料写一段 80 到 180 字的 AI 总结，必须与“中文翻译”职责不同：先说明核心变化，再说明适用对象或场景，最后给出值得关注的结论或边界。可以做谨慎推断，但必须使用“这意味着”“值得关注的是”或“仍需验证”等措辞标明，不得逐句翻译或换词复述，不得编造具体数据。只返回总结正文，不要 JSON、标题或解释。资料：${context}`,700).then(response=>({index,field:'ai_summary',value:fieldText(response.text,'ai_summary'),provider:response.provider})));
+    return result;
+  });
+  const generated=await Promise.all(jobs);
+  const translations=new Map(generated.filter(item=>item.field==='translation_zh').map(item=>[String(item.index),item.value]));
+  const summaries=new Map(generated.filter(item=>item.field==='ai_summary').map(item=>[String(item.index),item.value]));
   const replacements=new Map();
   items.forEach((item,index)=>{
     const id=String(index);
-    const original=String(item.source_summary||item.original_summary||item.summary||'');
-    const originalChinese=(original.match(/[\u4e00-\u9fff]/g)||[]).length>=8;
-    const translation=originalChinese?'':String(translations.get(id)||item.translation_zh||'').slice(0,1200);
+    const state=reportItemLanguageState(item);
+    const translation=state.originalChinese?'':String(translations.get(id)||item.translation_zh||'').slice(0,1200);
     let aiSummary=String(summaries.get(id)||item.ai_summary||'').slice(0,1600);
-    if(translation&&translation.replace(/\s+/g,'')===aiSummary.replace(/\s+/g,''))aiSummary=`核心信息：${aiSummary} 阅读时还应核对原文中的适用对象、能力边界和限制。`;
-    replacements.set(item,{...item,translation_zh:translation,ai_summary:aiSummary});
+    if(state.needsTranslation&&!translation.trim())throw new Error(`模型没有返回“${String(item.title||'该资讯').slice(0,40)}”的中文翻译`);
+    if(state.needsSummary&&(aiSummary.match(/[\u4e00-\u9fff]/g)||[]).length<30)throw new Error(`模型没有返回“${String(item.title||'该资讯').slice(0,40)}”的有效 AI 总结`);
+    if(translation&&noticeTextSimilarity(translation,aiSummary)>=0.55)throw new Error(`“${String(item.title||'该资讯').slice(0,40)}”的 AI 总结仍与中文翻译过于相似`);
+    replacements.set(item,{...item,translation_zh:translation,ai_summary:aiSummary,ai_summary_version:2});
   });
   const replace=item=>replacements.get(item)||item;
-  return {report:{...report,hot_items:(report.hot_items||[]).map(replace),sections:(report.sections||[]).map(section=>({...section,items:(section.items||[]).map(replace)})),language_repaired_at:now(),provider:summaryResult.provider||translationResult.provider||report.provider},repaired:replacements.size>0};
+  return {report:{...report,hot_items:(report.hot_items||[]).map(replace),sections:(report.sections||[]).map(section=>({...section,items:(section.items||[]).map(replace)})),language_repaired_at:now(),provider:generated.find(item=>item.provider)?.provider||report.provider},repaired:replacements.size>0};
 }
 
 async function runCloudReport(env, force = false) {
   const reportsData = await readData(env, "notice_reports");
   const butlerState = await readData(env, "butler_state");
   const watchTopics = (butlerState.watch_topics || []).map(item => String(item.text || item.title || "").trim()).filter(Boolean).slice(0, 8);
+  const savedSourceQueries=(butlerState.sources||[]).filter(item=>item&&item.enabled!==false).map(item=>{
+    try{return `site:${new URL(String(item.url||item.feed||'')).hostname.replace(/^www\./,'')} (AI OR 人工智能 OR 大模型) when:14d`;}
+    catch(_error){return '';}
+  }).filter(Boolean).slice(0,12);
   const latest = (reportsData.reports || [])[0];
   if (!force && latest?.generated_at && Date.now() - Date.parse(latest.generated_at) < 46 * 60 * 60 * 1000) {
     return {...latest, unchanged: true, report_count: (reportsData.reports || []).length};
@@ -533,11 +633,20 @@ async function runCloudReport(env, force = false) {
     '(site:seed.bytedance.com OR site:volcengine.com OR site:doubao.com) (豆包 OR Seedance OR Seedream OR Seed) when:14d',
     '(site:qwen.ai OR site:aliyun.com) (Qwen OR 通义千问) when:14d',
     'site:moonshot.cn (Kimi OR 月之暗面) when:14d',
+    ...CHINESE_TECH_MEDIA_QUERIES,
+    ...savedSourceQueries,
     ...watchTopics.map(topic => `${topic.replace(/[()"']/g, " ").slice(0, 80)} when:7d`)
   ];
-  const settled = await Promise.allSettled([...queries.map(fetchNewsRss), ...DIRECT_NEWS_FEEDS.map(fetchNewsFeed)]);
+  const settled = await Promise.allSettled([...queries.map(fetchNewsRss), ...DIRECT_NEWS_FEEDS.map(fetchNewsFeed), ...PROXIED_NEWS_FEEDS.map(fetchNewsFeedJson), fetch36KrNewsflashes()]);
   const fulfilled = settled.filter(item => item.status === "fulfilled");
-  if (!fulfilled.length) {
+  const liveGroups=fulfilled.map(item=>item.value).filter(group=>group.length);
+  const sourceCache=await readState(env,"notice:source-cache",{groups:[]});
+  const cachedGroups=(sourceCache.groups||[]).filter(Array.isArray);
+  if(liveGroups.length)await writeState(env,"notice:source-cache",{updated_at:now(),groups:liveGroups.slice(0,24).map(group=>group.slice(0,12))},{expirationTtl:7*24*60*60});
+  const latestGroup=latest?reportItems(latest):[];
+  const usingSourceFallback=!liveGroups.length;
+  const sourceGroups=liveGroups.length?[...liveGroups,...cachedGroups]:cachedGroups.length?cachedGroups:latestGroup.length?[latestGroup]:[];
+  if (!sourceGroups.length) {
     if(force&&latest&&reportItems(latest).some(reportItemNeedsLanguageRepair)){
       const repaired=await repairReportLanguages(env,latest);
       if(repaired.repaired){
@@ -565,7 +674,13 @@ async function runCloudReport(env, force = false) {
   };
   const previousKeys = new Set();
   (reportsData.reports || []).forEach(report => [...(report.hot_items || []), ...(report.sections || []).flatMap(section => section.items || [])].forEach(item => articleKeys(item).forEach(key => previousKeys.add(key))));
-  const pool = fulfilled.flatMap(item => item.value).filter(item => ![...articleKeys(item)].some(key => previousKeys.has(key))).slice(0, 45);
+  const currentKeys=new Set();
+  const pool=interleaveNewsGroups(sourceGroups,80).filter(item=>{
+    const keys=[...articleKeys(item)];
+    if(keys.some(key=>previousKeys.has(key)||currentKeys.has(key)))return false;
+    keys.forEach(key=>currentKeys.add(key));
+    return true;
+  }).slice(0,60);
   if (!pool.length) {
     if(force&&latest&&reportItems(latest).some(reportItemNeedsLanguageRepair)){
       const repaired=await repairReportLanguages(env,latest);
@@ -578,13 +693,13 @@ async function runCloudReport(env, force = false) {
       }
     }
     const reportCount=(reportsData.reports || []).length;
-    const message=`已检查，暂无新资讯；保留 ${reportCount} 版巡报`;
-    await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "completed", last_success: now(), unchanged: true, message}}});
+    const message=usingSourceFallback?`资讯源暂时不可用，已保留 ${reportCount} 版巡报，稍后自动重试`:`已检查，暂无新资讯；保留 ${reportCount} 版巡报`;
+    await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "completed", last_success: now(), unchanged: true, degraded:usingSourceFallback, message}}});
     return {...(latest || {focus_title: "暂无新资讯"}), unchanged: true, report_count: reportCount};
   }
   const prompt = `你是阿栗，负责为 AI 产品经理整理一次“资讯巡报”。从候选中只挑真正重要、具体、多样的 7 到 11 条，不要为了凑数收录普通软文。
 只返回 JSON：{"focus_title":"本期最重要变化","hot_items":[{"source_id":"候选id","category":"模型与技术","translation_zh":"原摘要非中文时给忠实中文翻译，原摘要是中文时留空","ai_summary":"120到200字中文总结，说明具体变化、关键数字或能力、值得关注的结论"}],"sections":[{"name":"国内外动态","items":[同结构]},{"name":"产品相关动态","items":[同结构]},{"name":"主人关注","items":[同结构]}],"insights":["跨文章案例总结"],"advice":["给正在做AI产品的主人一个有深度且可执行的建议"]}。
-热点速览只放行业级重要发布；国内外动态兼顾 OpenAI、Anthropic、Google 与国内 DeepSeek、Kimi、通义、豆包；产品相关动态只放评测、记忆、Agent、原型、工作流等真正能提升产品能力的案例。分类只用模型与技术、产品与实践、行业动态、学术研究。不得编造候选中没有的价格、指标和事实。
+热点速览只放行业级重要发布；整版必须尽量覆盖至少 4 个不同来源，单一来源最多 2 条。国内外动态兼顾 OpenAI、Anthropic、Google 与国内 DeepSeek、Kimi、通义、豆包，并优先从 36氪、量子位、机器之心、InfoQ 中文候选中选择至少 2 条有实质信息的内容；同时兼顾国际科技媒体、GitHub 开源实践、AWS 工程案例和 arXiv 研究，但候选不足时不要凑数。产品相关动态只放评测、记忆、Agent、原型、工作流等真正能提升产品能力的案例。分类只用模型与技术、产品与实践、行业动态、学术研究。不得编造候选中没有的价格、指标和事实。
 主人关注方向：${JSON.stringify(watchTopics)}。只有候选中确实有直接相关内容时才增加“主人关注”栏目；没有匹配内容就不要生成该栏目，不能拿普通 AI 新闻凑数。
 候选：${JSON.stringify(pool).slice(0, 30000)}`;
   let result = {provider: "source-fallback"};
@@ -593,6 +708,16 @@ async function runCloudReport(env, force = false) {
     const curationTimeout = Math.max(10, Number(env.COZY_NEWS_AI_TIMEOUT_MS) || 24000);
     result = await Promise.race([callText(env,prompt,3600),new Promise((_,reject)=>setTimeout(()=>reject(new Error("资讯整理模型响应超时")),curationTimeout))]);
     curated = extractJson(result.text);
+    const selectedRaw=[...(curated.hot_items||[]),...(curated.sections||[]).flatMap(section=>section.items||[])];
+    const poolById=new Map(pool.map(item=>[String(item.id),item]));
+    const sourceKey=item=>String(item?.media||item?.source_url||'未知来源').toLowerCase();
+    const availableSources=new Set(pool.map(sourceKey));
+    const selectedCounts=new Map();
+    selectedRaw.forEach(item=>{
+      const key=sourceKey(poolById.get(String(item?.source_id||'')));
+      selectedCounts.set(key,(selectedCounts.get(key)||0)+1);
+    });
+    if(availableSources.size>=4&&(selectedCounts.size<4||Math.max(0,...selectedCounts.values())>2))throw new Error("模型选择的资讯来源不够多样");
   } catch (_error) {
     const selected = pool.slice(0, 9);
     const shape = item => ({
@@ -615,12 +740,15 @@ async function runCloudReport(env, force = false) {
     if (!source) return null;
     const category = String(raw.category || categoryForArticle(source.title));
     const sourceSummary = String(source.summary || source.title).slice(0, 1200);
+    const translation=(sourceSummary.match(/[\u4e00-\u9fff]/g)||[]).length>=8?'':String(raw.translation_zh||raw.original_summary||'').slice(0,1200);
+    const aiSummary=ensureChineseAiSummary(raw.ai_summary,source,category);
     return {...source, category,
       source_summary: sourceSummary,
       original_summary: sourceSummary,
       summary: sourceSummary,
-      translation_zh: (sourceSummary.match(/[\u4e00-\u9fff]/g)||[]).length>=8?'':String(raw.translation_zh||raw.original_summary||'').slice(0,1200),
-      ai_summary: ensureChineseAiSummary(raw.ai_summary, source, category)};
+      translation_zh: translation,
+      ai_summary: aiSummary,
+      ai_summary_version: result.provider!=="source-fallback"&&(!translation||noticeTextSimilarity(translation,aiSummary)<0.55)?2:0};
   };
   const hotItems = (curated.hot_items || []).map(hydrate).filter(Boolean).slice(0, 4);
   const sections = (curated.sections || []).slice(0, 3).map(section => ({name: String(section.name || "动态"), items: (section.items || []).map(hydrate).filter(Boolean).slice(0, 5)})).filter(section => section.items.length);
