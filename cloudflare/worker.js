@@ -235,7 +235,11 @@ async function callText(env, prompt, maxTokens = 1600) {
   const failures = [];
   for (const provider of providers) {
     try {
-      return await callTextProvider(env, provider, prompt, maxTokens);
+      const timeoutMs=Math.max(5000,Number(env.COZY_TEXT_PROVIDER_TIMEOUT_MS)||20000);
+      return await Promise.race([
+        callTextProvider(env,provider,prompt,maxTokens),
+        new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${provider} 响应超时`)),timeoutMs))
+      ]);
     } catch (error) {
       failures.push(`${provider}: ${String(error?.message || error)}`);
     }
