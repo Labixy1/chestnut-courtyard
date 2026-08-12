@@ -63,7 +63,7 @@ def main():
         first = request("/api/blackboard/today")["question"]
         second = request("/api/blackboard/today")["question"]
         assert first["date"] == second["date"] and first["question"] == second["question"]
-        assert first.get("alignment_version") == 3
+        assert first.get("alignment_version") == 4
         if first.get("source_title"):
             assert first["source_title"] in first["question"]
             assert first["source_title"] in " ".join(first.get("materials", []))
