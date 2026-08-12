@@ -106,7 +106,13 @@ def wrangler_run(*args: str) -> str:
 
 
 def kv_get(namespace: str, key: str):
-    output = wrangler_run("kv", "key", "get", key, "--namespace-id", namespace, "--remote", "--text")
+    try:
+        output = wrangler_run("kv", "key", "get", key, "--namespace-id", namespace, "--remote", "--text")
+    except RuntimeError as error:
+        message = str(error)
+        if "404: Not Found" in message and "/values/" in message:
+            return None
+        raise
     if not output:
         return None
     try:
