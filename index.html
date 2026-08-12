@@ -328,6 +328,8 @@
   .report-card{background:rgba(255,255,255,.66);border:1px solid rgba(184,112,128,.16);border-radius:18px;padding:14px;margin:10px 0}
   .report-card h4{font-size:15px;color:#70424d;margin-bottom:7px}
   .report-card p{font-size:13px;line-height:1.7;color:rgba(104,65,75,.84);margin:6px 0}
+  .notice-request-origin{padding:7px 9px;border-left:3px solid #89a98c;background:#f1f6ef;color:#526a56!important}
+  .report-card.related-notice-focus{outline:3px solid rgba(92,137,98,.42);outline-offset:3px;background:#f5fbf3}
   .notice-tag{display:inline-flex;align-items:center;width:max-content;font-size:11px;font-weight:700;color:#8b5360;
      background:rgba(255,239,232,.88);border:1px solid rgba(184,112,128,.14);border-radius:999px;padding:3px 8px;margin-bottom:7px}
   .notice-empty-line{font-size:13px;line-height:1.75;color:rgba(104,65,75,.66);padding:4px 2px 8px}
@@ -362,6 +364,7 @@
   .chest-btn.is-active{background:#9d7651;border-color:#9d7651}
   .source-link{border:1px solid rgba(184,112,128,.18);background:rgba(255,255,255,.45);color:#8b5360;
      border-radius:999px;padding:5px 9px;font-size:12px;text-decoration:none}
+  .source-unavailable{padding:5px 7px;color:#8a8f88;font-size:11px}
   .source-link:hover{background:rgba(255,255,255,.8)}
   .report-actions{display:flex;gap:7px;align-items:center;justify-content:flex-end;flex-wrap:wrap;flex:none}
   .article-action{border:1px solid rgba(184,112,128,.18);background:rgba(255,255,255,.5);color:#8b5360;
@@ -576,6 +579,7 @@
   .bb-note{font-size:13px;color:rgba(83,54,22,.62);margin-top:10px}
   .bb-pills{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
   .bb-pill{font-size:12px;border:1px solid rgba(143,94,25,.18);border-radius:999px;padding:5px 10px;color:#6b4618;background:rgba(255,255,255,.62)}
+  .bb-related-notice{border:0;background:transparent;color:#527358;font-size:12px;font-weight:700;padding:5px 2px;text-decoration:underline;text-underline-offset:3px;cursor:pointer}
   .bb-material,.bb-review-card{background:rgba(255,255,255,.66);border:1px solid rgba(143,94,25,.14);border-radius:18px;padding:14px 16px;margin:12px 0}
   .bb-material h4,.bb-review-card h4{font-size:14px;color:#6b4618;margin-bottom:8px}
   .bb-material ul,.bb-review-card ul,.bb-standard{padding-left:20px}
@@ -588,7 +592,8 @@
   .bb-helper-head strong{display:block;font-size:13px;color:#60421d}.bb-helper-head small{display:block;margin-top:1px;font-size:10px;color:#987541}
   .bb-helper-chat{display:none;padding:11px 13px 0}.bb-helper-chat.show{display:block}.bb-helper-chat p{margin:0;font-size:13px;line-height:1.7;color:#654a29}
   .bb-helper-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:11px 13px}.bb-helper-row input{min-width:0;border:1px solid rgba(143,94,25,.18);border-radius:9px;background:rgba(255,255,255,.78);padding:9px 11px;color:#4d3214;outline:none;font-family:inherit;font-size:13px}.bb-helper-row button{border:0;border-radius:9px;background:#b47b24;color:#fffaf0;padding:0 13px;cursor:pointer;font-family:inherit;font-size:12px}.bb-helper-row button:disabled{opacity:.5;cursor:wait}
-  .bb-score-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}.bb-score-item{padding:10px 11px;border-radius:10px;background:rgba(255,249,232,.78)}.bb-score-item b{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#63451f}.bb-score-item p{margin:4px 0 0;font-size:11px;line-height:1.55;color:#85693e}
+  .bb-score-summary{font-size:13px!important;color:#4f604d!important}.bb-grading-policy{margin:5px 0 12px!important;font-size:10px!important;color:#849080!important}.bb-score-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:12px}.bb-score-item{padding:11px 12px;border-radius:8px;background:#f7f3e8;border:1px solid rgba(112,126,91,.1)}.bb-score-item b{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:#4e5f49}.bb-score-heading{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0}.bb-score-band{padding:2px 5px;border-radius:4px;background:#dfeadb;color:#55705a;font-size:9px;font-weight:650;white-space:nowrap}.bb-score-band.developing{background:#efe8d5;color:#7b6839}.bb-score-band.weak,.bb-score-band.absent{background:#f1e2dd;color:#89594f}.bb-score-item blockquote,.bb-strengths blockquote{margin:8px 0 5px;padding-left:9px;border-left:2px solid #9ab195;color:#526952;font-size:11px;line-height:1.55}.bb-score-item p{margin:6px 0 0;font-size:11px;line-height:1.62;color:#6d7467}.bb-score-item p strong{display:block;margin-bottom:1px;color:#53634f;font-size:10px}.bb-score-item .bb-score-teaching{padding-top:6px;border-top:1px solid rgba(96,120,89,.11);color:#4e684f}
+  .bb-learning-section{margin-top:14px;padding-top:12px;border-top:1px solid rgba(91,126,88,.14)}.bb-learning-section h5{margin:0 0 8px;color:#405b45;font-size:13px}.bb-strengths{display:grid;gap:7px}.bb-strengths>div{padding:9px 11px;border-radius:8px;background:#edf4e9}.bb-strengths p{margin:3px 0 0!important;color:#526956!important;font-size:12px!important}.bb-direction-review{margin-top:12px;padding:10px 12px;border-left:3px solid #718f6d;background:#eef4eb;color:#486149}.bb-direction-review.misdirected{border-left-color:#b26d5f;background:#f7ece8;color:#7a4d45}.bb-direction-review strong{font-size:12px}.bb-direction-review p{margin:4px 0 0!important;font-size:12px!important;line-height:1.65!important;color:inherit!important}.bb-reference-review{margin-top:14px;border-top:1px solid rgba(91,126,88,.14);padding-top:10px}.bb-reference-review>summary{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#53684f;font-size:12px;font-weight:650;cursor:pointer;list-style:none}.bb-reference-review>summary::-webkit-details-marker{display:none}.bb-reference-review>summary small{font-size:9px;font-weight:400;color:#8a9786}.bb-reference-review>summary:after{content:"+";margin-left:auto;font-size:16px}.bb-reference-review[open]>summary:after{content:"−"}.bb-evidence-map{margin-top:8px}.bb-evidence-row{padding:12px 0;border-bottom:1px solid rgba(91,126,88,.12)}.bb-evidence-row:last-child{border-bottom:0}.bb-evidence-head{display:flex;align-items:flex-start;gap:8px}.bb-evidence-head strong{font-size:13px;line-height:1.55;color:#415947}.bb-evidence-status{flex:0 0 auto;margin-top:1px;padding:2px 6px;border-radius:5px;background:#e4eee0;color:#527055;font-size:9px;font-weight:700}.bb-evidence-status.partial{background:#f2ead2;color:#836b31}.bb-evidence-status.equivalent{background:#e7edf7;color:#556f91}.bb-evidence-status.not_covered,.bb-evidence-status.missing{background:#f1ece1;color:#79684f}.bb-evidence-status.off_track{background:#f3e3df;color:#8b554b}.bb-evidence-row p{margin:5px 0 0;font-size:12px;line-height:1.65;color:#657262}.bb-evidence-quote{color:#4f6752!important}.bb-evidence-action{color:#4d684f!important}.bb-evidence-action strong{font-weight:650}.bb-priority-fix{margin-top:12px;padding:10px 12px;border-left:3px solid #6e926f;background:#edf5ea;color:#486149;font-size:12px;line-height:1.65}.bb-review-error{padding:14px 0;color:#6f756c;font-size:13px;line-height:1.7}.bb-review-card.bb-minimal-revision .bb-polished p{border-left-color:#709471;background:#f2f7ef}
   .bb-comparison{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
   .bb-comparison .bb-review-card{margin:0}
   .bb-history{display:grid;grid-template-columns:1fr;gap:10px;margin-top:14px}
@@ -947,6 +952,7 @@ function setToolboxGroup(name, btn){
 const SKILL_UI={
   'curate-news':['资讯巡逻','筛选真正重要的 AI 与产品动态，整理成资讯巡报。','需要抓取、判断和整理近期资讯时'],
   'coach-blackboard':['黑板教练','结合资讯、历史答案和记忆出题，并逐点批改。','每日出题、答案诊断与标准答案生成'],
+  'grade-blackboard-answer':['答案批改','逐条核对原答案证据，只补真正缺失的动作、指标与边界。','提交答案或重新核分时'],
   'guide-orchard':['成长田向导','回应成长困惑，把持续关注沉淀为种子与知识专题。','成长田对话与知识积累'],
   'manage-toolbox':['工具管家','解析工具链接，补齐用途、能力、场景和官方地址。','新增、整理或移动工具卡片'],
   'manage-memory':['记忆整理','从交互证据中更新记忆档案、分类和偏好。','需要记住、纠正、查询或忘记内容时'],
@@ -1106,6 +1112,9 @@ async function loadTodayBlackboardQuestion(saved=[],showFailure=true){
       question:item.question,
       materials:item.materials || [],
       standard:item.standard_points || [],
+      rubric:Array.isArray(item.rubric)&&item.rubric.length?item.rubric:defaultBlackboardRubric(item.standard_points||[],item.question||''),
+      rubricVersion:Number(item.rubric_version||3),taskType:item.task_type||blackboardTaskProfile(item.question||'').type,taskScoringFocus:item.task_scoring_focus||blackboardTaskProfile(item.question||'').focus,referenceFrozenAt:item.reference_frozen_at||new Date().toISOString(),questionFingerprint:item.question_fingerprint||'',answerIndependent:item.answer_independent!==false,
+      related_notice:item.related_notice || null,
       seedHint:'',
       date:item.date
     };
@@ -1139,7 +1148,8 @@ async function refreshBlackboardQuestion(){
     const data=await cozyApi('/api/blackboard/today?refresh='+nonce,undefined,90000);
     const item=data.question||{};
     state.today={title:item.title||'每日产品题',tags:item.types||[]};
-    state.questionData={id:item.id||('local-'+nonce),title:item.title||'每日产品题',types:item.types||['产品场景'],question:item.question||'',materials:item.materials||[],standard:item.standard_points||item.standard||[],seedHint:'',date:item.date||localCalendarDate()};
+    const standard=item.standard_points||item.standard||[];
+    state.questionData={id:item.id||('local-'+nonce),title:item.title||'每日产品题',types:item.types||['产品场景'],question:item.question||'',materials:item.materials||[],standard,rubric:Array.isArray(item.rubric)&&item.rubric.length?item.rubric:defaultBlackboardRubric(standard,item.question||''),rubricVersion:Number(item.rubric_version||3),taskType:item.task_type||blackboardTaskProfile(item.question||'').type,taskScoringFocus:item.task_scoring_focus||blackboardTaskProfile(item.question||'').focus,referenceFrozenAt:item.reference_frozen_at||new Date().toISOString(),questionFingerprint:item.question_fingerprint||'',answerIndependent:item.answer_independent!==false,related_notice:item.related_notice||null,seedHint:'',date:item.date||localCalendarDate()};
     delete state.answer;delete state.review;delete state.nextQuestion;delete state.nextQuestionReference;
     state.locked=false;
     const saved=findSavedBlackboardAnswer(JSON.parse(localStorage.getItem('cozy_blackboard_answers')||'[]'),state.questionData);
@@ -1238,7 +1248,8 @@ function blackboardArchiveId(item){let h=2166136261;for(const char of blackboard
 
 function redoBlackboardQuestion(id){
   const item=window.BB_HISTORY_ITEMS&&window.BB_HISTORY_ITEMS[id],state=window.BB_STATE;if(!item||!state)return;
-  state.questionData={title:item.title,question:item.question,types:item.types||[],materials:item.materials||[],supplementalMaterials:item.supplementalMaterials||[],standard:item.standard||[],date:localCalendarDate(),archiveSourceDate:item.date||''};
+  const standard=item.standard||[];
+  state.questionData={title:item.title,question:item.question,types:item.types||[],materials:item.materials||[],supplementalMaterials:item.supplementalMaterials||[],standard,rubric:Array.isArray(item.rubric)&&item.rubric.length?item.rubric:defaultBlackboardRubric(standard,item.question||''),rubricVersion:Number(item.rubricVersion||item.rubric_version||3),taskType:item.taskType||item.task_type||blackboardTaskProfile(item.question||'').type,taskScoringFocus:item.taskScoringFocus||item.task_scoring_focus||blackboardTaskProfile(item.question||'').focus,referenceFrozenAt:item.referenceFrozenAt||item.reference_frozen_at||new Date().toISOString(),questionFingerprint:item.questionFingerprint||item.question_fingerprint||'',answerIndependent:item.answerIndependent!==false,related_notice:item.related_notice||null,date:localCalendarDate(),archiveSourceDate:item.date||''};
   state.today={title:item.title,tags:item.types||[]};state.redoMode=true;state.locked=false;state.submitting=false;
   delete state.answer;delete state.review;delete state.nextQuestion;delete state.nextQuestionReference;
   showBlackboardMode('question');
@@ -1256,21 +1267,34 @@ function blackboardListBlock(title,items){
   return values.length?'<article class="bb-review-card"><h4>'+escapeNotice(title)+'</h4><ul>'+values.map(item=>'<li>'+escapeNotice(item)+'</li>').join('')+'</ul></article>':'';
 }
 
+function renderBlackboardEvidenceReview(review,allowRegrade){
+  review=review&&typeof review==='object'?review:{};
+  if(review.reviewUnavailable)return '<article class="bb-review-card"><h4>批改没有完成</h4><div class="bb-review-error">'+escapeNotice(review.unavailableMessage||'这次没有拿到可核对的批改结果，原答案已经保留。')+'</div>'+(allowRegrade?'<button id="bb-regrade" class="bb-submit" onclick="regradeBlackboardAnswer()">重新核分</button>':'')+'</article>';
+  if(Number(review.reviewVersion||0)<2)return '<article class="bb-review-card"><h4>旧版批改不再采用</h4><div class="bb-review-error">这份结果没有逐条引用原答案，不能证明评分依据。'+(allowRegrade?'请重新核分生成新版证据对照。':'可以再次作答生成新版证据对照。')+'</div>'+(allowRegrade?'<button id="bb-regrade" class="bb-submit" onclick="regradeBlackboardAnswer()">重新核分</button>':'')+'</article>';
+  const scores=Array.isArray(review.scoreBreakdown)?review.scoreBreakdown:[];
+  const bandText={excellent:'准确充分',solid:'基本扎实',developing:'部分成立',weak:'较为薄弱',absent:'尚未形成'};
+  const scoreGrid=scores.length?'<div class="bb-score-grid">'+scores.map(item=>{const band=item.band||blackboardScoreBand(item.awarded,item.max);return'<section class="bb-score-item"><b><span class="bb-score-heading"><span>'+escapeNotice(item.criterion||'评分项')+'</span><small class="bb-score-band '+escapeNotice(band)+'">'+escapeNotice(bandText[band]||'待判断')+'</small></span><span>'+escapeNotice(String(item.awarded??0))+' / '+escapeNotice(String(item.max??25))+'</span></b>'+(item.evidence?'<blockquote>“'+escapeNotice(item.evidence)+'”</blockquote>':'')+'<p><strong>评分判断</strong>'+escapeNotice(item.reason||'')+'</p>'+(item.teaching?'<p class="bb-score-teaching"><strong>怎样提高</strong>'+escapeNotice(item.teaching)+'</p>':'')+'</section>'}).join('')+'</div>':'';
+  const statusText={covered:'已经展开',partial:'已有基础',equivalent:'另一条有效思路',not_covered:'可继续补充',off_track:'需要纠正',hit:'已经展开',missing:'可继续补充'};
+  const requirementMap=Array.isArray(review.requirementMap)?review.requirementMap:[];
+  const evidence=requirementMap.length?'<details class="bb-reference-review"><summary>与参考思路对照 <small>不直接决定得分</small></summary><div class="bb-evidence-map">'+requirementMap.map(item=>{const relation=item.relation||item.status||'not_covered';return'<div class="bb-evidence-row"><div class="bb-evidence-head"><span class="bb-evidence-status '+escapeNotice(relation)+'">'+escapeNotice(statusText[relation]||'待核对')+'</span><strong>'+escapeNotice(item.referencePoint||item.requirement||'参考思路')+'</strong></div>'+(item.evidence?'<p class="bb-evidence-quote">你的原话：“'+escapeNotice(item.evidence)+'”</p>':'')+'<p>'+escapeNotice(item.assessment||'')+'</p><p class="bb-evidence-action"><strong>怎么用好这一点：</strong>'+escapeNotice(item.teaching||item.action||'')+'</p></div>'}).join('')+'</div></details>':'';
+  const strengths=Array.isArray(review.strengths)&&review.strengths.length?'<section class="bb-learning-section"><h5>你已经想对的地方</h5><div class="bb-strengths">'+review.strengths.map(item=>{const value=typeof item==='string'?{evidence:'',whyGood:item}:item;return'<div>'+(value.evidence?'<blockquote>“'+escapeNotice(value.evidence)+'”</blockquote>':'')+'<p>'+escapeNotice(value.whyGood||value.why_good||'')+'</p></div>'}).join('')+'</div></section>':'';
+  const directionText={correct:'方向正确，继续补强',partly_correct:'方向基本对，需要补齐',misdirected:'方向需要纠正'};
+  const correction=review.correctionPath?'<section class="bb-direction-review '+escapeNotice(review.direction||'partly_correct')+'"><strong>'+escapeNotice(directionText[review.direction]||'下一步推理路径')+'</strong><p>'+escapeNotice(review.correctionPath)+'</p></section>':'';
+  const priority=review.priorityFix?'<div class="bb-priority-fix"><strong>下一步先练这一件事：</strong>'+escapeNotice(review.priorityFix)+'</div>':'';
+  const policy=review.gradingPolicy?'<p class="bb-grading-policy">'+escapeNotice(review.gradingPolicy)+'</p>':'';
+  return '<article class="bb-review-card bb-tutoring-review"><h4>得分与学习建议</h4><p class="bb-score-summary">'+escapeNotice(review.score||review.scoreSummary||'')+'</p>'+policy+scoreGrid+strengths+correction+priority+evidence+(allowRegrade?'<button id="bb-regrade" class="bb-submit" onclick="regradeBlackboardAnswer()">重新核分</button>':'')+'</article>';
+}
+
 function renderBlackboardHistoryAttempt(attempt,question,index,total){
   const review=attempt.review&&typeof attempt.review==='object'?attempt.review:{};
   const standard=(attempt.standard&&attempt.standard.length?attempt.standard:question.standard)||[];
-  const scores=Array.isArray(review.scoreBreakdown)?review.scoreBreakdown:[];
-  const scoreGrid=scores.length?'<div class="bb-score-grid">'+scores.map(item=>'<div class="bb-score-item"><b><span>'+escapeNotice(item.criterion||'评分项')+'</span><span>'+escapeNotice(String(item.awarded??0))+' / '+escapeNotice(String(item.max??25))+'</span></b><p>'+escapeNotice(item.reason||'该次未记录评分说明。')+'</p></div>').join('')+'</div>':'';
-  const score=review.score||review.scoreSummary||'';
-  const completion=score||scoreGrid?'<article class="bb-review-card"><h4>本次完成度</h4>'+(score?'<p>'+escapeNotice(score)+'</p>':'')+scoreGrid+'</article>':'';
-  const diagnosis=blackboardListBlock('答案诊断',review.diagnosis);
-  const polished=review.revised?'<article class="bb-review-card"><h4>阿栗帮答</h4>'+renderPolishedAnswer(review.revised)+'</article>':'';
-  const comparison='<div class="bb-comparison"><article class="bb-review-card"><h4>你的原答案</h4><p>'+escapeNotice(attempt.answer||'该次没有保存原答案。')+'</p></article><article class="bb-review-card"><h4>标准答案</h4>'+(standard.length?'<ol class="bb-standard">'+standard.map(point=>'<li>'+escapeNotice(point)+'</li>').join('')+'</ol>':'<p>该次没有生成标准答案。</p>')+'</article></div>';
-  const suggestions=blackboardListBlock('AI 修改建议',review.suggestions);
-  const thinking=blackboardListBlock('下一轮思考方向',review.thinking);
+  const completion=renderBlackboardEvidenceReview(review,false);
+  const revised=review.minimalRevision||review.revised||'';
+  const polished=revised?'<article class="bb-review-card bb-minimal-revision"><h4>'+(review.reviewVersion>=2?'保留原思路的补强版':'旧版参考答案')+'</h4>'+renderPolishedAnswer(revised)+'</article>':'';
+  const comparison='<div class="bb-comparison"><article class="bb-review-card"><h4>你的原答案</h4><p>'+escapeNotice(attempt.answer||'该次没有保存原答案。')+'</p></article><article class="bb-review-card"><h4>参考答案 <small>不是唯一解</small></h4>'+(standard.length?'<ol class="bb-standard">'+standard.map(point=>'<li>'+escapeNotice(point)+'</li>').join('')+'</ol>':'<p>该次没有生成参考答案。</p>')+'</article></div>';
   const nextPractice=renderNextPractice(attempt.next_question||'',attempt.next_question_reference||[]);
-  const missing=!completion&&!diagnosis&&!polished&&!suggestions&&!thinking&&!nextPractice?'<div class="bb-history-missing">这是一条旧答题记录，当时没有保存结构化批改内容；原答案与标准答案仍然保留。</div>':'';
-  return '<section class="bb-attempt-panel" data-attempt="'+index+'" '+(index===total-1?'':'hidden')+'><div class="bb-attempt-head"><strong>第 '+(index+1)+' 次回答</strong><time>'+escapeNotice(attempt.date||'未标日期')+'</time></div><div class="bb-history-result">'+completion+diagnosis+polished+comparison+suggestions+thinking+nextPractice+missing+'</div></section>';
+  const missing=!completion&&!polished&&!nextPractice?'<div class="bb-history-missing">这是一条旧答题记录，当时没有保存逐点证据；原答案与参考答案仍然保留。</div>':'';
+  return '<section class="bb-attempt-panel" data-attempt="'+index+'" '+(index===total-1?'':'hidden')+'><div class="bb-attempt-head"><strong>第 '+(index+1)+' 次回答</strong><time>'+escapeNotice(attempt.date||'未标日期')+'</time></div><div class="bb-history-result">'+completion+comparison+polished+nextPractice+missing+'</div></section>';
 }
 
 function renderBlackboardHistory(state){
@@ -1279,7 +1303,8 @@ function renderBlackboardHistory(state){
   const seen=new Map();
   const add=item=>{
     if(!item)return;
-    const normalized={title:item.title||'未命名题目',question:item.question||'',types:item.types||item.tags||[],date:item.date||'',standard:item.standard_points||item.standard||[],materials:item.materials||[],supplementalMaterials:item.supplementalMaterials||[],answer:item.answer||'',review:item.review||null,next_question:item.next_question||'',next_question_reference:item.next_question_reference||[],attemptId:item.attemptId||'',attempts:[]};
+    const standard=item.standard_points||item.standard||[];
+    const normalized={title:item.title||'未命名题目',question:item.question||'',types:item.types||item.tags||[],date:item.date||'',standard,rubric:Array.isArray(item.rubric)&&item.rubric.length?item.rubric:defaultBlackboardRubric(standard,item.question||''),rubricVersion:Number(item.rubricVersion||item.rubric_version||3),taskType:item.taskType||item.task_type||blackboardTaskProfile(item.question||'').type,taskScoringFocus:item.taskScoringFocus||item.task_scoring_focus||blackboardTaskProfile(item.question||'').focus,referenceFrozenAt:item.referenceFrozenAt||item.reference_frozen_at||'',questionFingerprint:item.questionFingerprint||item.question_fingerprint||'',answerIndependent:item.answerIndependent!==false,materials:item.materials||[],supplementalMaterials:item.supplementalMaterials||[],related_notice:item.related_notice||null,answer:item.answer||'',review:item.review||null,next_question:item.next_question||'',next_question_reference:item.next_question_reference||[],attemptId:item.attemptId||'',attempts:[]};
     const key=blackboardQuestionKey(normalized);
     if(!key)return;
     if(seen.has(key)){
@@ -1327,27 +1352,18 @@ async function submitBbAnswer(){
   input.disabled=true;
   const submitButton=document.getElementById('bb-submit-button');
   if(submitButton){submitButton.disabled=true;submitButton.textContent='批改中…';}
-  note.textContent = '阿栗正在逐点批改，并和标准答案对照……';
+  note.textContent = '阿栗正在按冻结维度批改，判断你哪里想对了以及怎样继续补强……';
   const q = window.BB_STATE.questionData || getBlackboardQuestionData(window.BB_STATE.today || {});
   window.BB_STATE.answer = value;
   try{
-    const data = window.CozyButler ? await CozyButler.api('/api/room',{room:'blackboard',message:value,context:{intent:'grade_answer',title:q.title,question:q.question,materials:[...(q.materials||[]),...(q.supplementalMaterials||[])],reference:q.standard}}) : null;
+    const data = window.CozyButler ? await CozyButler.api('/api/room',{room:'blackboard',message:value,context:blackboardGradeContext(q)}) : null;
     const result = data && data.result ? data.result : {};
-    window.BB_STATE.review = {
-      revised:result.polished_answer || buildBbReview(value,q).revised,
-      suggestions:Array.isArray(result.suggestions)&&result.suggestions.length?result.suggestions:buildBbReview(value,q).suggestions,
-      thinking:Array.isArray(result.thinking_directions)?result.thinking_directions:[],
-      diagnosis:Array.isArray(result.diagnosis)?result.diagnosis:[],
-      scoreBreakdown:isEmptyBlackboardAnswer(value)?zeroBlackboardScores():normalizeBlackboardScores(result.score_breakdown),
-      scoreSummary:result.score_summary||result.score||''
-    };
-    window.BB_STATE.review.score=window.BB_STATE.review.scoreBreakdown.length?window.BB_STATE.review.scoreBreakdown.reduce((sum,item)=>sum+item.awarded,0)+'/100 · '+window.BB_STATE.review.scoreSummary:window.BB_STATE.review.scoreSummary;
-    if(Array.isArray(result.standard_points)&&result.standard_points.length) q.standard=result.standard_points;
+    window.BB_STATE.review = normalizeBlackboardReview(result,value,q);
     window.BB_STATE.nextQuestion=result.next_question||'';
     window.BB_STATE.nextQuestionReference=Array.isArray(result.next_question_reference)&&result.next_question_reference.length?result.next_question_reference:buildNextQuestionReference(window.BB_STATE.nextQuestion);
-  }catch(error){window.BB_STATE.review=buildBbReview(value,q);window.BB_STATE.review.suggestions.push('本次 AI 批改未连接成功，已保留本地结构化建议。');}
+  }catch(error){window.BB_STATE.review=buildBbReview(value,q,error.message);}
   const saved = JSON.parse(localStorage.getItem('cozy_blackboard_answers') || '[]');
-  const record={title:q.title,question:q.question,types:q.types||[],materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],answer:value,review:window.BB_STATE.review,standard:q.standard,next_question:window.BB_STATE.nextQuestion||'',next_question_reference:window.BB_STATE.nextQuestionReference||[],date:q.date||localCalendarDate(),attemptId:'attempt_'+Date.now().toString(36),archiveSourceDate:q.archiveSourceDate||''};
+  const record={title:q.title,question:q.question,types:q.types||[],materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],related_notice:q.related_notice||null,answer:value,review:window.BB_STATE.review,standard:q.standard,rubric:q.rubric||defaultBlackboardRubric(q.standard,q.question),rubricVersion:Number(q.rubricVersion||3),taskType:q.taskType||blackboardTaskProfile(q.question).type,taskScoringFocus:q.taskScoringFocus||blackboardTaskProfile(q.question).focus,referenceFrozenAt:q.referenceFrozenAt||'',questionFingerprint:q.questionFingerprint||blackboardQuestionFingerprint(q),answerIndependent:q.answerIndependent!==false,next_question:window.BB_STATE.nextQuestion||'',next_question_reference:window.BB_STATE.nextQuestionReference||[],date:q.date||localCalendarDate(),attemptId:'attempt_'+Date.now().toString(36),archiveSourceDate:q.archiveSourceDate||''};
   const duplicateIndex=saved.findIndex(item=>blackboardQuestionKey(item)===blackboardQuestionKey(record));
   if(!window.BB_STATE.redoMode&&duplicateIndex>=0)saved.splice(duplicateIndex,1);
   saved.unshift(record);
@@ -1369,10 +1385,39 @@ async function submitBbAnswer(){
   showBlackboardMode('result');
 }
 
-function normalizeBlackboardScores(items){
-  const names=['问题理解','方案完整','验证与指标','风险与回滚'],source=Array.isArray(items)?items:[];
-  if(source.length<4)return[];
-  return names.map((name,index)=>{const raw=source.find(item=>String(item?.criterion||'').includes(name.slice(0,2)))||source[index]||{};return{criterion:name,max:25,awarded:Math.round(Math.max(0,Math.min(25,Number(raw.awarded)||0))),reason:String(raw.reason||'本项没有给出有效评分依据。')};});
+function normalizeBlackboardScores(items,q){
+  const expected=Array.isArray(q?.rubric)&&q.rubric.length?q.rubric:defaultBlackboardRubric(q?.standard||[],q?.question||''),source=Array.isArray(items)?items:[];
+  if(source.length!==expected.length)return[];
+  return expected.map((criterion,index)=>{
+    const raw=source.find(item=>String(item?.rubric_id||item?.id||'')===String(criterion.id))||source[index]||{},max=Number(criterion.max)||0;
+    const awarded=Math.round(Math.max(0,Math.min(max,Number(raw.awarded)||0)));
+    return{rubricId:String(criterion.id),criterion:String(criterion.criterion),max,awarded,band:blackboardScoreBand(awarded,max),evidence:String(raw.evidence||''),reason:String(raw.reason||raw.assessment||'本项没有给出有效评分依据。'),teaching:String(raw.teaching||raw.action||'')};
+  });
+}
+
+function normalizeBlackboardReview(result,answer,q){
+  if(isEmptyBlackboardAnswer(answer)){
+    const scores=zeroBlackboardScores(q);
+    return{reviewVersion:4,scoreBreakdown:scores,scoreSummary:'这次还没有形成可评分的观点。',score:'0/100 · 这次还没有形成可评分的观点。',requirementMap:[],strengths:[],direction:'misdirected',correctionPath:'先用一句话回答题目正在问什么，再给出你的核心判断和一个理由。',priorityFix:'先写出“我的判断是……，因为……”这两句，再继续展开。',minimalRevision:'',gradingPolicy:'四项能力先按五档锚点定档；同一缺陷只归一个维度。'};
+  }
+  const scores=normalizeBlackboardScores(result&&result.score_breakdown,q);
+  if(scores.length!==4)throw new Error('模型没有返回完整的四项评分，原答案已保留。');
+  const normalize=value=>String(value||'').toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g,'');
+  const answerKey=normalize(answer),validRelations=new Set(['covered','partial','equivalent','not_covered','off_track']);
+  const requirementMap=(Array.isArray(result?.requirement_map)?result.requirement_map:[]).map(item=>({
+    referencePoint:String(item?.reference_point||item?.requirement||'').trim(),relation:String(item?.relation||item?.status||'').toLowerCase(),evidence:String(item?.evidence||'').trim(),assessment:String(item?.assessment||'').trim(),teaching:String(item?.teaching||item?.action||'').trim()
+  }));
+  const reference=Array.isArray(q?.standard)?q.standard.map(String).filter(Boolean):[];
+  if(requirementMap.length!==reference.length||requirementMap.some((item,index)=>item.referencePoint!==reference[index]||!validRelations.has(item.relation)||!item.assessment||!item.teaching||(['not_covered','off_track'].includes(item.relation)&&item.evidence)||(!['not_covered','off_track'].includes(item.relation)&&(!item.evidence||!answerKey.includes(normalize(item.evidence))))))throw new Error('模型没有按冻结的参考思路说明你的答案，原答案已保留。');
+  if(scores.some(item=>!item.reason||!item.teaching||(item.awarded>0&&(!item.evidence||!answerKey.includes(normalize(item.evidence))))))throw new Error('模型没有说明每一项为什么得分以及怎样提高，原答案已保留。');
+  const minimalRevision=String(result?.minimal_revision||'').trim();
+  if(!minimalRevision)throw new Error('模型没有给出保留原思路的补强版，原答案已保留。');
+  const scoreSummary=String(result?.score_summary||'').trim();
+  const total=scores.reduce((sum,item)=>sum+item.awarded,0);
+  const strengths=(Array.isArray(result?.strengths)?result.strengths:[]).slice(0,4).map(item=>typeof item==='string'?{evidence:'',whyGood:item}:{evidence:String(item?.evidence||''),whyGood:String(item?.why_good||item?.reason||'')}).filter(item=>item.evidence||item.whyGood);
+  const direction=String(result?.direction||'').toLowerCase(),correctionPath=String(result?.correction_path||'').trim();
+  if(!['correct','partly_correct','misdirected'].includes(direction)||!correctionPath)throw new Error('模型没有给出清楚的方向判断和纠正路径，原答案已保留。');
+  return{reviewVersion:4,scoreBreakdown:scores,scoreSummary,score:total+'/100'+(scoreSummary?' · '+scoreSummary:''),requirementMap,strengths,direction,correctionPath,priorityFix:String(result?.priority_fix||'').trim(),minimalRevision,gradingPolicy:String(result?.grading_policy||'四项能力先按五档锚点定档、再在档内给分；同一缺陷只归一个维度；参考答案不是唯一解。')};
 }
 
 function isEmptyBlackboardAnswer(value){
@@ -1380,8 +1425,9 @@ function isEmptyBlackboardAnswer(value){
   return clean.length<12&&/^(不会|好难|不知道|不懂|不会做|答不出|没思路|太难了|不会好难)+$/.test(clean);
 }
 
-function zeroBlackboardScores(reason='原答案没有提供可评分的观点或方案。'){
-  return ['问题理解','方案完整','验证与指标','风险与回滚'].map(criterion=>({criterion,max:25,awarded:0,reason}));
+function zeroBlackboardScores(q,reason='原答案没有提供可评分的观点或方案。'){
+  const rubric=Array.isArray(q?.rubric)&&q.rubric.length?q.rubric:defaultBlackboardRubric(q?.standard||[],q?.question||'');
+  return rubric.map(item=>({rubricId:item.id,criterion:item.criterion,max:item.max,awarded:0,evidence:'',reason,teaching:'先回答题目中的核心任务，再用一个理由解释你的判断。'}));
 }
 
 function renderPolishedAnswer(value){
@@ -1393,26 +1439,69 @@ async function regradeBlackboardAnswer(){
   const state=window.BB_STATE,q=state?.questionData,button=document.getElementById('bb-regrade');if(!state?.answer||!q||button?.disabled)return;
   button.disabled=true;button.textContent='核分中…';
   try{
-    const data=await CozyButler.api('/api/room',{room:'blackboard',message:state.answer,context:{intent:'grade_answer',title:q.title,question:q.question,materials:[...(q.materials||[]),...(q.supplementalMaterials||[])],reference:q.standard}}),result=data?.result||{};
-    const scores=isEmptyBlackboardAnswer(state.answer)?zeroBlackboardScores():normalizeBlackboardScores(result.score_breakdown),fallback=buildBbReview(state.answer,q);if(scores.length!==4)throw new Error('模型没有返回完整的四项评分，已保留原结果');
-    state.review={revised:result.polished_answer||fallback.revised,suggestions:Array.isArray(result.suggestions)&&result.suggestions.length?result.suggestions:fallback.suggestions,thinking:Array.isArray(result.thinking_directions)?result.thinking_directions:[],diagnosis:Array.isArray(result.diagnosis)?result.diagnosis:[],scoreBreakdown:scores,scoreSummary:result.score_summary||'已按四项标准重新核分'};
-    state.review.score=scores.reduce((sum,item)=>sum+item.awarded,0)+'/100 · '+state.review.scoreSummary;
-    if(Array.isArray(result.standard_points)&&result.standard_points.length)q.standard=result.standard_points;
+    const data=await CozyButler.api('/api/room',{room:'blackboard',message:state.answer,context:blackboardGradeContext(q)}),result=data?.result||{};
+    state.review=normalizeBlackboardReview(result,state.answer,q);
     const saved=JSON.parse(localStorage.getItem('cozy_blackboard_answers')||'[]'),index=saved.findIndex(item=>blackboardQuestionKey(item)===blackboardQuestionKey(q));
-    if(index>=0){saved[index]={...saved[index],review:state.review,standard:q.standard,materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[]};localStorage.setItem('cozy_blackboard_answers',JSON.stringify(saved));window.CozyButler?.persistLocal(['cozy_blackboard_answers']);}
+    if(index>=0){saved[index]={...saved[index],review:state.review,standard:q.standard,rubric:q.rubric||defaultBlackboardRubric(q.standard,q.question),rubricVersion:Number(q.rubricVersion||3),taskType:q.taskType||blackboardTaskProfile(q.question).type,taskScoringFocus:q.taskScoringFocus||blackboardTaskProfile(q.question).focus,referenceFrozenAt:q.referenceFrozenAt||'',questionFingerprint:q.questionFingerprint||blackboardQuestionFingerprint(q),answerIndependent:q.answerIndependent!==false,materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[]};localStorage.setItem('cozy_blackboard_answers',JSON.stringify(saved));window.CozyButler?.persistLocal(['cozy_blackboard_answers']);}
     showBlackboardMode('result');
-  }catch(error){button.disabled=false;button.textContent='重新核分';button.title=error.message;}
+  }catch(error){state.review=buildBbReview(state.answer,q,error.message);showBlackboardMode('result');}
+}
+
+function blackboardTaskProfile(question=''){
+  const text=String(question||'');
+  if(/比较|对比|区别|差异|异同|各自.{0,8}(特点|优缺点)|哪一.{0,4}更/.test(text))return{type:'compare',label:'比较分析题',focus:'在同一维度下比较差异、原因、取舍与适用场景；不强求题目没有要求的上线方案或产品指标。'};
+  if(/复盘|反思|启示|总结|学到|迁移|成长/.test(text))return{type:'reflection',label:'反思迁移题',focus:'从材料或经历中提炼可复用原则，并说明证据、适用条件和可能例外；不强求虚构产品数据。'};
+  if(/什么是|是什么|是个什么|什么叫|为何|为什么|解释|如何理解|本质|含义|机制/.test(text))return{type:'explain',label:'概念解释题',focus:'用概念边界、形成机制、例子或反例证明理解；不强求题目没有要求的决策流程或量化指标。'};
+  return{type:'decision',label:'决策设计题',focus:'说明判断标准、方案机制、验证路径、风险边界或停止条件；题目未提供的具体产品数据不得作为扣分理由。'};
+}
+
+function blackboardScoreBands(max,descriptions){
+  const ranges=max===30?[['excellent',27,30],['solid',20,26],['developing',10,19],['weak',1,9],['absent',0,0]]:[['excellent',18,20],['solid',13,17],['developing',7,12],['weak',1,6],['absent',0,0]],labels={excellent:'准确充分',solid:'基本扎实',developing:'部分成立',weak:'较为薄弱',absent:'尚未形成'};
+  return ranges.map((row,index)=>({band:row[0],label:labels[row[0]],min:row[1],max:row[2],description:descriptions[index]}));
+}
+
+function blackboardScoreBand(awarded,max){
+  const score=Math.max(0,Number(awarded)||0),ceiling=Math.max(1,Number(max)||1);
+  if(score===0)return'absent';if(score/ceiling>=.9)return'excellent';if(score/ceiling>=.65)return'solid';if(score/ceiling>=1/3)return'developing';return'weak';
+}
+
+function defaultBlackboardRubric(reference=[],question=''){
+  const points=Array.isArray(reference)?reference.map(String).filter(Boolean).slice(0,6):[];
+  const profile=blackboardTaskProfile(question);
+  return [
+    {id:'comprehension',criterion:'题意理解与核心判断',max:20,scoring_scope:'只评价是否识别正确的对象、任务和范围，并形成相关、基本准确的核心判断。遗漏其他要点不在此项扣分；时效性事实没有可靠材料时只标待核验，不武断判错。',score_bands:blackboardScoreBands(20,['对象、任务、范围和核心判断准确，无实质性概念或事实错误。','主方向正确，仅有次要含糊或局部误差，不改变核心结论。','答到部分任务，但范围、立场或概念有明显缺口。','只有零散相关内容，核心判断偏题或存在关键误解。','没有可识别的相关判断。'])},
+    {id:'coverage',criterion:'任务完成与要点覆盖',max:30,scoring_scope:'只评价题目明确子任务与必要分析角度覆盖了多少，以及是否分清主次。合理替代观点可与参考要点等价；已提出但没展开的问题留给推理项，不重复扣分。',score_bands:blackboardScoreBands(30,['所有明确子任务和关键角度均覆盖，主次清楚。','主要任务已完成，仅缺一个次要角度或主次略弱。','覆盖部分关键角度，但至少一个主要子任务缺失。','只有孤立相关点，尚未构成对任务的基本完成。','没有覆盖任何可计分要点。'])},
+    {id:'reasoning',criterion:'推理链条与证据支撑',max:30,scoring_scope:'只评价答案已经提出的观点能否由原因、机制、比较、条件、事实、例子或推演支撑。完全缺失的要点只在覆盖项处理，不在本项再次扣分。',score_bands:blackboardScoreBands(30,['主要观点有充分支撑，推理闭合且无明显跳步。','主推理链成立，局部支撑、反证或连接仍可加强。','有一些解释，但主要仍是结论罗列或存在明显跳步。','以断言、循环论证、矛盾或不匹配的支撑为主。','没有可评估的推理。'])},
+    {id:'transfer',criterion:'边界意识与迁移应用',max:20,scoring_scope:'按'+profile.label+'评价答案能否说明适用范围，并把理解用于恰当的例子、场景、取舍、验证、限制或反例。'+profile.focus,score_bands:blackboardScoreBands(20,['能按题型准确迁移，并说明关键适用条件、限制或反例。','已有具体应用或边界，仅缺一个关键条件、反例或验证环节。','提到应用或限制但较泛，尚不足以检验理解或指导判断。','只有装饰性场景或口号，和核心结论连接很弱。','没有显示适用范围或迁移能力的内容。'])}
+  ].map(item=>({...item,task_type:profile.type,task_focus:profile.focus,reference_points:points}));
+}
+
+function blackboardQuestionFingerprint(q){let h=2166136261;for(const char of [q?.date||'',q?.question||'',...(q?.standard||[]),'rubric:v'+Number(q?.rubricVersion||q?.rubric_version||3)].join('|')){h^=char.charCodeAt(0);h=Math.imul(h,16777619);}return'q_'+(h>>>0).toString(36);}
+
+function blackboardGradeContext(q){
+  const reference=Array.isArray(q?.standard)?q.standard:[];
+  const profile=blackboardTaskProfile(q?.question||'');
+  return{intent:'grade_answer',title:q?.title||'',question:q?.question||'',materials:[...(q?.materials||[]),...(q?.supplementalMaterials||[])],reference,rubric:Array.isArray(q?.rubric)&&q.rubric.length?q.rubric:defaultBlackboardRubric(reference,q?.question||''),rubric_version:Number(q?.rubricVersion||q?.rubric_version||3),task_type:q?.taskType||q?.task_type||profile.type,task_scoring_focus:q?.taskScoringFocus||q?.task_scoring_focus||profile.focus,reference_frozen_at:q?.referenceFrozenAt||q?.reference_frozen_at||'',question_fingerprint:q?.questionFingerprint||q?.question_fingerprint||blackboardQuestionFingerprint(q)};
 }
 
 function getBlackboardQuestionData(today){
   if(today&&today.question){
+    const standard=today.standard_points||today.standard||[];
     return {
       title:today.title||'每日产品题',
       types:today.types||today.tags||['产品场景'],
       question:today.question,
       seedHint:today.seed_hint||'',
       materials:today.materials||[],
-      standard:today.standard_points||today.standard||[],
+      standard,
+      rubric:Array.isArray(today.rubric)&&today.rubric.length?today.rubric:defaultBlackboardRubric(standard,today.question),
+      rubricVersion:Number(today.rubric_version||3),
+      taskType:today.task_type||blackboardTaskProfile(today.question).type,
+      taskScoringFocus:today.task_scoring_focus||blackboardTaskProfile(today.question).focus,
+      referenceFrozenAt:today.reference_frozen_at||new Date().toISOString(),
+      questionFingerprint:today.question_fingerprint||'',
+      answerIndependent:today.answer_independent!==false,
+      related_notice:today.related_notice||null,
       date:today.date||localCalendarDate()
     };
   }
@@ -1422,6 +1511,13 @@ function getBlackboardQuestionData(today){
   const rawTypes = ['基础理论','产品场景','时事观察'].concat(today.tags || []);
   if(seedText) rawTypes.push('果园联动');
   const types = rawTypes.filter((x,i,arr)=>x && arr.indexOf(x) === i);
+  const standard=[
+    '先定义问题：业务方通常关心效率、成本、质量和风险，不只关心模型名词。',
+    '再解释机制：用更合适的能力处理更合适的任务，减少无效消耗，提高专业表现。',
+    '落到产品：要设计入口、等待、失败、回滚、人工确认和效果评估。',
+    '说明边界：它不能自动保证正确，也不代表所有场景都更便宜、更稳定或更值得接入。',
+    '给出判断标准：只有当用户任务更顺、风险可控、收益能被衡量时，才值得产品化。'
+  ];
   return {
     title,
     types,
@@ -1431,13 +1527,8 @@ function getBlackboardQuestionData(today){
       '公告板本周观察：AI 产品不只拼能力，还要关注稳定性、权限、成本和可控性。',
       '答题时可以把抽象概念翻译成用户任务：哪一步被省掉，哪一步反而需要确认。'
     ],
-    standard:[
-      '先定义问题：业务方通常关心效率、成本、质量和风险，不只关心模型名词。',
-      '再解释机制：用更合适的能力处理更合适的任务，减少无效消耗，提高专业表现。',
-      '落到产品：要设计入口、等待、失败、回滚、人工确认和效果评估。',
-      '说明边界：它不能自动保证正确，也不代表所有场景都更便宜、更稳定或更值得接入。',
-      '给出判断标准：只有当用户任务更顺、风险可控、收益能被衡量时，才值得产品化。'
-    ]
+    standard,
+    rubric:defaultBlackboardRubric(standard,'如果你是 AI 产品经理，怎么向业务方解释“'+title+'”的价值、适用场景和边界？'),rubricVersion:3,taskType:'explain',taskScoringFocus:blackboardTaskProfile('解释价值、适用场景和边界').focus,referenceFrozenAt:new Date().toISOString(),questionFingerprint:'',answerIndependent:true
   };
 }
 
@@ -1461,11 +1552,22 @@ function renderBlackboardQuestion(q, answer){
   const materials = allMaterials.length ? '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list">'+allMaterials.map((x,index)=>'<li'+(index>=(q.materials||[]).length?' class="bb-added-material"':'')+'>'+escapeNotice(readableBlackboardMaterial(x))+'</li>').join('')+'</ul></div>' : '<div class="bb-material"><h4>本题资料</h4><ul id="bb-material-list"></ul></div>';
   const refreshing=!!(window.BB_STATE&&window.BB_STATE.refreshing);
   const starred=isBlackboardStarred(q);
+  const related=q.related_notice&&q.related_notice.title?'<button type="button" class="bb-related-notice" onclick="openBlackboardRelatedNotice()">查看相关资讯</button>':'';
   return '<section class="bb-question"><div class="bb-question-head"><div class="eyebrow">今日题目 · '+escapeNotice(q.date||localCalendarDate())+'</div><div class="bb-question-tools"><button type="button" class="bb-star '+(starred?'active':'')+'" onclick="toggleCurrentBlackboardStar()" aria-label="'+(starred?'取消星标':'星标题目')+'" aria-pressed="'+starred+'" title="'+(starred?'取消星标':'星标题目')+'">★</button><button class="bb-refresh-question" onclick="refreshBlackboardQuestion()" '+(refreshing?'disabled':'')+' title="换一道新题" aria-label="换一道新题">'+(refreshing?'…':'↻')+'</button></div></div>'+
-    '<h3>'+escapeNotice(q.question)+'</h3><div class="bb-pills">'+pills+'</div>'+
+    '<h3>'+escapeNotice(q.question)+'</h3><div class="bb-pills">'+pills+related+'</div>'+
     (q.seedHint ? '<p>'+escapeNotice(q.seedHint)+'</p>' : '')+materials+renderBlackboardHelper()+
     '<textarea id="bb-answer-input" class="bb-answer-box" placeholder="写你的答案。可以按 1、2、3 列，也可以先用几句话说清楚。"'+(window.BB_STATE&&window.BB_STATE.locked?' disabled':'')+'>'+escapeNotice(answer)+'</textarea>'+
-    '<br><button id="bb-submit-button" class="bb-submit" onclick="submitBbAnswer()"'+(window.BB_STATE&&window.BB_STATE.locked?' disabled':'')+'>'+(window.BB_STATE&&window.BB_STATE.locked?'本题已完成':'提交并批改')+'</button><div class="bb-note" id="bb-answer-note">'+(refreshing?'阿栗正在准备一道不同的新题……':(window.BB_STATE&&window.BB_STATE.locked?'答案已锁定，可在“批改结果”和“历史题目”中查看。':'提交后会生成润色版、标准答案和修改建议。'))+'</div></section>';
+    '<br><button id="bb-submit-button" class="bb-submit" onclick="submitBbAnswer()"'+(window.BB_STATE&&window.BB_STATE.locked?' disabled':'')+'>'+(window.BB_STATE&&window.BB_STATE.locked?'本题已完成':'提交并批改')+'</button><div class="bb-note" id="bb-answer-note">'+(refreshing?'阿栗正在准备一道不同的新题……':(window.BB_STATE&&window.BB_STATE.locked?'答案已锁定，可在“批改结果”和“历史题目”中查看。':'提交后会说明你哪里想对了、为什么成立，以及下一步怎样答得更好。'))+'</div></section>';
+}
+
+async function openBlackboardRelatedNotice(){
+  const related=window.BB_STATE?.questionData?.related_notice;if(!related)return;
+  await openNotice();
+  requestAnimationFrame(()=>{
+    const cards=[...document.querySelectorAll('.report-card[data-notice-id],.report-card[data-notice-title]')];
+    const card=cards.find(item=>(related.id&&item.dataset.noticeId===String(related.id))||item.dataset.noticeTitle===String(related.title));
+    if(card){card.classList.add('related-notice-focus');card.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>card.classList.remove('related-notice-focus'),3500);}
+  });
 }
 
 function renderBlackboardHelper(){return '<section class="bb-helper"><div class="bb-helper-head"><span class="bb-helper-avatar"></span><span><strong>题边的阿栗</strong><small>只补背景，不替你作答</small></span></div><div class="bb-helper-chat" id="bb-helper-chat"></div><div class="bb-helper-row"><input id="bb-helper-input" placeholder="例如：openJiuwen 是什么组织？" onkeydown="if(event.key===\'Enter\'){event.preventDefault();askBlackboardHelper()}"><button id="bb-helper-send" onclick="askBlackboardHelper()">问问</button></div></section>';}
@@ -1485,15 +1587,12 @@ async function askBlackboardHelper(){
 }
 
 function renderBlackboardResult(q, answer, review){
-  const scoreGrid=review.scoreBreakdown&&review.scoreBreakdown.length?'<div class="bb-score-grid">'+review.scoreBreakdown.map(item=>'<div class="bb-score-item"><b><span>'+escapeNotice(item.criterion||'评分项')+'</span><span>'+escapeNotice(String(item.awarded??0))+' / '+escapeNotice(String(item.max??25))+'</span></b><p>'+escapeNotice(item.reason||'')+'</p></div>').join('')+'</div>':'';
+  const minimalRevision=review&&String(review.minimalRevision||'').trim();
   return '<section class="bb-question"><div class="eyebrow">批改结果</div><h3>'+escapeNotice(q.title)+' · 答案对照</h3>'+
-    (review.score?'<div class="bb-review-card"><h4>本次完成度</h4><p>'+escapeNotice(review.score)+'</p>'+scoreGrid+'<button id="bb-regrade" class="bb-submit" onclick="regradeBlackboardAnswer()">重新核分</button></div>':'')+
-    (review.diagnosis&&review.diagnosis.length?'<div class="bb-review-card"><h4>答案诊断</h4><ul>'+review.diagnosis.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>':'')+
-    '<div class="bb-review-card"><h4>阿栗帮答</h4>'+renderPolishedAnswer(review.revised)+'</div>'+
+    renderBlackboardEvidenceReview(review,true)+
     '<div class="bb-comparison"><div class="bb-review-card"><h4>你的原答案</h4><p>'+escapeNotice(answer)+'</p></div>'+
-    '<div class="bb-review-card"><h4>标准答案</h4><ol class="bb-standard">'+q.standard.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ol></div></div>'+
-    '<div class="bb-review-card"><h4>AI 修改建议</h4><ul>'+review.suggestions.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>'+
-    (review.thinking&&review.thinking.length?'<div class="bb-review-card"><h4>下一轮思考方向</h4><ul>'+review.thinking.map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ul></div>':'')+
+    '<div class="bb-review-card"><h4>参考答案 <small>不是唯一解</small></h4><ol class="bb-standard">'+(q.standard||[]).map(x=>'<li>'+escapeNotice(x)+'</li>').join('')+'</ol></div></div>'+
+    (minimalRevision?'<div class="bb-review-card bb-minimal-revision"><h4>保留原思路的补强版</h4>'+renderPolishedAnswer(minimalRevision)+'</div>':'')+
     renderNextPractice(window.BB_STATE&&window.BB_STATE.nextQuestion,window.BB_STATE&&window.BB_STATE.nextQuestionReference)+
     '</section>';
 }
@@ -1527,17 +1626,8 @@ function saveBlackboardDirection(){
   input.value='';if(status)status.textContent='阿栗记下了，会偶尔融进题库。';
 }
 
-function buildBbReview(answer, q){
-  const compact = answer.length > 90 ? answer.slice(0,90)+'...' : answer;
-  return {
-    revised:'可以整理成这样的表达：先说明这个概念要解决的核心问题，再讲它如何帮助产品减少无效步骤或提升质量，最后补上成本、风险和不适用场景。你原答案里的重点是“'+compact+'”，下一版可以把它拆成问题、机制、边界三段。',
-    suggestions:[
-      '开头先写“它解决什么问题”，不要直接进入术语解释。',
-      '中间补一个具体产品场景，比如用户上传资料、自动归档、生成结果需要人工确认。',
-      '结尾一定写边界：失败时怎么办、成本是否可控、什么情况下不该上。',
-      '如果结合时事资料，不要复述新闻，要提炼它对产品入口和工作流的影响。'
-    ]
-  };
+function buildBbReview(answer,q,errorMessage){
+  return{reviewVersion:4,reviewUnavailable:true,unavailableMessage:'这次没有生成通过证据与教学质量校验的批改。'+(errorMessage?' '+String(errorMessage).slice(0,140):'')+' 你的原答案、冻结评分维度和参考答案都没有被修改。',scoreBreakdown:[],scoreSummary:'',score:'',requirementMap:[],strengths:[],direction:'',correctionPath:'',priorityFix:'',minimalRevision:''};
 }
 
 function openPhotoWall(){
@@ -1632,8 +1722,34 @@ function moveAlbumPhoto(albumId,index,step){const albums=seedPhotoAlbums();const
 function removeAlbumPhoto(albumId,index){if(!confirm('从这组照片里删除这一张吗？'))return;const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===albumId);if(!album)return;album.photos.splice(index,1);savePhotoAlbums(albums);openPhotoAlbum(albumId);}
 function deletePhotoAlbum(albumId){if(!confirm('删除整组照片吗？照片文件不会从其他旅行记录中删除。'))return;savePhotoAlbums(seedPhotoAlbums().filter(item=>item.id!==albumId));renderPhotoAlbums();}
 
+let NOTICE_FOUND_RESULTS=[];
+function noticeRequestIdentity(request,index){
+  if(request.id||request.task_id)return String(request.id||request.task_id);
+  const value=[request.date||'',request.text||'',index].join('|');
+  let hash=2166136261;
+  for(const char of value){hash^=char.charCodeAt(0);hash=Math.imul(hash,16777619);}
+  return 'notice_request_'+(hash>>>0).toString(36);
+}
+function prepareNoticeFoundResults(){
+  const requests=readNoticeList('cozy_notice_requests');
+  const pending=[];
+  let changed=false;
+  requests.forEach((request,index)=>{
+    if(!Array.isArray(request.found_items)||!request.found_items.length||request.found_items_seen_at)return;
+    request.id=noticeRequestIdentity(request,index);
+    request.found_items.forEach(item=>pending.push({...item,_request_text:request.text||'未命名留言',_request_id:request.id}));
+    request.found_items_seen_at=new Date().toISOString();
+    request.updatedAt=request.found_items_seen_at;
+    changed=true;
+  });
+  NOTICE_FOUND_RESULTS=pending;
+  if(changed)writeNoticeList('cozy_notice_requests',requests,40);
+  return pending;
+}
+
 async function openNotice(){
   await CORE_READY;
+  prepareNoticeFoundResults();
   openOverlay('<div class="notice-board-large">'+
     '<div class="notice-sticky"><div class="notice-board-heading"><h2>公告板 · 阿栗资讯巡报<span class="notice-cadence" id="notice-cadence"></span></h2><div class="notice-heading-actions"><button class="notice-refresh" id="notice-refresh" onclick="runWeeklyNow()" aria-label="获取最新资讯" title="获取最新资讯">获取最新资讯</button><span class="butler-connection" id="butler-connection">正在连接阿栗</span></div></div><div class="week-title" id="notice-week-title"></div>'+
     '<div class="notice-tabs">'+
@@ -1661,7 +1777,7 @@ async function openNotice(){
 
 async function refreshNoticeReportsFromCloud(){
   if(window.CozyRuntime?.dataSource!=='remote')return false;
-  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
   try{
     const response=await fetch('/api/data?key=notice_reports&t='+Date.now(),{
       cache:'no-store',credentials:'same-origin',signal:controller.signal,
@@ -1697,16 +1813,22 @@ function getWeekRange(offset=0){
 
 async function runWeeklyNow(){
   const button=document.getElementById('notice-refresh'),title=document.getElementById('notice-week-title');
+  noticeManualRefreshPending=true;
   setNoticeRefreshState('running','阿栗正在重新巡逻信息源并筛选近期重点…');
   try{
     const data=await cozyApi('/api/weekly/run',{force:true},480000);
     if(data.accepted){setNoticeRefreshState('running','巡报正在后台更新，可以先离开公告板。');resumeNoticeRefresh();}
-    else{CORE.notice_reports=data.reports||CORE.notice_reports;setNoticeRefreshState('completed','巡报已经更新完成。');updateNoticeCadence();showNoticeView('current',document.querySelector('.notice-tabs button'));}
-  }catch(error){setNoticeRefreshState('failed','资讯巡报获取失败：'+error.message);}
+    else{CORE.notice_reports=data.reports||CORE.notice_reports;NOTICE_FOUND_RESULTS=[];noticeManualRefreshPending=false;setNoticeRefreshState('completed','巡报已经更新完成。');updateNoticeCadence();showNoticeView('current',document.querySelector('.notice-tabs button'));}
+  }catch(error){
+    noticeManualRefreshPending=false;
+    const existing=(CORE.notice_reports?.reports||[]).filter(report=>report?.id!=='fallback');
+    setNoticeRefreshState(existing.length?'completed':'failed',existing.length?'部分资讯源暂时不可用，已保留现有 '+existing.length+' 版巡报，稍后可重试。':'资讯巡报获取失败：'+error.message);
+  }
 }
 
 const NOTICE_REFRESH_KEY='cozy_notice_refresh_status';
 let noticeRefreshPollTimer=null;
+let noticeManualRefreshPending=false;
 function setNoticeRefreshState(status,message){
   const state={status,message:String(message||''),updated_at:new Date().toISOString()};
   localStorage.setItem(NOTICE_REFRESH_KEY,JSON.stringify(state));
@@ -1720,9 +1842,12 @@ async function resumeNoticeRefresh(){
   clearTimeout(noticeRefreshPollTimer);noticeRefreshPollTimer=null;
   const cached=readNoticeRefreshState();if(cached)setNoticeRefreshState(cached.status,cached.message);
   try{
-    const data=await cozyApi('/api/automation',undefined,6000),jobs=data.automation?.jobs||{},job=jobs.weekly_report||jobs.notice_report;
-    if(job){const status=job.status==='ready'?'completed':job.status;setNoticeRefreshState(status,job.message||(status==='running'?'阿栗正在更新巡报。':status==='failed'?'巡报更新失败。':'巡报已经更新完成。'));if(status==='completed'){let reports=await cozyApi('/api/data?key=notice_reports',undefined,6000).catch(()=>null);if(!reports?.reports){reports=await fetch('core/notice_reports.json',{cache:'no-store'}).then(response=>response.ok?response.json():null).catch(()=>null);}if(reports?.reports){CORE.notice_reports=reports;updateNoticeCadence();const active=document.querySelector('.notice-tabs button.active');if(active?.textContent.includes('最新'))showNoticeView('current',active);}}}
-  }catch(error){}
+    const data=await cozyApi('/api/automation',undefined,15000),jobs=data.automation?.jobs||{},job=jobs.weekly_report||jobs.notice_report;
+    if(job){const status=job.status==='ready'?'completed':job.status;setNoticeRefreshState(status,job.message||(status==='running'?'阿栗正在更新巡报。':status==='failed'?'巡报更新失败。':'巡报已经更新完成。'));if(status==='failed')noticeManualRefreshPending=false;if(status==='completed'){let reports=await cozyApi('/api/data?key=notice_reports',undefined,18000).catch(()=>null);if(!reports?.reports){reports=await fetch('core/notice_reports.json',{cache:'no-store'}).then(response=>response.ok?response.json():null).catch(()=>null);}if(reports?.reports){CORE.notice_reports=reports;if(noticeManualRefreshPending){NOTICE_FOUND_RESULTS=[];noticeManualRefreshPending=false;}updateNoticeCadence();const active=document.querySelector('.notice-tabs button.active');if(active?.textContent.includes('最新'))showNoticeView('current',active);}}}
+  }catch(error){
+    const existing=(CORE.notice_reports?.reports||[]).filter(report=>report?.id!=='fallback');
+    if(existing.length)setNoticeRefreshState('completed','云端状态暂时未连上，现有 '+existing.length+' 版巡报仍可正常阅读。');
+  }
   if(readNoticeRefreshState()?.status==='running')noticeRefreshPollTimer=setTimeout(resumeNoticeRefresh,1800);
 }
 
@@ -1754,13 +1879,13 @@ const NOTICE_REPORT = {
 function flattenNoticeItems(){
   return getNoticeReports().flatMap(report=>
     (report.sections || []).flatMap(section=>
-      (section.items || []).map(item=>Object.assign({category:item.category || section.name, report}, item))
+      (section.items || []).filter(noticeItemDisplayable).map(item=>Object.assign({category:item.category || section.name, report}, item))
     )
   );
 }
 
 function flattenReportItems(report){
-  return (report.sections || []).flatMap(section=>(section.items || []));
+  return (report.sections || []).flatMap(section=>(section.items || []).filter(noticeItemDisplayable));
 }
 
 function getNoticeReports(){
@@ -1812,6 +1937,16 @@ function formatIsoDate(iso){
   const parts = String(iso || '').split('-');
   if(parts.length >= 3) return Number(parts[1])+'月'+Number(parts[2])+'日';
   return iso || '';
+}
+
+function noticePublishedLabel(item){
+  const raw=item&&[item.published,item.date,item.published_at].find(value=>String(value||'').trim());
+  if(!raw)return '本周';
+  const text=String(raw).trim();
+  if(/^\d{1,2}月\d{1,2}日$/.test(text))return text;
+  const parsed=new Date(text);
+  if(!Number.isNaN(parsed.getTime()))return (parsed.getMonth()+1)+'月'+parsed.getDate()+'日';
+  return '本周';
 }
 
 const NOTICE_BASE_CATEGORIES = ['模型与技术','产品与实践','行业动态','学术研究'];
@@ -1870,10 +2005,25 @@ function preferredNoticeUrl(item){
   if(!raw)return {url:'',original:'',localized:false};
   try{
     const parsed=new URL(raw,location.href);
-    if(/(^|\.)openai\.com$/i.test(parsed.hostname)&&/^\/index\//.test(parsed.pathname)&&!/^\/zh-Hans-CN\//.test(parsed.pathname)){
-      const original=parsed.toString();
-      parsed.pathname='/zh-Hans-CN'+parsed.pathname;
-      return {url:parsed.toString(),original,localized:true};
+    if(/(^|\.)news\.google\.com$/i.test(parsed.hostname)){
+      return {url:'',original:'',localized:false,unavailable:true};
+    }
+    const path=parsed.pathname.replace(/\/+$/,'')||'/';
+    const listingPaths=new Set(['/','/news','/technology/ai','/category/artificial-intelligence','/topic/artificial-intelligence','/ai-and-ml']);
+    const sourceRaw=item.source_url||item.publisher_url||'';
+    let sameAsSourceHome=false;
+    try{
+      const source=new URL(sourceRaw,location.href);
+      const sourcePath=source.pathname.replace(/\/+$/,'')||'/';
+      sameAsSourceHome=parsed.origin===source.origin&&path===sourcePath&&!/\.(?:rss|xml|atom)$/i.test(path);
+    }catch(_error){}
+    if(item.link_kind==='source_homepage'||item.link_kind==='unavailable'||listingPaths.has(path)||sameAsSourceHome||/\.(?:rss|xml|atom)$/i.test(path)){
+      return {url:'',original:'',localized:false,unavailable:true};
+    }
+    const localized=item.localized_url||item.zh_url||'';
+    if(localized){
+      const localizedUrl=new URL(localized,location.href);
+      if(/^https?:$/.test(localizedUrl.protocol))return {url:localizedUrl.toString(),original:parsed.toString(),localized:true};
     }
   }catch(_error){}
   return {url:raw,original:raw,localized:false};
@@ -1885,25 +2035,31 @@ function reportCardHtml(item, category){
   const laterActive = isNoticeReadLater(payload);
   const chestActive = isNoticeChestItem(payload);
   const source=preferredNoticeUrl(item),sourceUrl=source.original;
-  const link = sourceUrl ? '<a class="source-link" href="'+escapeNotice(source.url)+'" target="_blank" rel="noopener">'+(source.localized?'查看中文全文':'查看原文')+'</a>'+(source.localized?'<a class="source-link" href="'+escapeNotice(source.original)+'" target="_blank" rel="noopener">英文原文</a>':'') : '';
+  const link = sourceUrl ? '<a class="source-link" href="'+escapeNotice(source.url)+'" target="_blank" rel="noopener">'+(source.localized?'查看中文全文':'查看原文')+'</a>'+(source.localized?'<a class="source-link" href="'+escapeNotice(source.original)+'" target="_blank" rel="noopener">英文原文</a>':'') : '<span class="source-unavailable">原文地址待修复</span>';
   const displayTitle=cleanNoticeDisplayText(item.title);
   const displaySummary=cleanNoticeDisplayText(item.source_summary||item.original_summary||item.summary);
-  const aiSummary = cleanNoticeDisplayText(noticeAISummary(item));
-  const translatedSummary=noticeTextIsChinese(displaySummary)?'':cleanNoticeDisplayText(item.translation_zh||item.summary_zh||'');
+  const rawAiSummary = cleanNoticeDisplayText(noticeAISummary(item));
+  const rawTranslatedSummary=noticeTextIsChinese(displaySummary)?'':cleanNoticeDisplayText(item.translation_zh||item.summary_zh||'');
+  const normalizeComparison=value=>cleanNoticeDisplayText(value).toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g,'');
+  const titleKey=normalizeComparison(displayTitle),summaryKey=normalizeComparison(displaySummary);
+  const translatedSummary=normalizeComparison(rawTranslatedSummary)!==titleKey?rawTranslatedSummary:'';
+  const aiKey=normalizeComparison(rawAiSummary);
+  const aiSummary=aiKey&&aiKey!==titleKey&&aiKey!==summaryKey&&aiKey!==normalizeComparison(translatedSummary)?rawAiSummary:'';
   const linkActions = sourceUrl ? '<button class="article-action" data-url="'+escapeNotice(sourceUrl)+'" onclick="copyNoticeLink(this)">复制原链</button><button class="article-action tool-extract-btn" data-url="'+escapeNotice(sourceUrl)+'" data-title="'+escapeNotice(item.title)+'" data-summary="'+escapeNotice(item.summary||'')+'" data-ai-summary="'+escapeNotice(aiSummary)+'" data-category="'+escapeNotice(tag)+'" data-media="'+escapeNotice(item.media||'')+'" onclick="extractToolFromNotice(this)">加入工具箱</button>' : '';
-  const originalSummary = displaySummary ? '<p class="notice-original-summary" lang="'+(noticeTextIsChinese(displaySummary)?'zh-CN':'en')+'">'+escapeNotice(displaySummary)+'</p>' : '';
+  const originalSummary = displaySummary&&normalizeComparison(displaySummary)!==normalizeComparison(displayTitle) ? '<p class="notice-original-summary" lang="'+(noticeTextIsChinese(displaySummary)?'zh-CN':'en')+'">'+escapeNotice(displaySummary)+'</p>' : '';
   const chineseSummary = translatedSummary
     ? '<details class="notice-translation"><summary>查看中文翻译</summary><div class="notice-analysis"><div class="notice-analysis-block"><b>中文翻译</b><p lang="zh-CN">'+escapeNotice(translatedSummary)+'</p></div></div></details>'
     : '';
   const aiSummaryBlock=aiSummary?'<div class="notice-analysis"><div class="notice-analysis-block"><b>AI总结</b><p lang="zh-CN">'+escapeNotice(aiSummary)+'</p></div></div>':'';
+  const requestOrigin=item._request_text?'<p class="notice-request-origin">来自留言：“'+escapeNotice(item._request_text)+'”</p>':'';
   const noteKey = noticeItemKey(payload);
   const savedNote = noticeNoteFor(noteKey);
   const noteBlock = '<details class="notice-note" data-note-key="'+escapeNotice(noteKey)+'" data-note-title="'+escapeNotice(payload.title)+'" data-note-url="'+escapeNotice(payload.url)+'" '+(savedNote?'open':'')+'><summary>阅读笔记'+(savedNote?' · 已保存':'')+'</summary><div class="notice-note-editor"><textarea maxlength="4000" placeholder="记下重要结论、疑问，或它对产品工作的启发。">'+escapeNotice(savedNote?.content||'')+'</textarea><div class="notice-note-actions"><button type="button" onclick="saveNoticeNote(this)">保存笔记</button><button type="button" class="danger" onclick="deleteNoticeNote(this)">清空</button><span class="notice-note-state">'+escapeNotice(savedNote?.updated_at?'更新于 '+formatNoticeNoteTime(savedNote.updated_at):'仅自己可见，并同步到私人云端')+'</span></div></div></details>';
-  return '<article class="report-card"><div class="notice-tag">'+escapeNotice(tag)+'</div><h4>'+escapeNotice(displayTitle)+'</h4>'+
+  return '<article class="report-card" data-notice-id="'+escapeNotice(item.id||'')+'" data-notice-title="'+escapeNotice(displayTitle)+'"><div class="notice-tag">'+escapeNotice(tag)+'</div><h4>'+escapeNotice(displayTitle)+'</h4>'+
     originalSummary+
     chineseSummary+
-    aiSummaryBlock+
-    '<div class="report-meta"><span>'+escapeNotice(item.published || '本周')+' · '+escapeNotice(item.media || '阿栗整理')+'</span>'+
+    aiSummaryBlock+requestOrigin+
+    '<div class="report-meta"><span>'+escapeNotice(noticePublishedLabel(item))+' · '+escapeNotice(item.media || '阿栗整理')+'</span>'+
     '<div class="report-actions">'+link+linkActions+
     '<button class="readlater-btn '+(laterActive ? 'is-active' : '')+'" data-category="'+escapeNotice(payload.category)+'" data-notice-tag="'+escapeNotice(tag)+'" data-title="'+escapeNotice(payload.title)+'" data-summary="'+escapeNotice(payload.summary)+'" data-translation-zh="'+escapeNotice(payload.translation_zh)+'" data-ai-summary="'+escapeNotice(payload.ai_summary)+'" data-media="'+escapeNotice(payload.media)+'" data-published="'+escapeNotice(payload.published)+'" data-url="'+escapeNotice(payload.url)+'" onclick="toggleNoticeReadLater(this)">'+(laterActive ? '移出稍后看' : '稍后看')+'</button>'+
     '<button class="readlater-btn chest-btn '+(chestActive ? 'is-active' : '')+'" data-category="'+escapeNotice(payload.category)+'" data-notice-tag="'+escapeNotice(tag)+'" data-title="'+escapeNotice(payload.title)+'" data-summary="'+escapeNotice(payload.summary)+'" data-translation-zh="'+escapeNotice(payload.translation_zh)+'" data-ai-summary="'+escapeNotice(payload.ai_summary)+'" data-media="'+escapeNotice(payload.media)+'" data-published="'+escapeNotice(payload.published)+'" data-url="'+escapeNotice(payload.url)+'" onclick="openChestPicker(this)">'+(chestActive ? '已入栗夹' : '收入栗夹')+'</button>'+
@@ -1988,7 +2144,7 @@ function noticeSubcategory(item){
 
 function sectionItemsBy(report, fn){
   return (report.sections || []).flatMap(section=>
-    (section.items || []).filter(item=>fn(section, item)).map(item=>Object.assign({category:item.category || section.name}, item))
+    (section.items || []).filter(item=>noticeItemDisplayable(item)&&fn(section, item)).map(item=>Object.assign({category:item.category || section.name}, item))
   );
 }
 
@@ -2016,6 +2172,19 @@ function curatedNoticeItems(items, limit){
   return out.slice(0, limit);
 }
 
+function noticeItemDisplayable(item){
+  const title=cleanNoticeDisplayText(item?.title||'').replace(/\s+-\s+[^–—-]{2,50}$/,'').trim();
+  if(!preferredNoticeUrl(item).original)return false;
+  if(/^(错误码|帮助文档|首页|登录|注册|搜索结果|产品文档)|提示词指南$|服务条款|隐私政策/.test(title))return false;
+  const normalize=value=>cleanNoticeDisplayText(value).toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g,'');
+  const titleKey=normalize(title);
+  const summaries=[item?.source_summary,item?.original_summary,item?.summary,item?.translation_zh,item?.ai_summary].map(normalize).filter(Boolean);
+  if(!summaries.some(value=>value!==titleKey))return false;
+  const summary=cleanNoticeDisplayText(item?.ai_summary||'');
+  if(/(回应|澄清|辟谣|否认)/.test(title)&&/(这意味着|因此|由此可见).{0,30}(将|会|开始|已经).{0,20}(收费|收取费用|涨价|停服|停止|取消|关闭)/.test(summary))return false;
+  return true;
+}
+
 function emptyReportCard(title, text){
   return '<article class="report-card"><h4>'+escapeNotice(title)+'</h4><p>'+escapeNotice(text)+'</p><div class="report-meta"><span>阿栗待补充</span></div></article>';
 }
@@ -2025,42 +2194,9 @@ function emptyNoticeLine(text){
 }
 
 function noticeAISummary(item){
-  if(item.ai_summary) return item.ai_summary;
-  const title = item.title || '';
-  const summary = item.summary || '';
-  const text = [title, summary, item.media].join(' ');
-  if(/Daybreak|GPT-5\.6-Cyber|vulnerability research|cybersecurity-specific/i.test(text)){
-    return 'OpenAI 扩展 Daybreak 网络安全计划，并提供面向授权漏洞研究、漏洞利用验证和安全测试的 GPT-5.6-Cyber。重点是让可信合作方使用专业网络安全模型，同时明确授权、审计和防止滥用的治理边界。';
-  }
-  if(/price-performance frontier|Advancing the price-performance frontier/i.test(text)){
-    return '这篇的核心是 GPT-5.6 的价格性能继续下探：Luna/Terra 等模型成本降低，让企业把更多 AI 工作流从“试点”推到“常态使用”。值得关注的是默认模型选择、调用预算和原本因成本太高而不能上线的功能。';
-  }
-  if(/frontier intelligence|frontier efficiency|fuses frontier/i.test(text)){
-    return '这篇把 GPT-5.6 的重点放在“智能”和“效率”同时提升：不是只追求更高分数，而是用更少推理成本完成复杂任务。对产品来说，真正要看的是长链路 Agent 的等待时间、失败率和单位任务成本是否下降。';
-  }
-  if(/GPT-5\.6|GPT‑5\.6/i.test(text)){
-    return '这篇围绕 GPT-5.6 的模型效率和推理表现展开。它的价值不只是模型更强，而是可能让更多 Agent、长任务和高频调用在成本上变得可承受，需要关注自动化流程的稳定性和人工兜底是否减少。';
-  }
-  if(/Claude Science|科研Skills|科研 Skills|Science/i.test(text)){
-    return '这篇讲开源版 Claude Science：零依赖、MIT 协议、内置 30+ 科研 Skills。重点不是“又多一个工具”，而是把读论文、复现实验、整理数据、写报告拆成可复用模块，适合挑选部分能力接入学术工具箱。';
-  }
-  if(/Sand\.ai|MoE|视频生成|动作模型|触觉|world model/i.test(text)){
-    return '这篇讲 Sand.ai 开源千亿 MoE 视频生成模型：114B 参数、6B 激活，主打 10 秒 1080P 和低成本生成。它的启发是视频模型竞争正在从“能不能生成”转向“成本、时长、分辨率和动作一致性能不能稳定”。';
-  }
-  if(/Managed Agents|background tasks|remote MCP|Gemini API/i.test(text)){
-    return '这篇讲 Gemini API 的 Managed Agents 扩展：后台任务、远程 MCP 和更多托管能力。它把 Agent 从一次性调用推向长期任务执行，产品上需要同步设计进度、通知、取消、权限、日志和失败回滚。';
-  }
-  if(/Realtime|retail agent|24\/7|avatarin/i.test(text)){
-    return '这篇讲 GPT-Realtime 在零售咨询里的应用：24/7、多语言、实时响应，让 AI 从聊天窗口进入真实服务场景。重点要看用户量、满意度、等待时间和人工接管比例，判断它是否真能承担一线服务。';
-  }
-  if(/ARC|benchmark|scores|评测|evaluation/i.test(text)){
-    return '这篇和评测有关，重点是模型表现不只取决于模型本身，也受设置、上下文保留和任务压缩影响。对 AI 产品来说，评测集要覆盖真实任务、边界样例和失败样例，才能判断改动是否真的变好。';
-  }
-  if(item.main_takeaway){
-    const points = Array.isArray(item.watch_points) && item.watch_points.length ? ' 关注：' + item.watch_points.slice(0,2).join('；') + '。' : '';
-    return item.main_takeaway + points;
-  }
-  return summary && summary !== title ? '这篇主要信息是：' + summary : '这条资讯围绕“' + title + '”展开，阿栗先按标题和来源做初步整理，后续接正文解析后补更完整判断。';
+  const value=item&&item.ai_summary ? String(item.ai_summary) : '';
+  if(/自动中文整理暂时没有可靠完成|阿栗先保留来源|避免把英文原文误当成中文总结|可以打开原文核对详情/.test(value))return'';
+  return value;
 }
 
 function noticeMainTakeaway(item){
@@ -2177,19 +2313,17 @@ function showNoticeView(view, btn){
   setNoticeComposerVisible(view === 'current');
   if(view === 'current'){
     if(!report){box.innerHTML='<section class="report-section"><div class="notice-empty-line">没有读取到真实巡报内容。可以点击上方“获取最新资讯”重试，页面不会再显示旧版占位巡报。</div></section>';return;}
-    const requests = JSON.parse(localStorage.getItem('cozy_notice_requests') || '[]');
-    const today = localCalendarDate();
     const dynamicItems = curatedNoticeItems(sectionItemsBy(report, isDynamicItem), 4);
     const productItems = curatedNoticeItems(sectionItemsBy(report, isProductItem), 4);
-    const ownerItems = (report.sections||[]).filter(section=>section.name==='主人关注').flatMap(section=>section.items||[]).slice(0,4);
+    const ownerItems = (report.sections||[]).filter(section=>section.name==='主人关注').flatMap(section=>section.items||[]).filter(noticeItemDisplayable).slice(0,4);
     const ownerBlock = ownerItems.length?'<section class="report-section owner-focus-section"><h3>主人关注</h3>'+ownerItems.map(item=>reportCardHtml(item,item.category)).join('')+'</section>':'';
-    const hotItems = Array.isArray(report.hot_items) && report.hot_items.length ? report.hot_items : [];
+    const hotItems = Array.isArray(report.hot_items) && report.hot_items.length ? report.hot_items.filter(noticeItemDisplayable) : [];
     const visibleKeys = new Set([...hotItems,...dynamicItems,...productItems,...ownerItems].map(noticeItemKey));
     const titleKey = item=>String(item?.title||'').toLowerCase().replace(/[\s，。！？、：；,.!?;:'"“”‘’（）()《》<>\-—_]/g,'');
     const visibleTitles = new Set([...hotItems,...dynamicItems,...productItems,...ownerItems].map(titleKey).filter(Boolean));
     const foundKeys = new Set();
     const foundTitles = new Set();
-    const foundItems = requests.filter(x=>x.date && x.date < today && Array.isArray(x.found_items)).flatMap(x=>x.found_items).filter(item=>{
+    const foundItems = NOTICE_FOUND_RESULTS.filter(item=>noticeItemDisplayable(item)).filter(item=>{
       if(!item||!item.title)return false;
       const key=noticeItemKey(item),title=titleKey(item);
       if(visibleKeys.has(key)||visibleTitles.has(title)||foundKeys.has(key)||foundTitles.has(title))return false;
@@ -2197,7 +2331,7 @@ function showNoticeView(view, btn){
       foundTitles.add(title);
       return true;
     });
-    const foundBlock = foundItems.length ? '<section class="report-section"><h3>留言找到的内容</h3>'+
+    const foundBlock = foundItems.length ? '<section class="report-section"><h3>留言找到的内容</h3><p class="notice-empty-line">这些是阿栗根据留言找到的新内容，仅在本次查看时提示。</p>'+
       foundItems.slice(0,6).map(item=>reportCardHtml(item, '留言找到的内容')).join('')+
       '</section>' : '';
     box.innerHTML = '<section class="report-section hot-report-section"><h3>热点速览</h3><div class="brief-list">'+
@@ -2263,6 +2397,7 @@ function noticeToday(){
 }
 
 function noticeItemPayload(item, category){
+  const preferred=preferredNoticeUrl(item);
   return {
     category: normalizeNoticeCategory(category || item.category,item),
     title: item.title || item.url || '未命名资料',
@@ -2270,8 +2405,8 @@ function noticeItemPayload(item, category){
     translation_zh: item.translation_zh || item.summary_zh || '',
     ai_summary: item.ai_summary || '',
     media: item.media || mediaFromUrl(item.link || item.url || '') || '',
-    published: item.published || item.date || '',
-    url: item.link || item.url || ''
+    published: noticePublishedLabel(item),
+    url: preferred.original || ''
   };
 }
 
@@ -2514,7 +2649,7 @@ async function cozyApi(path, payload, timeout=165000){
 async function refreshButlerConnection(){
   const badge = document.getElementById('butler-connection');
   try{
-    const data = await cozyApi('/api/status', undefined, 3500);
+    const data = await cozyApi('/api/status', undefined, 15000);
     butlerServiceOnline = true;
     if(badge){
       badge.className = 'butler-connection online';

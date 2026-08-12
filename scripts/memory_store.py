@@ -15,6 +15,10 @@ from pathlib import Path
 
 SEALED_SOURCES = {"heart_hollow", "private_wing", "memory_nook"}
 TRIVIAL_MEMORY = re.compile(r"^(?:在吗|你好|收到|好的|好|嗯|谢谢|测试|test)[！!。,.，\s]*$", re.I)
+MEMORY_SCOPES = {
+    "global", "learning_format", "topic_selection", "review_only", "record_only",
+    "companion_style", "heart_only", "travel_only",
+}
 
 BASE_CATEGORIES = (
     ("identity", "身份与基本信息", ("身份", "基本信息", "个人信息")),
@@ -111,6 +115,9 @@ class MemoryStore:
                 "sealed_sources": sorted(SEALED_SOURCES),
                 "normal_agent_can_read_sealed": False,
                 "steward_agent_can_read_sealed_when_requested": True,
+                "max_context_memories_per_reply": 2,
+                "recent_memory_exclusion": True,
+                "room_scopes": ["learning_format", "companion_style", "heart_only", "travel_only", "record_only"],
                 "forgotten_ids": [],
             },
         }
@@ -211,6 +218,16 @@ class MemoryStore:
                 if inferred != "general":
                     item["category_id"] = inferred
                     changed = True
+            source = str(item.get("source") or "")
+            if source == "travel" and item.get("scope") != "travel_only":
+                item["scope"] = "travel_only"
+                changed = True
+            elif item.get("kind") in {"preference", "routine"} and not item.get("scope"):
+                item["scope"] = "learning_format"
+                changed = True
+            elif not item.get("scope"):
+                item["scope"] = "record_only"
+                changed = True
         if changed:
             data["updated_at"] = self.now()
             self._write(self.paths["cards"], data)
@@ -405,6 +422,7 @@ class MemoryStore:
                 "id": "core_trip_" + str(trip.get("id", "")), "date": trip.get("date", ""),
                 "source": "travel", "type": "trip", "layer": "long", "content": trip.get("line", ""),
                 "summary": "旅行记录：%s · %s" % (trip.get("place", ""), trip.get("line", "")), "weight": 2,
+                "scope": "travel_only", "room_id": str(trip.get("id") or ""),
             })
 
     def _forgotten(self):
@@ -577,12 +595,19 @@ class MemoryStore:
         explicit = bool(item.get("remember") or item.get("layer") == "long" or int(item.get("weight") or 1) >= 3)
         threshold = int(self._read(self.paths["policy"], {}).get("repeat_to_promote", 3))
         now = self.now()
+        inferred_kind = self._infer_kind(statement, item.get("source", ""))
+        requested_scope = str(item.get("scope") or "")
+        if requested_scope not in MEMORY_SCOPES:
+            requested_scope = "learning_format" if inferred_kind in {"preference", "routine"} else "record_only"
+        if item.get("source") == "travel":
+            requested_scope = "travel_only"
         if card:
             evidence_ids = list(dict.fromkeys([*(card.get("evidence_ids") or []), item["id"]]))
             card["evidence_ids"] = evidence_ids[-24:]
             card["evidence_count"] = max(int(card.get("evidence_count") or 1), len(evidence_ids))
             card["updated_at"] = now
             card["last_verified"] = item.get("created_at", now)
+            card["scope"] = requested_scope
             if len(statement) > len(str(card.get("summary") or "")):
                 card["summary"] = statement[:600]
                 card["statement"] = statement[:1200]
@@ -597,11 +622,11 @@ class MemoryStore:
             status = "active" if explicit else "candidate"
             card = {
                 "id": "card_" + uuid.uuid4().hex[:14],
-                "kind": self._infer_kind(statement, item.get("source", "")),
+                "kind": inferred_kind,
                 "category_id": self._infer_category(statement, item.get("source", "")),
                 "title": statement[:42], "statement": statement[:1200], "summary": statement[:600],
                 "status": status, "confidence": 0.94 if explicit else 0.58,
-                "evidence_ids": [item["id"]], "evidence_count": 1, "scope": "global",
+                "evidence_ids": [item["id"]], "evidence_count": 1, "scope": requested_scope,
                 "valid_until": None, "last_verified": item.get("created_at", now),
                 "created_at": now, "updated_at": now, "sensitivity": "personal",
                 "source": item.get("source", "unknown"), "signature": signature,
@@ -630,6 +655,12 @@ class MemoryStore:
             requested = str(item.get("layer") or "short")
             item["sensitivity"] = str(item.get("sensitivity") or ("sealed" if item["source"] in SEALED_SOURCES else "personal"))
             item["layer"] = "sealed" if item["sensitivity"] == "sealed" or requested == "sealed" else ("long" if requested == "long" or item["weight"] >= 3 or item.get("remember") is True else "short")
+            requested_scope = str(item.get("scope") or "")
+            if requested_scope not in MEMORY_SCOPES:
+                requested_scope = "heart_only" if item["layer"] == "sealed" else ("travel_only" if item["source"] == "travel" else "record_only")
+            item["scope"] = requested_scope
+            if item.get("room_id") is not None:
+                item["room_id"] = self._clean(item.get("room_id"))[:160]
             item["signature"] = self._signature(item)
             if item["layer"] == "sealed":
                 sealed = self._read(self.paths["sealed"], {"version": 1, "items": []})
@@ -693,7 +724,15 @@ class MemoryStore:
             ("privacy", r"隐私|封存|秘密|密阁|树洞"),
         )
         slot = next((name for name, pattern in slots if re.search(pattern, text, re.I)), "")
-        return domain + ":" + (slot or hashlib.sha1(text.encode("utf-8")).hexdigest()[:12])
+        prefix = "companion:" if cls._preference_scope(text) == "companion_style" else ""
+        return prefix + domain + ":" + (slot or hashlib.sha1(text.encode("utf-8")).hexdigest()[:12])
+
+    @staticmethod
+    def _preference_scope(statement):
+        text = str(statement or "")
+        if re.search(r"陪聊|陪伴|树洞|情绪|安慰|解闷|聊天|死板|套话|总追问|每次都问|温和反驳|灵活一点", text, re.I):
+            return "companion_style"
+        return "learning_format"
 
     @classmethod
     def _preference_statement(cls, clause):
@@ -707,6 +746,7 @@ class MemoryStore:
                 return None
             now = self.now()
             key = self._preference_key(statement)
+            scope = self._preference_scope(statement)
             cards_data = self._read(self.paths["cards"], {"version": 1, "items": []})
             card = next((item for item in cards_data.get("items", []) if item.get("kind") == "preference" and item.get("signature") == key and item.get("status") != "superseded"), None)
             threshold = int(self._read(self.paths["policy"], {}).get("preference_repeat_to_confirm", 2))
@@ -734,6 +774,7 @@ class MemoryStore:
                 card["confidence"] = min(0.99, max(float(card.get("confidence") or 0.55), 0.95 if explicit else 0.58 + card["evidence_count"] * 0.12))
                 card["updated_at"] = now
                 card["last_verified"] = now
+                card["scope"] = scope
                 card["status"] = "active" if explicit or desired == "active" or card["evidence_count"] >= threshold else desired
             else:
                 card = {
@@ -741,7 +782,7 @@ class MemoryStore:
                     "category_id": self._preference_domain(statement), "title": statement[:42],
                     "statement": statement, "summary": statement, "status": desired,
                     "confidence": 0.95 if explicit else 0.62, "evidence_ids": [evidence_id], "evidence_count": 1,
-                    "scope": "global", "valid_until": None, "last_verified": now,
+                    "scope": scope, "valid_until": None, "last_verified": now,
                     "created_at": now, "updated_at": now, "sensitivity": "personal",
                     "source": source, "signature": key, "history": [],
                 }
@@ -805,6 +846,20 @@ class MemoryStore:
         self._write(self.paths["cards"], data)
         self._sync_legacy_views()
         return {"ok": True, "summary": "记忆卡片状态已更新", "item": item}
+
+    def set_card_scope(self, card_id, scope):
+        if scope not in MEMORY_SCOPES - {"heart_only"}:
+            raise ValueError("记忆参与范围无效")
+        data = self._read(self.paths["cards"], {"version": 1, "items": []})
+        item = next((entry for entry in data.get("items", []) if entry.get("id") == card_id or entry.get("legacy_id") == card_id), None)
+        if not item:
+            raise ValueError("没有找到这张记忆卡片")
+        item["scope"] = scope
+        item["updated_at"] = self.now()
+        data["updated_at"] = self.now()
+        self._write(self.paths["cards"], data)
+        self._sync_legacy_views()
+        return {"ok": True, "summary": "记忆参与范围已更新", "item": item}
 
     def set_preference_status(self, preference_id, status):
         mapped = {"confirmed": "active", "candidate": "candidate", "rejected": "rejected"}
@@ -923,8 +978,45 @@ class MemoryStore:
         self._sync_legacy_views()
         return {"ok": True, "summary": "分类已删除，卡片已移到“其他”"}
 
-    def prompt_context(self, query="", include_candidates=False, limit=12):
-        query_tokens = set(self._tokens(query))
+    @classmethod
+    def _query_terms(cls, value):
+        text = str(value or "").lower()
+        terms = set(re.findall(r"[a-z0-9_-]{3,}", text))
+        for chunk in re.findall(r"[\u4e00-\u9fff]{2,}", text):
+            if len(chunk) <= 8:
+                terms.add(chunk)
+            terms.update(chunk[index:index + 2] for index in range(max(0, len(chunk) - 1)))
+        return {term for term in terms if term}
+
+    def _inner_tendency_for_query(self, query, recent_ids):
+        if not re.search(r"又|还是|总是|一直|上次|之前|最近|反复|每次|老是", str(query or "")):
+            return None
+        patterns = {
+            "work": r"工作|公司|项目|职业|面试|产品|会议|同事",
+            "relationship": r"朋友|关系|家人|相处|理解|边界",
+            "pressure": r"压力|累|焦虑|失败|做不好|来不及|应该|必须|责怪",
+            "choice": r"选择|决定|以后|方向|改变|放弃|离开|开始",
+            "life": r"旅行|睡|休息|家里|生活|天气|散步|吃饭",
+        }
+        profile = self._inner_profile()
+        for section in profile.get("sections", []):
+            memory_id = "inner:" + str(section.get("id") or "")
+            if memory_id in recent_ids:
+                continue
+            if re.search(patterns.get(section.get("id"), r"$^"), str(query or ""), re.I):
+                return {
+                    "id": memory_id, "kind": "private_tendency", "category_id": "companion",
+                    "title": section.get("title"), "statement": section.get("text"),
+                    "summary": section.get("text"), "confidence": min(0.9, 0.55 + 0.08 * int(section.get("evidence_count") or 0)),
+                    "last_verified": profile.get("generated_at"), "scope": "heart_only",
+                }
+        return None
+
+    def prompt_context(self, query="", include_candidates=False, limit=12, purpose="butler", recent_ids=None, room_id=""):
+        purpose = str(purpose or "butler")
+        recent_ids = {str(value) for value in (recent_ids or []) if value}
+        max_items = max(0, min(int(limit or 0), 12))
+        query_terms = self._query_terms(query)
         category_terms = {
             "identity": ("身份", "个人信息", "名字", "职业", "所在地"),
             "communication": ("回复", "表达", "语气", "称呼", "对话", "聊天"),
@@ -941,38 +1033,107 @@ class MemoryStore:
         }
         query_lower = str(query or "").lower()
         query_categories = {category_id for category_id, terms in category_terms.items() if any(term.lower() in query_lower for term in terms)}
-        cards = self._read(self.paths["cards"], {"items": []}).get("items", [])
-        scored = []
-        for item in cards:
-            if item.get("sensitivity") == "sealed" or item.get("status") != "active":
-                continue
-            text = (str(item.get("title") or "") + " " + str(item.get("statement") or "") + " " + str(item.get("summary") or "")).lower()
-            relevance = sum(3 for token in query_tokens if token in text)
-            always = item.get("kind") == "preference" and item.get("category_id") in {"communication", "workflow", "privacy"}
+        allowed_status = {"active", "candidate"} if include_candidates else {"active"}
+        cards = [item for item in self._read(self.paths["cards"], {"items": []}).get("items", [])
+                 if item.get("status") in allowed_status and item.get("sensitivity") != "sealed" and str(item.get("id")) not in recent_ids]
+        cutoff = (datetime.now().astimezone() - timedelta(days=30)).date().isoformat()
+
+        def score(item):
+            text = " ".join(str(item.get(key) or "") for key in ("title", "statement", "summary")).lower()
+            overlap = len(query_terms.intersection(self._query_terms(text)))
             category_match = item.get("category_id") in query_categories
-            if not always and not category_match and relevance == 0:
+            freshness = 1 if str(item.get("updated_at") or "")[:10] >= cutoff else 0
+            return overlap * 3 + (3 if category_match else 0) + freshness + float(item.get("confidence") or 0)
+
+        def ranked(predicate, take, allow_zero=False):
+            rows = [(score(item), item) for item in cards if predicate(item)]
+            rows = [row for row in rows if allow_zero or row[0] > 1.1]
+            return [item for _value, item in sorted(rows, key=lambda pair: (pair[0], pair[1].get("updated_at", "")), reverse=True)[:take]]
+
+        companion_style = lambda item: item.get("kind") in {"preference", "routine"} and (
+            item.get("scope") == "companion_style" or
+            (item.get("scope") in {"learning_format", "global"} and item.get("category_id") in {"communication", "privacy"})
+        )
+        selected = []
+        inner_selected = None
+
+        if purpose == "learning_support":
+            selected = ranked(lambda item: item.get("kind") in {"preference", "routine"} and item.get("scope") in {"learning_format", "global"}, min(max_items, 3), allow_zero=True)
+        elif purpose == "heart_companion":
+            selected = ranked(companion_style, min(max_items, 1), allow_zero=True)
+            inner_selected = self._inner_tendency_for_query(query, recent_ids)
+            if inner_selected and len(selected) < min(max_items, 2):
+                selected.append(inner_selected)
+            explicit_travel = bool(re.search(r"(?:我|我的).{0,10}(?:旅行|旅程|出游|去了哪里|去过)", str(query or "")))
+            if explicit_travel and len(selected) < min(max_items, 2):
+                travel = self._travel_context_events(query, recent_ids, room_id="", limit=1)
+                selected.extend(travel[:1])
+        elif purpose == "travel_companion":
+            selected = ranked(companion_style, min(max_items, 1), allow_zero=True)
+            selected.extend(self._travel_context_events(query, recent_ids, room_id=room_id, limit=max(0, min(max_items, 2) - len(selected))))
+        elif purpose == "blackboard_question":
+            selected = ranked(lambda item: item.get("category_id") in {"growth", "product-learning", "news"} and item.get("scope") not in {"record_only", "travel_only", "heart_only"}, min(max_items, 4))
+        else:
+            selected = ranked(lambda item: item.get("kind") in {"preference", "routine"} and item.get("scope") in {"learning_format", "global"}, min(max_items, 1), allow_zero=True)
+            selected.extend(ranked(lambda item: item.get("scope") in {"topic_selection", "review_only", "global"} and item not in selected, max(0, min(max_items, 2) - len(selected))))
+            if re.search(r"(?:我|我的).{0,10}(?:旅行|旅程|出游|去了哪里|去过)", str(query or "")) and len(selected) < min(max_items, 2):
+                selected.extend(self._travel_context_events(query, recent_ids, room_id="", limit=1))
+
+        unique = []
+        seen = set()
+        for item in selected:
+            memory_id = str(item.get("id") or "")
+            if not memory_id or memory_id in seen or memory_id in recent_ids:
                 continue
-            freshness = 1 if str(item.get("updated_at") or "")[:10] >= (datetime.now().astimezone() - timedelta(days=30)).date().isoformat() else 0
-            scored.append((relevance + (4 if always else 0) + (3 if category_match else 0) + freshness + float(item.get("confidence") or 0), item))
-        selected = [item for _score, item in sorted(scored, key=lambda pair: (pair[0], pair[1].get("updated_at", "")), reverse=True)[:limit]]
-        working = self._read(self.paths["working"], {"items": []}).get("items", [])[:8]
+            seen.add(memory_id)
+            unique.append(item)
+        selected = unique[:min(max_items, 2 if purpose in {"butler", "general", "heart_companion", "travel_companion"} else max_items)]
         category_names = {item.get("id"): item.get("name") for item in self._read(self.paths["categories"], {"items": []}).get("items", [])}
-        compact = [{**{key: item.get(key) for key in ("id", "kind", "category_id", "title", "statement", "summary", "confidence", "last_verified")},
-                    "category": category_names.get(item.get("category_id"), "其他")} for item in selected]
-        preference_cards = [item for item in compact if item.get("kind") == "preference"]
-        memory_cards = [item for item in compact if item.get("kind") != "preference"]
+        compact = [{**{key: item.get(key) for key in ("id", "kind", "category_id", "title", "statement", "summary", "confidence", "last_verified", "scope")},
+                    "category": category_names.get(item.get("category_id"), "房间记忆" if item.get("category_id") == "companion" else "其他")} for item in selected]
+        preference_cards = [item for item in compact if item.get("kind") in {"preference", "routine"}]
+        memory_cards = [item for item in compact if item.get("kind") not in {"preference", "routine"}]
         return {
+            "purpose": purpose,
             "context_package": {"query": query, "generated_at": self.now(), "cards": compact},
+            "selected_memory_ids": [item.get("id") for item in compact],
             "confirmed_preferences": preference_cards,
             "relevant_memory": memory_cards,
-            "inner_profile": self._inner_profile(),
-            "recent_working_context": [{key: item.get(key) for key in ("source", "summary", "date")} for item in working],
+            "inner_profile": {"sections": [inner_selected]} if inner_selected else {"sections": []},
+            "recent_working_context": [],
             "rules": [
-                "只使用已激活且与当前任务相关的记忆卡片；候选卡片不影响执行。",
-                "当前明确要求始终覆盖历史记忆；冲突时记录新证据而不是强行沿用旧偏好。",
-                "封存原文绝不进入普通上下文包，只有主人明确要求时才按任务最小范围读取。",
+                "每轮最多使用两条高度相关记忆，也可以完全不用；不要为了展示记忆而提起过去。",
+                "当前明确要求始终覆盖历史记忆；记忆只调整陪伴或讲解方式，不替代事实判断。",
+                "封存原文绝不进入普通上下文；树洞只可使用去隐私的重复倾向，旅行记录只在匹配旅程或明确追问时使用。",
+                "不要使用 recent_memory_ids 中刚用过的记忆，也不要把单次经历反复包装成人格结论。",
             ],
         }
+
+    def _travel_context_events(self, query, recent_ids, room_id="", limit=1):
+        if limit <= 0:
+            return []
+        query_terms = self._query_terms(query)
+        rows = []
+        for item in self._read(self.paths["events"], {"items": []}).get("items", []):
+            if item.get("source") != "travel" or str(item.get("id") or "") in recent_ids:
+                continue
+            if item.get("scope") not in {"travel_only", "record_only"}:
+                continue
+            same_room = bool(room_id and str(item.get("room_id") or "") == str(room_id))
+            text = " ".join(str(item.get(key) or "") for key in ("summary", "content", "room_id"))
+            overlap = len(query_terms.intersection(self._query_terms(text)))
+            if room_id and not same_room and overlap == 0:
+                continue
+            if not room_id and overlap == 0:
+                continue
+            rows.append((100 if same_room else overlap * 3, item))
+        selected = [item for _score, item in sorted(rows, key=lambda pair: (pair[0], pair[1].get("created_at", "")), reverse=True)[:limit]]
+        return [{
+            "id": item.get("id"), "kind": "experience", "category_id": "travel-life",
+            "title": "同一段旅程的已保存感悟", "statement": item.get("content") or item.get("summary"),
+            "summary": item.get("summary"), "confidence": 1.0, "last_verified": item.get("created_at"),
+            "scope": "travel_only",
+        } for item in selected]
 
     def sync(self, events):
         added = [self.add_event(event) for event in (events if isinstance(events, list) else []) if isinstance(event, dict)]

@@ -5,12 +5,13 @@ from __future__ import annotations
 
 import base64
 import json
+import os
 import urllib.request
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = "http://127.0.0.1:8766"
+BASE = os.environ.get("COZY_BASE_URL", "http://127.0.0.1:8766").rstrip("/")
 PNG_1PX = base64.b64encode(
     b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"
     b"\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\rIDAT\x08\xd7c\xf8"

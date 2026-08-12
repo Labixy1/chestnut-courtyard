@@ -110,15 +110,15 @@
     const reflections = readJson('cozy_trip_reflections', {});
     Object.keys(reflections).forEach((key,i)=>out.push({
       id:'legacy_trip_reflection_'+i,date:reflections[key].updatedAt || '',time:'',source:'travel',type:'travel_reflection',layer:'long',
-      content:reflections[key].text || '',summary:'旅行感悟：'+short(reflections[key].summary || reflections[key].text,54),weight:2
+      content:reflections[key].text || '',summary:'旅行感悟：'+short(reflections[key].summary || reflections[key].text,54),weight:2,scope:'travel_only',room_id:key
     }));
     trips.forEach((x,i)=>out.push({
       id:'legacy_trip_'+i,date:x.start || x.date || '',time:'',source:'travel',type:'trip',layer:'short',
-      content:x.place || '',summary:'旅行记录：'+(x.place || '未命名地点'),weight:1
+      content:x.place || '',summary:'旅行记录：'+(x.place || '未命名地点'),weight:1,scope:'travel_only',room_id:x.id||''
     }));
     readJson('cozy_heart_entries', []).forEach((x,i)=>out.push({
-      id:'legacy_heart_'+i,date:x.date || '',time:x.time || '',source:'heart_hollow',type:'heart_entry',layer:'short',
-      content:x.transcript || '',summary:'树洞倾诉：'+short(x.transcript,48),weight:2
+      id:x.id||('legacy_heart_'+i),date:x.date || '',time:x.time || '',source:'heart_hollow',type:'heart_entry',layer:'sealed',
+      content:x.transcript || '',summary:'树洞对话已封存',weight:2,scope:'heart_only',sensitivity:'sealed'
     }));
     return out;
   }

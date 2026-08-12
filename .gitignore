@@ -20,6 +20,7 @@ core/estate_state.json
 core/heart_hollow.json
 core/private_wing.json
 core/private_skills/
+core/skills/*/agents/
 core/local_state.json
 core/manifest.json
 core/notice_reports.json

@@ -100,7 +100,7 @@
   .reflection-actions button:not(.mic-btn){height:40px;border:0;border-radius:8px;background:#6f9db3;color:#fff;
      padding:8px 10px;font:inherit;font-size:11px;cursor:pointer;white-space:nowrap}
   .reflection-ai{margin-top:10px;background:rgba(255,255,255,.62);border:1px solid rgba(107,154,179,.16);
-     border-radius:16px;padding:10px 12px;color:#516975;font-size:13px;line-height:1.65}
+     border-radius:16px;padding:10px 12px;color:#516975;font-size:13px;line-height:1.65;white-space:pre-line}
   .trip-insight{margin:10px 2px 0;padding:9px 10px;border-radius:14px;background:rgba(231,246,252,.72);
      color:#4e7283;font-size:12px;line-height:1.55}
   .travel-mobile-tabs{display:none}
@@ -221,6 +221,20 @@ function combinedPlaceReflection(trips,reflections=getReflections()){
   return Array.from(new Set(summaries)).join(' ').slice(0,260);
 }
 function tripCardDescription(trip,insight){const saved=String(trip.summary||trip.line||'').trim();if(insight)return insight;if(!saved||/^这趟旅行先记下地点和时间/.test(saved))return'这趟旅行先记下地点和时间，之后挑两三张照片留在这里。';return saved;}
+function travelRecentMemoryIds(){try{return JSON.parse(localStorage.getItem('cozy_travel_recent_memory_ids')||'[]').slice(0,6);}catch(error){return[];}}
+function travelRecentReplyStyles(){try{return JSON.parse(localStorage.getItem('cozy_travel_reply_styles')||'[]').slice(0,4);}catch(error){return[];}}
+function rememberTravelResponse(data){
+  const ids=Array.isArray(data?.memory_usage?.selected_ids)?data.memory_usage.selected_ids:[];
+  if(ids.length)localStorage.setItem('cozy_travel_recent_memory_ids',JSON.stringify(Array.from(new Set(ids.concat(travelRecentMemoryIds()))).slice(0,6)));
+  const style=String(data?.result?.response_style||'').trim();
+  if(style)localStorage.setItem('cozy_travel_reply_styles',JSON.stringify([style].concat(travelRecentReplyStyles().filter(value=>value!==style)).slice(0,4)));
+}
+function reflectionResultText(reply,summary,saved=false){
+  const parts=[];
+  if(reply)parts.push('阿栗：'+reply);
+  if(summary)parts.push((saved?'已保存摘要：':'整理摘要：')+summary);
+  return parts.join('\n\n')||'这段旅行还没有感悟。';
+}
 function renderReflectionOptions(trips){
   const select = document.getElementById('reflection-trip');
   if(!select) return;
@@ -246,13 +260,15 @@ function loadTripReflection(){
   if(!select.value){
     textarea.value = '';
     ai.dataset.summary = '';
+    ai.dataset.reply = '';
     ai.textContent = '先选择一段旅行，再写下或说出一点感悟。';
     return;
   }
   const data = getReflections()[select.value];
   textarea.value = '';
   ai.dataset.summary = data&&data.summary ? data.summary : '';
-  ai.textContent = data ? ('已保存摘要：'+(data.summary || data.text || '这段旅行已有感悟。')) : '这段旅行还没有感悟。可以打字，也可以点麦克风说。';
+  ai.dataset.reply = data&&data.companionReply ? data.companionReply : '';
+  ai.textContent = data ? reflectionResultText(data.companionReply||'',data.summary || data.text || '这段旅行已有感悟。',true) : '这段旅行还没有感悟。可以打字，也可以点麦克风说。';
 }
 function resetReflectionInput(){
   clearTimeout(reflectionTimer);
@@ -269,7 +285,7 @@ function clearReflectionDraft(){
   const ai=document.getElementById('reflection-ai');
   if(select)select.value='';
   if(textarea)textarea.value='';
-  if(ai){ai.dataset.summary='';ai.textContent='先选择一段旅行，再写下或说出一点感悟。';}
+  if(ai){ai.dataset.summary='';ai.dataset.reply='';ai.textContent='先选择一段旅行，再写下或说出一点感悟。';}
   textarea?.focus();
 }
 function setReflectionVoiceState(state,message){
@@ -287,21 +303,23 @@ function startReflectionVoice(){
   if(!reflectionVoice)reflectionVoice=CozyButler.createDictation({input:textarea,onState:setReflectionVoiceState,onTranscript:()=>queueReflectionSummary()});
   reflectionVoice.toggle();
 }
-async function summarizeReflection(){
+async function summarizeReflection(options={}){
   const select = document.getElementById('reflection-trip');
   const textarea = document.getElementById('reflection-text');
   const ai = document.getElementById('reflection-ai');
-  if(!select || !textarea || !ai) return;
+  if(!select || !textarea || !ai) return null;
   const text = textarea.value.trim();
-  if(!select.value){ ai.textContent = '先选择一段旅行。'; return; }
-  if(!text){ ai.textContent = '先写一点或说一点感悟，阿栗再帮你总结。'; return; }
+  if(!select.value){ ai.textContent = '先选择一段旅行。'; return null; }
+  if(!text){ ai.textContent = '先写一点或说一点感悟，阿栗再帮你总结。'; return null; }
   ai.textContent = '阿栗正在把这段旅行感悟收拢成一句完整的话……';
   try{
     const trip=getSelectedTrip();
-    const data=window.CozyButler?await CozyButler.api('/api/room',{room:'travel',message:text,context:{place:trip.place,start:trip.start||trip.date,end:trip.end}}):null;
-    ai.textContent=data&&data.result&&data.result.summary?data.result.summary:buildReflectionSummary(text,trip);
-    ai.dataset.summary=ai.textContent;
-  }catch(error){ai.textContent=buildReflectionSummary(text,getSelectedTrip());ai.dataset.summary=ai.textContent;}
+    const data=window.CozyButler?await CozyButler.api('/api/room',{room:'travel',message:text,context:{place:trip.place,start:trip.start||trip.date,end:trip.end,trip_id:select.value,commit:!!options.commit,latest_entry:String(options.latestEntry||text),memory_event_id:String(options.memoryEventId||''),recent_memory_ids:travelRecentMemoryIds(),recent_reply_styles:travelRecentReplyStyles()}}):null;
+    const summary=String(data?.result?.summary||buildReflectionSummary(text,trip));
+    const reply=String(data?.result?.reply||'');
+    ai.dataset.summary=summary;ai.dataset.reply=reply;ai.textContent=reflectionResultText(reply,summary,false);rememberTravelResponse(data);
+    return {data,summary,reply};
+  }catch(error){const summary=buildReflectionSummary(text,getSelectedTrip());ai.dataset.summary=summary;ai.dataset.reply='';ai.textContent=reflectionResultText('',summary,false)+'\n\n阿栗暂时没连上模型，摘要先保存在本机。';return {data:null,summary,reply:''};}
 }
 let reflectionTimer = null;
 function queueReflectionSummary(){
@@ -320,19 +338,23 @@ async function saveReflection(){
   const text = textarea.value.trim();
   if(!select.value || !text){ ai.textContent = '先选择旅行，并写下一点感悟。'; return; }
   const all = getReflections();
-  const previous=all[select.value]||{},entries=[...(previous.entries||reflectionPieces(previous).map(value=>({text:value,createdAt:previous.updatedAt||''}))),{text,createdAt:new Date().toISOString()}].slice(-30);
+  const previous=all[select.value]||{},createdAt=new Date().toISOString(),memoryEventId='travel_reflection_'+select.value.replace(/[^a-zA-Z0-9_-]/g,'_')+'_'+Date.now(),entries=[...(previous.entries||reflectionPieces(previous).map(value=>({text:value,createdAt:previous.updatedAt||''}))),{id:memoryEventId,text,createdAt}].slice(-30);
   const combined=entries.map(item=>item.text).join('\n');
   textarea.value=combined;
-  await summarizeReflection();
+  const generated=await summarizeReflection({commit:true,latestEntry:text,memoryEventId});
   const summary = ai.dataset.summary || buildReflectionSummary(combined, getSelectedTrip());
-  all[select.value] = {text:combined,entries,summary,updatedAt:new Date().toISOString()};
+  const companionReply=String(ai.dataset.reply||'');
+  all[select.value] = {text:combined,entries,summary,companionReply,updatedAt:createdAt};
   localStorage.setItem('cozy_trip_reflections', JSON.stringify(all));
   window.CozyButler?.persistLocal(['cozy_trip_reflections']);
-  if(window.CozyMemory){
+  if(window.CozyMemory&&!generated?.data?.memory_event){
     CozyMemory.add({
+      id:memoryEventId,
       source:'travel',
       type:'travel_reflection',
       layer:'long',
+      scope:'travel_only',
+      room_id:select.value,
       weight:2,
       content:text,
       summary:'旅行感悟：'+summary
@@ -340,7 +362,8 @@ async function saveReflection(){
   }
   textarea.value='';
   ai.dataset.summary=summary;
-  ai.textContent = '已保存摘要：' + summary;
+  ai.dataset.reply=companionReply;
+  ai.textContent = reflectionResultText(companionReply,summary,true);
   render();
   if(matchMedia('(max-width:760px)').matches)showMobileTravelView('records');
 }
@@ -353,7 +376,7 @@ function buildReflectionSummary(text, trip){
   const clean = text.replace(/\s+/g,' ').trim();
   const core = clean.length > 72 ? clean.slice(0,72)+'...' : clean;
   const place = trip.place || '这段旅行';
-  return place+'留下来的不是单纯打卡，而是“'+core+'”。这段记忆可以归档为：看见、放松、回到自己。';
+  return place+'：'+core;
 }
 function escapeTravel(str){
   return String(str || '').replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));

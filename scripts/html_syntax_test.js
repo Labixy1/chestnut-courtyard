@@ -32,11 +32,17 @@ if (!orchard.includes("slice(0,-1).slice(-8)") || !orchard.includes("current_top
 if (!orchard.includes('openEmptyPlotPanel()') || !orchard.includes('这块空地的知识专题')) throw new Error('empty orchard plots must open a knowledge-topic empty state');
 if (!orchard.includes('fingerprint===knowledgeRenderFingerprint') || !orchard.includes("details[open][data-topic-id]") || orchard.includes("open=first?' open':''")) throw new Error('knowledge topics must preserve manual collapse state across sync renders');
 if (!home.includes('String(item.awarded??0)') || !home.includes('String(item.max??25)')) throw new Error('blackboard must display explicit zero scores');
+if (!home.includes('grade-blackboard-answer') || !home.includes('function normalizeBlackboardReview') || !home.includes('得分与学习建议') || !home.includes('怎样提高') || !home.includes('五档锚点') || !home.includes('题意理解与核心判断')) throw new Error('anchored tutoring-style blackboard grading must be wired into the UI');
+if (home.includes('<h4>阿栗帮答</h4>') || home.includes('<h4>AI 修改建议</h4>')) throw new Error('legacy generic grading sections must not remain in the result UI');
 if (!home.includes("loading:requiresFreshQuestion") || !home.includes("/api/blackboard/today?date=") || !home.includes("重新加载今日题目")) throw new Error('online blackboard must wait for a fresh dated question and expose retry');
 if (!home.includes("今日题目 · '+escapeNotice(q.date||localCalendarDate())")) throw new Error('blackboard must show the active question date');
+if (!home.includes('openBlackboardRelatedNotice()') || !home.includes("q.related_notice&&q.related_notice.title")) throw new Error('blackboard related-news action must be conditional');
+if (!home.includes('function noticePublishedLabel(item)') || !home.includes('item.published_at')) throw new Error('notice cards must use concrete publication dates with a weekly fallback');
+if (!home.includes('function noticeItemDisplayable(item)') || !home.includes("cozyApi('/api/status', undefined, 15000)")) throw new Error('noticeboard must hide known bad cards and tolerate cloud cold starts');
+if (!home.includes('prepareNoticeFoundResults()') || !home.includes('found_items_seen_at') || !home.includes('来自留言：“') || !home.includes('noticeManualRefreshPending')) throw new Error('found notice items must identify their request and disappear after first display or manual refresh');
 if (!home.includes("cache:'no-store',credentials:'same-origin'")) throw new Error('API GET requests must bypass stale mobile caches');
 if (!serviceWorker.includes("url.pathname.includes('/assets/')")) throw new Error('static assets must use the cache-first path');
-if (!serviceWorker.includes("cozy-shell-v8") || !fs.readFileSync('core/pwa.js','utf8').includes("updateViaCache:'none'")) throw new Error('PWA shell updates must bypass stale service worker cache');
+if (!serviceWorker.includes("cozy-shell-v13") || !fs.readFileSync('core/pwa.js','utf8').includes("sw.js?v=13") || !fs.readFileSync('core/pwa.js','utf8').includes("updateViaCache:'none'")) throw new Error('PWA shell updates must bypass stale service worker cache');
 if (!home.includes("return remote?[]:[NOTICE_REPORT_FALLBACK()]") || !home.includes('页面不会再显示旧版占位巡报')) throw new Error('remote noticeboard must not show bundled fallback reports');
 if (!home.includes('async function openNotice(){') || !home.includes('await CORE_READY;')) throw new Error('noticeboard must wait for cloud core data before rendering');
 if (!home.includes('refreshNoticeReportsFromCloud()') || !home.includes("cache:'no-store',credentials:'same-origin'")) throw new Error('noticeboard must revalidate cloud reports when opened');

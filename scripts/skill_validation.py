@@ -18,7 +18,7 @@ from system_runtime import SystemRuntime
 
 ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_SKILLS = {
-    "archive-travel", "build-skill", "coach-blackboard", "curate-news", "curate-photos",
+    "archive-travel", "build-skill", "coach-blackboard", "companion-dialogue", "grade-blackboard-answer", "curate-news", "curate-photos",
     "guide-orchard", "listen-tree-hollow", "manage-memory", "manage-system",
     "manage-toolbox", "organize-checklist", "run-automation", "generate-media",
     "imagegen-assets", "remove-background",
@@ -54,7 +54,7 @@ def fixed_skill_contracts():
 def prepare_root(directory):
     root = Path(directory)
     (root / "core").mkdir(parents=True)
-    shutil.copytree(ROOT / "core/skills", root / "core/skills")
+    shutil.copytree(ROOT / "core/skills", root / "core/skills", ignore=shutil.ignore_patterns("agents"))
     (root / "core/manifest.json").write_text(json.dumps({"items": [{
         "type": "news", "title": "测试模型更新", "summary": "能力与价格变化",
         "url": "https://example.com/model", "category": "模型与技术",
@@ -130,9 +130,14 @@ def run_validation():
         check(dynamic and dynamic[0]["name"] == "organize-checklist", "动态 Skill 未注册")
         results["build-skill"] = "pass: 动态 Skill 目录、权限和入口契约有效"
 
-        check('"blackboard": "core/skills/coach-blackboard/SKILL.md"' in source_server, "黑板 Skill 未接入房间路由")
-        check("standard_points" in source_server and "suggestions" in source_server, "黑板批改输出不完整")
-        results["coach-blackboard"] = "pass: 出题、批改、标准答案和建议路由已接入"
+        check('"blackboard": "core/skills/coach-blackboard/SKILL.md"' in source_server, "黑板出题 Skill 未接入房间路由")
+        check("grade-blackboard-answer/SKILL.md" in source_server, "答案批改 Skill 未接入房间路由")
+        check("requirement_map" in source_server and "minimal_revision" in source_server, "黑板证据批改输出不完整")
+        check("同一根因只能归入一个主要扣分维度" in source_server and "题意理解与核心判断" in source_server and
+              "推理链条与证据支撑" in source_server and "score_bands" in source_server,
+              "黑板论述题评分缺少题型适配、五档锚点或防重复扣分规则")
+        results["coach-blackboard"] = "pass: 出题、题边助手和参考答案路由已接入"
+        results["grade-blackboard-answer"] = "pass: 冻结评分、合理替代论证、防重复扣分和纠正路径已接入"
 
         reports = read_json(root / "core/notice_reports.json", {}).get("reports", [])
         check(reports and reports[0].get("hot_items") and reports[0].get("sections"), "周报结构不完整")
@@ -177,6 +182,17 @@ def run_validation():
         check(sealed["layer"] == "sealed" and not memory.state()["sealed"], "树洞封存隔离失效")
         check('heart_mode == "oracle"' in source_server and '"dialogue"' in source_server, "树洞双模式未接入")
         results["listen-tree-hollow"] = "pass: 签语/对话双模式与封存隔离有效"
+
+        companion_contract = contracts["companion-dialogue"]
+        check(all(style in companion_contract for style in ("listen", "clarify", "reframe", "suggest", "lighten", "challenge")),
+              "陪伴 Skill 缺少回应方式轮换")
+        check("at most two" in companion_contract and "recent_memory_ids" in contracts["listen-tree-hollow"],
+              "陪伴 Skill 缺少单轮上限或近期去重")
+        companion_pref = memory.add_preference("树洞聊天不要每次追问，要灵活一点", explicit=True)
+        check(companion_pref["scope"] == "companion_style", "陪伴偏好没有独立作用域")
+        companion_context = memory.prompt_context("今晚只想聊聊天", purpose="heart_companion", limit=2)
+        check(len(companion_context["selected_memory_ids"]) <= 2, "陪伴上下文超过两条记忆")
+        results["companion-dialogue"] = "pass: 回应方式轮换、陪伴偏好作用域、单轮上限与近期去重有效"
 
         explicit = memory.observe_message("我喜欢阿栗回复简短一点，以后都这样", "butler")
         check(explicit and explicit[0]["status"] == "active", "明确偏好没有激活")

@@ -113,7 +113,7 @@
   <a class="back" href="bedroom.html">← 回卧室</a>
   <section class="panel">
     <h1>我的记忆档案</h1>
-    <p class="lead">阿栗根据与你相处时确认的记忆自动整理，并随着新的了解持续更新。</p>
+    <p class="lead">普通问答只使用确认过的学习偏好；陪伴偏好只进入树洞和旅行。原文各自封存，一次对话不会定义你。</p>
     <div class="archive-overview"><section class="archive-part"><h2 class="archive-part-title">日常档案</h2><article class="profile-document"><div id="profile-sections"></div><div class="profile-meta" id="profile-meta"></div></article></section>
     <section class="archive-part"><h2 class="archive-part-title">树洞中的内在轨迹</h2><article class="profile-document inner-profile"><div id="inner-profile-sections"></div><div class="profile-meta" id="inner-profile-meta"></div></article></section></div>
     <details class="quiet-details" id="memory-items-details"><summary>档案依据 <span id="active-summary-count"></span></summary><div class="details-content"><div class="evidence-heading">观察中的线索 <span id="candidate-summary-count"></span></div><div class="memory-card-grid" id="candidate-preview"></div><section class="memory-workspace" style="margin-top:16px">
@@ -136,8 +136,8 @@
     <details class="quiet-details" id="system-settings-details"><summary>系统设置</summary><div class="details-content"><section class="distill-control">
       <div class="distill-copy"><h2>AI 记忆整理</h2><p id="distill-status">正在读取整理状态……</p></div><button class="distill-button" id="distill-undo" onclick="undoDistillation()" style="display:none">撤销上次</button><button class="distill-button" id="distill-button" onclick="runDistillation()">立即整理</button>
     </section><section class="permission-room">
-      <div class="permission-copy"><h2>掌院权限</h2><p>开启后，阿栗可以修改页面、系统逻辑、Prompt、Skill、密阁布局和记忆结构。每次修改仍会自动快照、验证并留下卷宗。</p><div class="permission-state" id="permission-state">正在读取权限……</div></div>
-      <label class="permission-switch" title="掌院权限"><input id="steward-toggle" type="checkbox" onchange="toggleSteward(this.checked)"><span class="permission-slider"></span></label>
+      <div class="permission-copy"><h2>学习记忆参与回答</h2><p>开启后，阿栗最多读取少量已生效的学习方式，只调整解释结构，不改变事实结论，也不会屏蔽相反观点。网页里的阿栗不能直接修改或部署系统代码。</p><div class="permission-state" id="permission-state">正在读取设置……</div></div>
+      <label class="permission-switch" title="学习记忆参与回答"><input id="memory-assist-toggle" type="checkbox" onchange="toggleMemoryAssist(this.checked)"><span class="permission-slider"></span></label>
     </section><section class="memory-section"><div class="memory-toolbar"><h2>System Skills · 系统骨架</h2><span class="task-status" id="skill-health"></span></div><div class="skill-catalog" id="skill-list"></div></section></div></details>
     <div class="seal">入口：卧室书墙连续点击三下。</div>
   </section>
@@ -148,7 +148,7 @@ function esc(str){
 }
 function sourceName(source){
   return ({
-    heart_hollow:'树洞', orchard:'智慧果园', blackboard:'黑板',
+    heart_hollow:'树洞', orchard:'成长田', blackboard:'黑板',
     noticeboard:'公告板', travel:'出发旅行', photo_wall:'照片墙', butler:'阿栗任务',
     private_wing:'密阁', memory_nook:'密阁'
   })[source] || source || '未知';
@@ -169,8 +169,10 @@ function cardRow(item){
   const candidate=item.status==='candidate';
   const options=(NOOK_MEMORY?.categories||[]).filter(category=>category.status==='active').map(category=>'<option value="'+esc(category.id)+'"'+(category.id===item.category_id?' selected':'')+'>'+esc(category.name)+'</option>').join('');
   const statusAction=candidate?'':'<button onclick="cardAction(\''+esc(item.id)+'\',\'card_candidate\')">移到待确认</button>';
-  const menu='<details class="card-more"><summary title="管理这条记忆">⋯</summary><div class="card-more-menu"><label>分类<select onchange="moveCardCategory(\''+esc(item.id)+'\',this.value)">'+options+'</select></label>'+statusAction+'<button onclick="cardAction(\''+esc(item.id)+'\',\'card_reject\')">忽略</button><button class="danger" onclick="forgetMemory(\''+esc(item.id)+'\')">彻底忘记</button></div></details>';
-  return '<article class="memory-card '+(candidate?'candidate':'')+'"><div class="memory-card-top"><span class="memory-kind">'+esc(cardKind(item.kind))+'</span><h3 title="'+esc(item.title||item.statement)+'">'+esc(item.title||item.statement)+'</h3>'+menu+'</div><p>'+esc(item.statement||item.summary)+'</p><div class="memory-evidence">'+esc(categoryName(item.category_id))+'</div>'+(candidate?'<button class="remember-button" onclick="cardAction(\''+esc(item.id)+'\',\'card_activate\')">立即记住</button>':'')+'</article>';
+  const scopes=[['learning_format','只调整讲解方式'],['companion_style','只调整陪伴方式'],['topic_selection','只影响选题'],['review_only','只用于复习'],['travel_only','只在相关旅行'],['record_only','只归档']];
+  const scopeOptions=scopes.map(option=>'<option value="'+option[0]+'"'+(option[0]===item.scope?' selected':'')+'>'+option[1]+'</option>').join('');
+  const menu='<details class="card-more"><summary title="管理这条记忆">⋯</summary><div class="card-more-menu"><label>分类<select onchange="moveCardCategory(\''+esc(item.id)+'\',this.value)">'+options+'</select></label><label>参与范围<select onchange="setCardScope(\''+esc(item.id)+'\',this.value)">'+scopeOptions+'</select></label>'+statusAction+'<button onclick="cardAction(\''+esc(item.id)+'\',\'card_reject\')">忽略</button><button class="danger" onclick="forgetMemory(\''+esc(item.id)+'\')">彻底忘记</button></div></details>';
+  return '<article class="memory-card '+(candidate?'candidate':'')+'"><div class="memory-card-top"><span class="memory-kind">'+esc(cardKind(item.kind))+'</span><h3 title="'+esc(item.title||item.statement)+'">'+esc(item.title||item.statement)+'</h3>'+menu+'</div><p>'+esc(item.statement||item.summary)+'</p><div class="memory-evidence">'+esc(categoryName(item.category_id))+' · '+esc(item.evidence_count||1)+' 条依据 · '+esc((scopes.find(option=>option[0]===item.scope)||scopes[scopes.length-1])[1])+'</div>'+(candidate?'<button class="remember-button" onclick="cardAction(\''+esc(item.id)+'\',\'card_activate\')">确认记住</button>':'')+'</article>';
 }
 function setCategory(id){ACTIVE_CATEGORY=id;renderMemoryNook();}
 function renderMemoryNook(){
@@ -213,10 +215,10 @@ function renderMemoryNook(){
 async function loadNook(){
   try{
     const [permissionData,memoryData,taskData,skillData,distillData] = await Promise.all([api('/api/permissions'),api('/api/memory'),api('/api/tasks'),api('/api/skills'),api('/api/memory/distillation')]);
-    const enabled=!!permissionData.permissions.steward_mode;
-    document.getElementById('steward-toggle').checked=enabled;
-    document.getElementById('permission-state').textContent=enabled?'已永久开启 · 关闭前持续有效':'当前关闭 · 阿栗只能执行普通功能';
-    document.getElementById('sealed-section').style.display=enabled?'block':'none';
+    const enabled=permissionData.permissions.memory_assist_enabled!==false;
+    document.getElementById('memory-assist-toggle').checked=enabled;
+    document.getElementById('permission-state').textContent=enabled?'已开启 · 只使用已生效的学习偏好':'已关闭 · 回答不读取个人学习记忆';
+    document.getElementById('sealed-section').style.display='block';
     NOOK_MEMORY=memoryData.memory;NOOK_DISTILLATION=distillData.distillation||{};renderMemoryNook();renderDistillation();renderTasks(taskData.tasks||[]);renderSkills(skillData.skills||{});
   }catch(error){
     document.getElementById('permission-state').textContent='本地服务未连接，暂时不能修改权限';renderMemoryNook();renderTasks([]);
@@ -242,15 +244,16 @@ async function undoDistillation(){
   const runId=NOOK_DISTILLATION?.recent_runs?.[0]?.id;if(!runId||!confirm('恢复到上次 AI 整理前的记忆档案吗？'))return;
   try{await api('/api/memory/distill/undo',{run_id:runId});await loadNook();}catch(error){alert(error.message);}
 }
-async function toggleSteward(enabled){
+async function toggleMemoryAssist(enabled){
   const state=document.getElementById('permission-state');state.textContent=enabled?'正在开启……':'正在关闭……';
-  try{await api('/api/permissions',{steward_mode:enabled});await loadNook();window.CozyButler?.refreshStatus();}
-  catch(error){document.getElementById('steward-toggle').checked=!enabled;state.textContent='没有修改成功：'+error.message;}
+  try{await api('/api/permissions',{memory_assist_enabled:enabled});await loadNook();window.CozyButler?.refreshStatus();}
+  catch(error){document.getElementById('memory-assist-toggle').checked=!enabled;state.textContent='没有修改成功：'+error.message;}
 }
 async function moveMemory(id,layer){try{await api('/api/memory/action',{action:'move',id,layer});await loadNook();}catch(error){alert(error.message);}}
 async function setPreference(id,action){try{await api('/api/memory/action',{action,id});await loadNook();}catch(error){alert(error.message);}}
 async function cardAction(id,action){try{await api('/api/memory/action',{action,id});await loadNook();}catch(error){alert(error.message);}}
 async function moveCardCategory(id,categoryId){try{await api('/api/memory/action',{action:'card_move_category',id,category_id:categoryId});await loadNook();}catch(error){alert(error.message);}}
+async function setCardScope(id,scope){try{await api('/api/memory/action',{action:'card_scope',id,scope});await loadNook();}catch(error){alert(error.message);}}
 async function createCategory(){const name=prompt('新分类叫什么？');if(!name)return;try{const result=await api('/api/memory/action',{action:'category_create',name});ACTIVE_CATEGORY=result.category?.id||'all';await loadNook();}catch(error){alert(error.message);}}
 async function renameCategory(id){const current=(NOOK_MEMORY?.categories||[]).find(item=>item.id===id);const name=prompt('新的分类名称',current?.name||'');if(!name||name===current?.name)return;try{await api('/api/memory/action',{action:'category_rename',id,name});await loadNook();}catch(error){alert(error.message);}}
 async function mergeCategory(id){const choices=(NOOK_MEMORY?.categories||[]).filter(item=>item.id!==id&&item.status==='active');const names=choices.map(item=>item.name).join('、');const name=prompt('合并到哪个分类？\n'+names);if(!name)return;const target=choices.find(item=>item.name===name||item.id===name);if(!target){alert('没有找到这个分类');return;}try{await api('/api/memory/action',{action:'category_merge',id,target_id:target.id});ACTIVE_CATEGORY=target.id;await loadNook();}catch(error){alert(error.message);}}
@@ -289,6 +292,7 @@ function renderSkills(catalog){
     'manage-toolbox':['工具管家','新增、分类、更新和推荐真正可使用的 AI 工具。'],
     'organize-checklist':['清单整理','把零散事项整理成带顺序、编号和状态的清单。'],
     'listen-tree-hollow':['树洞倾听','回应树洞倾诉，按天整理记录，并保护私密记忆不流出树洞。'],
+    'companion-dialogue':['陪伴对话','在树洞和旅行中灵活选择倾听、换角度、建议、轻松陪聊或温和反驳，并避免重复用同一段记忆。'],
     'archive-travel':['旅行归档','按地点保存旅行日期、照片、描述、感悟和总结。'],
     'curate-photos':['照片集整理','维护照片集、旅行相册、时间顺序和照片位置。'],
     'manage-memory':['记忆整理','保存、检索、沉淀、纠正或忘记来自小院各处的个人记忆。'],

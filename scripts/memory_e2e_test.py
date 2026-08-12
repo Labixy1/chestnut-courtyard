@@ -116,6 +116,39 @@ with tempfile.TemporaryDirectory(prefix="cozy_memory_e2e_") as directory:
     check(any("当前明确要求" in rule for rule in context["rules"]), "上下文没有声明当前指令优先")
     results["任务调用"] = "pass"
 
+    # 5b. Companion memory is room-scoped, sparse, and excludes recent reuse.
+    companion_pref = memory.add_preference("树洞陪聊不要每次追问，也不要说套话，要灵活一点", source="butler", explicit=True)
+    check(companion_pref["scope"] == "companion_style", "陪伴偏好没有进入独立作用域")
+    memory.set_card_scope(companion_pref["id"], "record_only")
+    check(next(item for item in memory.state()["cards"] if item["id"] == companion_pref["id"])["scope"] == "record_only", "本地记忆参与范围修改没有生效")
+    memory.set_card_scope(companion_pref["id"], "companion_style")
+    memory.add_preference("学习资料对比时我希望优先使用表格", source="butler", explicit=True)
+    memory.add_event({"id": "heart_work_1", "source": "heart_hollow", "content": "最近工作项目让我反复权衡方向", "layer": "sealed"})
+    memory.add_event({"id": "heart_work_2", "source": "heart_hollow", "content": "今天开会后又开始担心职业选择", "layer": "sealed"})
+    memory.add_event({
+        "id": "travel_hz_1", "source": "travel", "type": "travel_reflection", "layer": "long",
+        "scope": "travel_only", "room_id": "trip-hz", "content": "在西湖边散步时终于慢了下来",
+        "summary": "杭州旅行让我重新感受到慢下来的轻松", "weight": 2,
+    })
+    butler_context = memory.prompt_context("帮我整理今天的学习计划", purpose="butler", limit=2)
+    check("西湖" not in json.dumps(butler_context, ensure_ascii=False), "旅行原文进入普通管家上下文")
+    check("工作项目" not in json.dumps(butler_context, ensure_ascii=False), "树洞原文进入普通管家上下文")
+    first_heart = memory.prompt_context("最近工作总是让我很累", purpose="heart_companion", limit=2)
+    check(len(first_heart["selected_memory_ids"]) <= 2, "树洞单轮注入超过两条记忆")
+    check("优先使用表格" not in json.dumps(first_heart, ensure_ascii=False), "无关学习格式偏好串入树洞")
+    check(any(str(value).startswith("inner:work") for value in first_heart["selected_memory_ids"]), "连续性表达没有选中去隐私的工作趋势")
+    check("最近工作项目" not in json.dumps(first_heart, ensure_ascii=False), "树洞去隐私趋势泄漏了封存原文")
+    second_heart = memory.prompt_context(
+        "最近工作还是让我很累", purpose="heart_companion", limit=2,
+        recent_ids=first_heart["selected_memory_ids"],
+    )
+    check(not set(first_heart["selected_memory_ids"]).intersection(second_heart["selected_memory_ids"]), "近期使用过的记忆被连续注入")
+    travel_context = memory.prompt_context("这次杭州旅行让我有什么变化", purpose="travel_companion", room_id="trip-hz", limit=2)
+    check(len(travel_context["selected_memory_ids"]) <= 2 and "travel_hz_1" in travel_context["selected_memory_ids"], "旅行页没有读取同一旅程的房间记忆")
+    unrelated_heart = memory.prompt_context("今晚只想随便聊聊天", purpose="heart_companion", limit=2)
+    check("travel_hz_1" not in unrelated_heart["selected_memory_ids"], "无关旅行记忆串入树洞")
+    results["陪伴记忆边界"] = "pass"
+
     # 6. Category create, dedupe, automatic suggestion, rename, move, merge, and delete.
     custom = memory.create_category("研究与评测", explicit=True)["category"]
     duplicate = memory.create_category("研究与评测", explicit=True)["category"]

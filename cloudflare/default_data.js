@@ -24,7 +24,7 @@ export const DEFAULT_DATA = Object.freeze({
   },
   butler_state: {version: 2, updated_at: "", chest: [], read_later: [], watch_topics: [], sources: [], toolbox: [], task_log: [], custom_categories: []},
   daily_questions: {version: 1, items: [], updated_at: ""},
-  permissions: {steward_mode: false, permanent: true, scope: "project", enabled_at: null, updated_at: ""},
+  permissions: {steward_mode: false, memory_assist_enabled: true, permanent: true, scope: "project", enabled_at: null, updated_at: ""},
   automation_state: {version: 1, last_check: "", jobs: {}},
   local_state: {version: 1, updated_at: "", values: {}},
   weather_cache: {version: 1, updated_at: "", location: {}, current: {}},

@@ -1,7 +1,7 @@
 import {
   DATA_KEYS, addMemoryEvents, appendButlerItem, backupStatus, exportCloudState, importCloudState,
   memoryAction, memoryContext, memoryState, mergeLocalState, permissions, readData, readState,
-  resetDemoState, saveTask, seedDemoState, setStewardMode, syncButlerState, tasks,
+  resetDemoState, saveTask, seedDemoState, setMemoryAssist, setStewardMode, syncButlerState, tasks,
   updateTask, writeData, writeState
 } from "./state.js";
 
@@ -229,7 +229,7 @@ function textProvider(env) {
   return textProviders(env)[0] || "";
 }
 
-async function callText(env, prompt, maxTokens = 1600) {
+async function callText(env, prompt, maxTokens = 1600, options = {}) {
   const providers = textProviders(env);
   if (!providers.length) throw new Error("还没有配置在线文本模型 API Key");
   const failures = [];
@@ -238,7 +238,7 @@ async function callText(env, prompt, maxTokens = 1600) {
       const defaultTimeout=provider==="workers-ai"?45000:20000;
       const timeoutMs=Math.max(5000,Number(env.COZY_TEXT_PROVIDER_TIMEOUT_MS)||defaultTimeout);
       return await Promise.race([
-        callTextProvider(env,provider,prompt,maxTokens),
+        callTextProvider(env,provider,prompt,maxTokens,options),
         new Promise((_,reject)=>setTimeout(()=>reject(new Error(`${provider} 响应超时`)),timeoutMs))
       ]);
     } catch (error) {
@@ -248,10 +248,11 @@ async function callText(env, prompt, maxTokens = 1600) {
   throw new Error(`文本模型均不可用：${failures.join("；")}`);
 }
 
-async function callTextProvider(env, provider, prompt, maxTokens = 1600) {
+async function callTextProvider(env, provider, prompt, maxTokens = 1600, options = {}) {
+  const temperature = Math.max(0, Math.min(1, Number(options.temperature ?? 0.4)));
   if (provider === "workers-ai") {
     const model = env.COZY_WORKERS_AI_MODEL || "@cf/meta/llama-3.1-8b-instruct-fp8";
-    const payload = await env.AI.run(model, {messages: [{role: "user", content: prompt}], temperature: 0.4, max_tokens: maxTokens});
+    const payload = await env.AI.run(model, {messages: [{role: "user", content: prompt}], temperature, max_tokens: maxTokens});
     const text = payload?.response || payload?.result?.response || "";
     if (!text) throw new Error("Cloudflare AI 没有返回文字");
     return {text: String(text), provider: "workers-ai", model};
@@ -264,7 +265,7 @@ async function callTextProvider(env, provider, prompt, maxTokens = 1600) {
     return {text, provider};
   }
   const payload = await providerRequest(env, provider, "/chat/completions", {
-    model: config.model, messages: [{role: "user", content: prompt}], temperature: 0.4, max_tokens: maxTokens
+    model: config.model, messages: [{role: "user", content: prompt}], temperature, max_tokens: maxTokens
   });
   const text = payload.choices?.[0]?.message?.content;
   if (!text) throw new Error(`${provider} 没有返回文字`);
@@ -284,24 +285,170 @@ function orchardAnswerAligned(message, parsed) {
   const reply = String(parsed?.reply || "").trim();
   const focus = String(parsed?.answer_focus || "").trim();
   if (reply.length < 12 || focus.length < 4) return false;
-  const ignored = new Set(["what", "why", "how", "which", "help", "about"]);
+  const ignored = new Set(["what", "why", "how", "which", "help", "about", "please"]);
   const anchors = [...new Set((String(message).match(/[A-Za-z][A-Za-z0-9._-]{2,}/g) || []).map(value => value.toLowerCase()).filter(value => !ignored.has(value)))];
   const answer = `${focus}\n${reply}`.toLowerCase();
-  return anchors.every(anchor => answer.includes(anchor));
+  if (anchors.length) return anchors.filter(anchor => answer.includes(anchor)).length >= Math.max(1, Math.ceil(anchors.length * 0.6));
+  const compact = value => String(value || "").replace(/[什么怎么为何为什么是否是不是请问一下一个这个那个如何可以能够应该需要我你他她它的了呢吗呀啊和与及或在对把被让给从到里上下面中]/g, "").replace(/[^0-9a-z\u4e00-\u9fff]+/gi, "");
+  const source = compact(message);
+  if (source.length < 2) return true;
+  const chunks = [...new Set([...(String(message).match(/[\u4e00-\u9fff]{2,10}/g) || [])].map(compact).filter(value => value.length >= 2))];
+  return chunks.some(chunk => answer.replace(/\s+/g, "").includes(chunk)) || [...source].filter(char => answer.includes(char)).length / source.length >= 0.55;
+}
+
+function blackboardTaskProfile(question) {
+  const text = String(question || "");
+  if (/比较|对比|区别|差异|异同|各自.{0,8}(特点|优缺点)|哪一.{0,4}更/.test(text)) {
+    return {type: "compare", label: "比较分析题", focus: "在同一维度下比较差异、原因、取舍与适用场景；不强求题目没有要求的上线方案或产品指标。"};
+  }
+  if (/复盘|反思|启示|总结|学到|迁移|成长/.test(text)) {
+    return {type: "reflection", label: "反思迁移题", focus: "从材料或经历中提炼可复用原则，并说明证据、适用条件和可能例外；不强求虚构产品数据。"};
+  }
+  if (/什么是|是什么|是个什么|什么叫|为何|为什么|解释|如何理解|本质|含义|机制/.test(text)) {
+    return {type: "explain", label: "概念解释题", focus: "用概念边界、形成机制、例子或反例证明理解；不强求题目没有要求的决策流程或量化指标。"};
+  }
+  return {type: "decision", label: "决策设计题", focus: "说明判断标准、方案机制、验证路径、风险边界或停止条件；题目未提供的具体产品数据不得作为扣分理由。"};
+}
+
+function blackboardScoreBands(max, descriptions) {
+  const ranges = max === 30 ? [["excellent", 27, 30], ["solid", 20, 26], ["developing", 10, 19], ["weak", 1, 9], ["absent", 0, 0]]
+    : [["excellent", 18, 20], ["solid", 13, 17], ["developing", 7, 12], ["weak", 1, 6], ["absent", 0, 0]];
+  const labels = {excellent: "准确充分", solid: "基本扎实", developing: "部分成立", weak: "较为薄弱", absent: "尚未形成"};
+  return ranges.map(([band, min, upper], index) => ({band, label: labels[band], min, max: upper, description: descriptions[index]}));
+}
+
+function buildFrozenRubric(points, question = "") {
+  const values = (Array.isArray(points) ? points : []).map(value => String(value || "").trim()).filter(Boolean).slice(0, 6);
+  const profile = blackboardTaskProfile(question);
+  return [
+    {id: "comprehension", criterion: "题意理解与核心判断", max: 20,
+      scoring_scope: "只评价是否识别正确的对象、任务和范围，并形成相关、基本准确的核心判断。遗漏其他要点不在此项扣分；时效性事实没有可靠材料时只标待核验，不武断判错。",
+      score_bands: blackboardScoreBands(20, ["对象、任务、范围和核心判断准确，无实质性概念或事实错误。", "主方向正确，仅有次要含糊或局部误差，不改变核心结论。", "答到部分任务，但范围、立场或概念有明显缺口。", "只有零散相关内容，核心判断偏题或存在关键误解。", "没有可识别的相关判断。"])},
+    {id: "coverage", criterion: "任务完成与要点覆盖", max: 30,
+      scoring_scope: "只评价题目明确子任务与必要分析角度覆盖了多少，以及是否分清主次。合理替代观点可与参考要点等价；已提出但没展开的问题留给推理项，不重复扣分。",
+      score_bands: blackboardScoreBands(30, ["所有明确子任务和关键角度均覆盖，主次清楚。", "主要任务已完成，仅缺一个次要角度或主次略弱。", "覆盖部分关键角度，但至少一个主要子任务缺失。", "只有孤立相关点，尚未构成对任务的基本完成。", "没有覆盖任何可计分要点。"])},
+    {id: "reasoning", criterion: "推理链条与证据支撑", max: 30,
+      scoring_scope: "只评价答案已经提出的观点能否由原因、机制、比较、条件、事实、例子或推演支撑。完全缺失的要点只在覆盖项处理，不在本项再次扣分。",
+      score_bands: blackboardScoreBands(30, ["主要观点有充分支撑，推理闭合且无明显跳步。", "主推理链成立，局部支撑、反证或连接仍可加强。", "有一些解释，但主要仍是结论罗列或存在明显跳步。", "以断言、循环论证、矛盾或不匹配的支撑为主。", "没有可评估的推理。"])},
+    {id: "transfer", criterion: "边界意识与迁移应用", max: 20,
+      scoring_scope: `按${profile.label}评价答案能否说明适用范围，并把理解用于恰当的例子、场景、取舍、验证、限制或反例。${profile.focus}`,
+      score_bands: blackboardScoreBands(20, ["能按题型准确迁移，并说明关键适用条件、限制或反例。", "已有具体应用或边界，仅缺一个关键条件、反例或验证环节。", "提到应用或限制但较泛，尚不足以检验理解或指导判断。", "只有装饰性场景或口号，和核心结论连接很弱。", "没有显示适用范围或迁移能力的内容。"]) }
+  ].map(item => ({...item, task_type: profile.type, task_focus: profile.focus, reference_points: values}));
+}
+
+function attachFrozenRubric(question) {
+  const points = question.standard_points || question.standard || [];
+  const profile = blackboardTaskProfile(question.question);
+  const rubric = buildFrozenRubric(points, question.question);
+  const fingerprint = stableQuestionFingerprint(`${question.date}|${question.question}|${points.join("|")}|rubric:v3`);
+  return {...question, standard: points, standard_points: points, rubric, rubric_version: 3, task_type: profile.type,
+    task_scoring_focus: profile.focus, reference_frozen_at: question.reference_frozen_at || now(), question_fingerprint: fingerprint, answer_independent: true};
+}
+
+function stableQuestionFingerprint(value) {
+  let hash = 2166136261;
+  for (const char of String(value || "")) { hash ^= char.charCodeAt(0); hash = Math.imul(hash, 16777619); }
+  return `q_${(hash >>> 0).toString(36)}`;
+}
+
+function normalizedRubric(context) {
+  const supplied = Array.isArray(context?.rubric) ? context.rubric : [];
+  const rubric = supplied.length ? supplied : buildFrozenRubric(context?.reference || [], context?.question || "");
+  return rubric.slice(0, 6).map((item, index) => ({
+    id: String(item?.id || `r${index + 1}`), criterion: String(item?.criterion || item?.requirement || "").trim(),
+    max: Math.max(1, Number(item?.max || 0)), scoring_scope: String(item?.scoring_scope || ""),
+    score_bands: Array.isArray(item?.score_bands) ? item.score_bands : []
+  })).filter(item => item.criterion);
+}
+
+function blackboardScoreBand(awarded, max) {
+  const score = Math.max(0, Number(awarded) || 0), ceiling = Math.max(1, Number(max) || 1);
+  if (score === 0) return "absent";
+  if (score / ceiling >= 0.9) return "excellent";
+  if (score / ceiling >= 0.65) return "solid";
+  if (score / ceiling >= 1 / 3) return "developing";
+  return "weak";
+}
+
+function finalizeBlackboardGrade(parsed, context) {
+  const rubric = normalizedRubric(context);
+  const supplied = Array.isArray(parsed?.score_breakdown) ? parsed.score_breakdown : [];
+  const byId = new Map(supplied.map((item, index) => [String(item?.rubric_id || item?.id || rubric[index]?.id || ""), item]));
+  const scoreBreakdown = rubric.map((criterion, index) => {
+    const row = byId.get(criterion.id) || supplied[index] || {};
+    const awarded = Math.round(Math.max(0, Math.min(criterion.max, Number(row.awarded || 0))));
+    return {rubric_id: criterion.id, criterion: criterion.criterion, max: criterion.max, awarded, band: blackboardScoreBand(awarded, criterion.max), evidence: String(row.evidence || ""), reason: String(row.reason || row.assessment || ""), teaching: String(row.teaching || row.action || "")};
+  });
+  const reference = Array.isArray(context?.reference) ? context.reference.map(String).filter(Boolean) : [];
+  const suppliedMap = Array.isArray(parsed?.requirement_map) ? parsed.requirement_map : [];
+  const requirementMap = reference.map((referencePoint, index) => {
+    const row = suppliedMap[index] || {};
+    return {reference_point: referencePoint, relation: String(row.relation || row.status || "not_covered").toLowerCase(), evidence: String(row.evidence || ""), assessment: String(row.assessment || ""), teaching: String(row.teaching || row.action || "")};
+  });
+  const strengths = (Array.isArray(parsed?.strengths) ? parsed.strengths : []).slice(0, 4).map(item => typeof item === "string" ? {evidence: "", why_good: item} : {evidence: String(item?.evidence || ""), why_good: String(item?.why_good || item?.reason || "")}).filter(item => item.evidence || item.why_good);
+  const total = scoreBreakdown.reduce((sum, item) => sum + item.awarded, 0);
+  return {...parsed, score_breakdown: scoreBreakdown, requirement_map: requirementMap, strengths, total_score: total, grading_policy: "评分标准在作答前冻结；四项能力先按五档锚点定档、再在档内给分；同一缺陷只归一个维度；合理的替代论证正常得分。"};
+}
+
+function blackboardGradeQuoteInAnswer(answer,evidence){
+  const normalize=value=>String(value||"").toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g,"");
+  const source=normalize(answer),quote=normalize(evidence);
+  return quote.length>=4&&source.includes(quote);
 }
 
 function blackboardGradeNeedsRetry(message, context, parsed) {
   const scores = Array.isArray(parsed?.score_breakdown) ? parsed.score_breakdown : [];
-  if (scores.length < 4) return true;
+  const rubric = normalizedRubric(context);
+  if (!rubric.length || scores.length !== rubric.length) return true;
   const answer = String(message || "").replace(/\s+/g, "");
   const emptyAnswer = answer.length < 12 && /^(不会|好难|不知道|不懂|不会做|答不出|没思路|太难了|不会好难)+$/.test(answer.replace(/[，。！？,.!?~～…]/g, ""));
   if (emptyAnswer) return false;
+  if (scores.some((item, index) => {
+    const awarded = Number(item?.awarded || 0), evidence = String(item?.evidence || ""), reason = String(item?.reason || ""), teaching = String(item?.teaching || "");
+    const suppliedBand = String(item?.band || "");
+    return String(item?.rubric_id || item?.id || rubric[index]?.id) !== rubric[index]?.id || String(item?.criterion || "") !== rubric[index]?.criterion || Number(item?.max || 0) !== rubric[index]?.max || awarded < 0 || awarded > rubric[index]?.max || (suppliedBand && suppliedBand !== blackboardScoreBand(awarded, rubric[index]?.max)) || !reason.trim() || !teaching.trim() || (awarded > 0 && !blackboardGradeQuoteInAnswer(message, evidence));
+  })) return true;
   const awarded = scores.reduce((sum, item) => sum + Math.max(0, Number(item?.awarded) || 0), 0);
-  const reasons = `${parsed?.score_summary || ""} ${(parsed?.diagnosis || []).join(" ")} ${scores.map(item => item?.reason || "").join(" ")}`;
+  const requirementMap=Array.isArray(parsed?.requirement_map)?parsed.requirement_map:[];
+  const reference = Array.isArray(context?.reference) ? context.reference.map(String).filter(Boolean) : [];
+  if(requirementMap.length!==reference.length)return true;
+  const validStatuses=new Set(["covered","partial","equivalent","not_covered","off_track"]);
+  const actionable=/访谈|测试|对照|记录|计算|设置|限定|验证|抽样|比较|回滚|停止|定义|追踪|分层|补写|说明|观察|统计|阈值|样本|周期|决策/;
+  if(requirementMap.some((item,index)=>{
+    const status=String(item?.relation||item?.status||"").toLowerCase(),evidence=String(item?.evidence||""),action=String(item?.teaching||item?.action||"");
+    if(String(item?.reference_point||item?.requirement||"").trim()!==reference[index]||!validStatuses.has(status)||String(item?.assessment||"").trim().length<8)return true;
+    if(["not_covered","off_track"].includes(status)&&evidence.trim())return true;
+    if(!["not_covered","off_track"].includes(status)&&!blackboardGradeQuoteInAnswer(message,evidence))return true;
+    return action.trim().length<8||(!actionable.test(action)&&!/因为|所以|如果|意味着|可以|应该/.test(action));
+  }))return true;
+  const reasons = `${parsed?.score_summary || ""} ${scores.map(item => item?.reason || "").join(" ")} ${requirementMap.map(item=>`${item.assessment||""} ${item.teaching||item.action||""}`).join(" ")}`;
   const generalScenario = /假设|如何设计|你会如何|方案|机制|流程/.test(String(context?.question || ""));
   const wronglyRequiresProduct = /没有提供.{0,6}产品信息|缺乏.{0,6}产品信息|产品信息不足|无法评估/.test(reasons);
-  return awarded === 0 && (generalScenario || wronglyRequiresProduct);
+  const contradictions=[
+    [/用户价值|用户需求|用户痛点/,/(没有|缺少|未提及)[^。！？；\n]{0,8}(用户价值|用户需求|用户痛点)/],
+    [/付费意愿|愿意付费|支付意愿/,/(没有|缺少|未提及)[^。！？；\n]{0,8}(付费意愿|愿意付费|支付意愿)/],
+    [/单位经济|毛利|收入.*成本|成本.*收入/,/(没有|缺少|未提及)[^。！？；\n]{0,8}(单位经济|毛利|成本收益)/],
+    [/指标|成功率|转化率|留存|成本/,/(没有|缺少|未提及)[^。！？；\n]{0,6}(任何)?指标/]
+  ];
+  const reasonParts=[String(parsed?.score_summary||""),...scores.map(item=>String(item?.reason||"")),...requirementMap.flatMap(item=>[String(item?.assessment||""),String(item?.teaching||item?.action||"")])];
+  if(contradictions.some(([present,denied])=>present.test(message)&&reasonParts.some(part=>denied.test(part))))return true;
+  const direction=String(parsed?.direction||"").toLowerCase(),correction=String(parsed?.correction_path||"").trim();
+  if(!["correct","partly_correct","misdirected"].includes(direction)||correction.length<12)return true;
+  const strengths=Array.isArray(parsed?.strengths)?parsed.strengths:[];
+  if(awarded>0&&(strengths.length===0||strengths.some(item=>{
+    const evidence=typeof item==="string"?"":String(item?.evidence||"");
+    const why=typeof item==="string"?String(item):String(item?.why_good||"");
+    return !blackboardGradeQuoteInAnswer(message,evidence)||why.trim().length<8;
+  })))return true;
+  const revision=String(parsed?.minimal_revision||"").trim();
+  if(!revision||revision.length<Math.min(24,String(message).trim().length)||noticeTextSimilarity(message,revision)<0.16)return true;
+  if(/补充具体(方案|指标)|缺少具体(方案|指标)|不够具体|进一步完善/.test(String(parsed?.priority_fix||""))&&!actionable.test(String(parsed?.priority_fix||"")))return true;
+  return (awarded === 0 && generalScenario)||wronglyRequiresProduct;
 }
+
+const BLACKBOARD_GRADING_FORMAT=`你正在执行 grade-blackboard-answer Skill，像批改政治大题一样给过程分并教会主人怎样答得更好。评分维度和参考答案已在作答前冻结，但参考要点只是高质量答案的锚点，不是关键词清单，也不是唯一答法；原答案采用另一条合理路径时必须正常给分。只返回 JSON：
+{"score_breakdown":[{"rubric_id":"逐字复制 rubric id","criterion":"逐字复制 rubric criterion","max":"逐字复制 rubric max","awarded":"0到max的整数","band":"excellent/solid/developing/weak/absent，与分数档一致","evidence":"逐字引用原答案中支撑本项得分的短句；本项0分才留空","reason":"解释这段思考为什么成立、完成到什么程度或错在哪里","teaching":"沿着原答案思路，具体教它怎样补成更强论证"}],"score_summary":"一句话概括答案当前水平和最值得提升处","requirement_map":[{"reference_point":"逐字复制 reference 中的一条","relation":"covered/partial/equivalent/not_covered/off_track","evidence":"covered、partial、equivalent 时逐字引用原答案，其余留空","assessment":"说明与参考点的关系；equivalent 表示走了另一条同样合理的路径","teaching":"告诉主人如何利用、补充或纠正这一处"}],"strengths":[{"evidence":"原答案短引","why_good":"这处思考好在哪里、为什么有价值"}],"direction":"correct/partly_correct/misdirected","correction_path":"方向正确时说明升级路径；方向错误时解释错因并给出纠正顺序","priority_fix":"最优先提升的一件事，包含动作与判断标准","minimal_revision":"保留原答案主张、措辞和顺序，只插入必要连接、例证、方法或边界的补强版","next_question":"可选针对性练习","next_question_reference":["可选参考要点"]}。
+score_breakdown 必须与 rubric 等长且顺序一致，requirement_map 必须与 reference 等长且顺序一致。先独立理解题意，再阅读主人答案。每一项必须先按 rubric.score_bands 选档，再在该档范围内给分，不得脱离档位凭感觉给整数。按 rubric.scoring_scope 分开计分，同一根因只能归入一个主要扣分维度：偏题、范围或核心概念错误归“题意理解与核心判断”；完全缺失的题目子任务归“任务完成与要点覆盖”；已经提出但没有解释或支撑的观点归“推理链条与证据支撑”；缺少按题型应有的适用条件、例子、场景、取舍、验证、限制或反例归“边界意识与迁移应用”。参考要点只用于校准覆盖，不按是否复现参考措辞给分，不按篇幅扣分。论证合理但未出现在 reference 中也必须给分，并在最接近的参考点标为 equivalent。时效性事实没有 materials 或可靠来源支撑时，标为待核验，不得武断判错。每一个正分项和 strengths 都必须引用主人原答案。方向错误时必须指出错误发生在哪个推理环节，再按顺序给纠正路径；方向正确时必须解释哪里想对了，并沿原思路教它补强。teaching 必须具体，禁止“补充具体方案和指标”“进一步完善”等套话。minimal_revision 必须保留原答案结论、措辞和顺序，不得另写模板答案。`;
 
 function dateInShanghai(offsetDays = 0) {
   return new Date(Date.now() + offsetDays * 86400000).toLocaleDateString("en-CA", {timeZone: "Asia/Shanghai"});
@@ -309,10 +456,41 @@ function dateInShanghai(offsetDays = 0) {
 
 function validCloudBlackboardQuestion(item, date) {
   if (!item || item.date !== date || String(item.question || "").trim().length < 18) return false;
-  if (Number(item.alignment_version || 0) < 3) return false;
+  if (Number(item.alignment_version || 0) < 4) return false;
   const points = Array.isArray(item.standard_points) ? item.standard_points.map(value => String(value).trim()).filter(Boolean) : [];
   if (points.length < 4 || points.some(value => value.length < 8)) return false;
+  const rubric = Array.isArray(item.rubric) ? item.rubric : [];
+  if (Number(item.rubric_version || 0) < 3 || rubric.length !== 4 || rubric.reduce((sum, row) => sum + Number(row?.max || 0), 0) !== 100) return false;
+  if (rubric.map(row => String(row?.id || "")).join("|") !== "comprehension|coverage|reasoning|transfer" || rubric.some(row => !Array.isArray(row?.score_bands) || row.score_bands.length !== 5)) return false;
+  if (!item.answer_independent || !item.reference_frozen_at || !item.question_fingerprint) return false;
   return !points.some(value => /^\d*\s*到?\s*\d*\s*条?\s*(参考答案)?要点[。.]?$/.test(value));
+}
+
+function dueOrchardReview(local, date) {
+  const queue = Array.isArray(local?.values?.cozy_orchard_review_queue) ? local.values.cozy_orchard_review_queue : [];
+  return queue.filter(item => item && item.status !== "retired" && String(item.dueOn || "") <= date)
+    .sort((a, b) => String(a.dueOn || "").localeCompare(String(b.dueOn || "")) || Number(a.reviewCount || 0) - Number(b.reviewCount || 0))[0] || null;
+}
+
+function orchardReviewQuestion(date, variant, review) {
+  const topic = review?.topic && typeof review.topic === "object" ? review.topic : review || {};
+  const title = String(topic.title || "成长田专题").slice(0, 50);
+  const points = Array.isArray(topic.knowledgePoints) ? topic.knowledgePoints.map(String).filter(value => value.trim().length >= 8).slice(0, 4) : [];
+  const standard = [
+    `准确说明“${title}”要解决的核心问题或概念边界。`,
+    ...points,
+    topic.conclusion ? `说明专题当前结论：${String(topic.conclusion).slice(0, 180)}` : "给出一个适用场景，并说明为什么适用。",
+    "指出至少一个限制、反例或仍需验证的条件。"
+  ].filter((value, index, list) => value && list.indexOf(value) === index).slice(0, 6);
+  while (standard.length < 4) standard.push(["给出一个具体例子来验证理解。", "说明如何把这个知识用于真实产品判断。", "区分事实、推断和个人选择。"][(standard.length - 1) % 3]);
+  return attachFrozenRubric({
+    id: `orchard-review-${String(review.id || topic.id || variant || date)}`, date, title: `${title}复习`,
+    type: "成长田复习", types: ["成长田复习", "间隔复习", "理解迁移"],
+    question: `回顾成长田专题“${title}”：请用自己的话说明它的核心概念或问题、关键方法或差异、一个适用场景，以及至少一个限制或反例。不要照抄专题摘要。`,
+    materials: topic.summary ? [`专题摘要：${String(topic.summary).slice(0, 260)}`] : [],
+    standard_points: standard, provider: "orchard-review", alignment_version: 5,
+    review_queue_id: String(review.id || ""), related_orchard: {topic_id: String(topic.id || ""), title}
+  });
 }
 
 function fallbackCloudBlackboardQuestion(date, variant, reports) {
@@ -332,8 +510,9 @@ function fallbackCloudBlackboardQuestion(date, variant, reports) {
   let [title, question] = topics[seed % topics.length];
   const latest = (reports?.reports || [])[0];
   const source = [...(latest?.hot_items || []), ...(latest?.sections || []).flatMap(section => section.items || [])][0];
+  const useNews=Boolean(source?.title)&&seed%3===0;
   let materials=[];
-  if(source?.title){
+  if(useNews){
     const sourceTitle=String(source.title).trim();
     const sourceSummary=ensureChineseAiSummary(source.ai_summary || source.summary,source,source.category || "AI 产品").slice(0,220);
     title="资讯判断";
@@ -341,7 +520,7 @@ function fallbackCloudBlackboardQuestion(date, variant, reports) {
     materials=[`资讯原题：${sourceTitle}`];
     if(sourceSummary)materials.push(`中文摘要：${sourceSummary}`);
   }
-  return {
+  return attachFrozenRubric({
     id: `cloud-${date}-${variant || "daily"}`, date, title, type: "产品场景",
     types: ["产品场景", "方法设计", "边界判断"], question,
     materials,
@@ -352,29 +531,40 @@ function fallbackCloudBlackboardQuestion(date, variant, reports) {
       "覆盖边界与失败情况，明确什么时候不应继续自动执行。",
       "先用小范围真实任务验证核心假设，再依据结果决定是否扩大。"
     ],
-    provider: "deterministic-fallback", source_title: source?.title || "", alignment_version: 3
-  };
+    provider: "deterministic-fallback", source_title: useNews?source.title:"", alignment_version: 4,
+    related_notice:useNews?{id:String(source.id||''),title:String(source.title),url:String(source.link||source.url||''),report_id:String(latest?.id||'')}:null
+  });
 }
 
 async function cloudBlackboardQuestion(env, variant = "") {
   const date = dateInShanghai();
-  const cacheKey = `blackboard:question:v3:${date}${variant ? `:${variant}` : ""}`;
+  const local = await readData(env, "local_state");
+  const dueReview = dueOrchardReview(local, date);
+  const reviewSuffix = dueReview ? `:review:${String(dueReview.id || dueReview.topic?.id || "topic").slice(0, 80)}` : "";
+  const cacheKey = `blackboard:question:v7:${date}${variant ? `:${variant}` : ""}${reviewSuffix}`;
   const cached = await readState(env, cacheKey, null);
   if (validCloudBlackboardQuestion(cached, date)) return cached;
-  const [reports, local, memory] = await Promise.all([
-    readData(env, "notice_reports"), readData(env, "local_state"), memoryContext(env)
+  if (dueReview && !variant) {
+    const question = orchardReviewQuestion(date, variant, dueReview);
+    await writeState(env, cacheKey, question, {expirationTtl: 60 * 60 * 24 * 45});
+    return question;
+  }
+  const [reports, memory] = await Promise.all([
+    readData(env, "notice_reports"), memoryContext(env, "blackboard_question")
   ]);
   const directions = Array.isArray(local?.values?.cozy_blackboard_directions) ? local.values.cozy_blackboard_directions.slice(0, 8) : [];
   const answers = Array.isArray(local?.values?.cozy_blackboard_answers) ? local.values.cozy_blackboard_answers.slice(0, 6) : [];
   const latest=(reports.reports||[])[0];
-  const primarySource=[...(latest?.hot_items||[]),...(latest?.sections||[]).flatMap(section=>section.items||[])][0]||null;
+  const candidateSource=[...(latest?.hot_items||[]),...(latest?.sections||[]).flatMap(section=>section.items||[])][0]||null;
+  const questionSeed=[...`${date}|${variant}`].reduce((sum,char)=>sum+char.charCodeAt(0),0);
+  const primarySource=candidateSource&&questionSeed%3===0?candidateSource:null;
   const prompt = `你是栗壳小院的产品黑板出题人。生成一道今天的开放问答题，训练 AI 产品经理的真实判断力。
 必须只返回 JSON：{"title":"10字内题名","question":"明确题目","types":["题型"],"materials":["最多2条具体资料"],"standard_points":["4到6条参考要点"]}。
 有指定资讯时，题目必须直接讨论该资讯，question 中必须完整引用它的原标题；materials 也只能解释同一篇资讯，不能把通用题目与随机资讯拼在一起。题型可在产品场景、模型能力、评测、Agent、安全权限、时事判断之间轮换。标准要点需要可操作、可举例，但不得编造主人经历。
 日期：${date}
 出题方向留言：${JSON.stringify(directions)}
 最近答案：${JSON.stringify(answers).slice(0, 5000)}
-指定资讯：${JSON.stringify(primarySource).slice(0, 5000)}
+指定资讯：${primarySource?JSON.stringify(primarySource).slice(0,5000):"本题不关联资讯，请独立生成通用产品题，不得虚构或强行引用新闻。"}
 相关记忆：${JSON.stringify(memory).slice(0, 5000)}`;
   const finalPrompt = prompt + (variant ? `\n这是同一天的换题请求（编号 ${variant}）。必须避开最近答案中已有题目的核心问题，换一个训练方向。` : "");
   let question;
@@ -382,13 +572,14 @@ async function cloudBlackboardQuestion(env, variant = "") {
     const result = await callText(env, finalPrompt, 1400);
     const parsed = extractJson(result.text);
     const points = Array.isArray(parsed.standard_points) ? parsed.standard_points.slice(0, 7).map(String) : [];
-    question = {
+    question = attachFrozenRubric({
       id: `cloud-${date}-${variant || "daily"}`, date, title: String(parsed.title || "今天的产品判断").slice(0, 40),
       type: String((parsed.types || ["产品场景"])[0] || "产品场景"),
       types: (parsed.types || ["产品场景"]).slice(0, 4), question: String(parsed.question || "").slice(0, 2000),
       materials: (parsed.materials || []).slice(0, 2).map(String),
-      standard: points, standard_points: points, provider: result.provider, alignment_version: 3
-    };
+      standard: points, standard_points: points, provider: result.provider, alignment_version: 4,
+      related_notice:primarySource?{id:String(primarySource.id||''),title:String(primarySource.title),url:String(primarySource.link||primarySource.url||''),report_id:String(latest?.id||'')}:null
+    });
     if(primarySource?.title&&!question.question.includes(String(primarySource.title)))throw new Error("每日题与指定资讯不一致");
     if(primarySource?.title){
       const alignedFallback=fallbackCloudBlackboardQuestion(date,variant,reports);
@@ -398,7 +589,6 @@ async function cloudBlackboardQuestion(env, variant = "") {
     if (!validCloudBlackboardQuestion(question, date)) throw new Error("模型生成的题目结构不完整");
   } catch (_error) {
     question = fallbackCloudBlackboardQuestion(date, variant, reports);
-    question.standard_points = question.standard;
   }
   await writeState(env, cacheKey, question, {expirationTtl: 60 * 60 * 24 * 45});
   return question;
@@ -410,14 +600,8 @@ function rssText(value) {
 
 function ensureChineseAiSummary(value, source, category) {
   const text = String(value || "").trim();
-  const sourceText=`${source?.title || ""} ${source?.summary || ""}`;
-  if(/Daybreak|GPT-5\.6-Cyber|vulnerability research|cybersecurity-specific/i.test(sourceText)){
-    return "OpenAI 扩展 Daybreak 网络安全计划，并提供面向授权漏洞研究、漏洞利用验证和安全测试的 GPT-5.6-Cyber。重点是让可信合作方使用专业网络安全模型，同时明确授权、审计和防止滥用的治理边界。";
-  }
-  if ((text.match(/[\u4e00-\u9fff]/g) || []).length >= 8) return text.slice(0, 1200);
-  const media = String(source?.media || "原始来源").trim();
-  const title = String(source?.title || "这项更新").trim();
-  return `这条资讯来自 ${media}，属于${category || "AI 产品"}方向，主题是“${title}”。自动中文整理暂时没有可靠完成，阿栗先保留来源，避免把英文原文误当成中文总结；可以打开原文核对详情。`.slice(0, 1200);
+  if(/自动中文整理暂时没有可靠完成|阿栗先保留来源|避免把英文原文误当成中文总结|可以打开原文核对详情/.test(text))return "";
+  return (text.match(/[\u4e00-\u9fff]/g) || []).length >= 20 ? text.slice(0, 1200) : "";
 }
 
 function parseNewsFeed(xml, source) {
@@ -468,11 +652,20 @@ async function fetchNewsFeed(source) {
 async function fetchNewsRss(query) {
   const host=String(query).match(/site:([^\s)]+)/)?.[1]?.replace(/^www\./,'')||'';
   const knownNames={"36kr.com":"36氪","qbitai.com":"量子位","jiqizhixin.com":"机器之心","infoq.cn":"InfoQ 中文"};
-  return fetchNewsFeed({
+  const items=await fetchNewsFeed({
     id: `google-${Math.abs([...query].reduce((sum, char) => sum + char.charCodeAt(0), 0))}`,
     name: knownNames[host]||"Google News",
     url: `https://news.google.com/rss/search?${new URLSearchParams({q: query, hl: "zh-CN", gl: "CN", ceid: "CN:zh-Hans"})}`
   });
+  return items.map(item=>{
+    const original=String(item.link||'');
+    const publisher=String(item.source_url||'');
+    try{
+      const parsed=new URL(publisher);
+      if(/^https?:$/.test(parsed.protocol)&&!/(^|\.)news\.google\.com$/i.test(parsed.hostname))return {...item,link:parsed.toString(),publisher_url:parsed.toString(),google_news_url:original,link_kind:"source_homepage"};
+    }catch(_error){}
+    return {...item,link:"",google_news_url:original,link_kind:"unavailable"};
+  }).filter(item=>item.link);
 }
 
 const DIRECT_NEWS_FEEDS = [
@@ -488,8 +681,7 @@ const DIRECT_NEWS_FEEDS = [
 ];
 
 const PROXIED_NEWS_FEEDS=[
-  {id:"qbitai",name:"量子位",url:"https://www.qbitai.com/feed/"},
-  {id:"36kr-search",name:"36氪",url:`https://news.google.com/rss/search?${new URLSearchParams({q:"site:36kr.com (AI OR 人工智能 OR 大模型) when:14d",hl:"zh-CN",gl:"CN",ceid:"CN:zh-Hans"})}`}
+  {id:"qbitai",name:"量子位",url:"https://www.qbitai.com/feed/"}
 ];
 
 async function fetch36KrNewsflashes(){
@@ -530,8 +722,68 @@ function interleaveNewsGroups(groups,limit=80){
   return output;
 }
 
+function newsRegion(item){
+  const value=`${item?.media||''} ${item?.source_url||''} ${item?.link||item?.url||''} ${item?.title||''}`.toLowerCase();
+  if(/36氪|量子位|机器之心|infoq 中文|deepseek|kimi|月之暗面|通义|千问|qwen|豆包|字节|seedream|seedance|火山引擎|阿里云|百度|腾讯|华为|智谱|百川|零一万物|阶跃星辰|minimax|qbitai\.com|36kr\.com|jiqizhixin\.com|infoq\.cn|aliyun\.com|volcengine\.com|moonshot\.cn/.test(value))return "domestic";
+  if(/openai|anthropic|claude|google|deepmind|gemini|the verge|techcrunch|mit technology|github|aws|arxiv|microsoft|meta ai|hugging face|openai\.com|anthropic\.com|google\.com|deepmind\.google|theverge\.com|techcrunch\.com|technologyreview\.com|github\.blog|aws\.amazon\.com|arxiv\.org/.test(value))return "international";
+  return "other";
+}
+
+function balancedNewsSelection(pool,limit=9){
+  const buckets={domestic:[],international:[],other:[]};
+  pool.forEach(item=>buckets[newsRegion(item)].push(item));
+  const output=[],sourceCounts=new Map();
+  const take=item=>{
+    const source=String(item?.media||item?.source_url||'未知来源').toLowerCase();
+    if((sourceCounts.get(source)||0)>=2)return false;
+    output.push(item);sourceCounts.set(source,(sourceCounts.get(source)||0)+1);return true;
+  };
+  let index=0;
+  while(output.length<limit&&(index<buckets.domestic.length||index<buckets.international.length)){
+    if(buckets.domestic[index])take(buckets.domestic[index]);
+    if(output.length<limit&&buckets.international[index])take(buckets.international[index]);
+    index+=1;
+  }
+  [...buckets.other,...buckets.domestic,...buckets.international].forEach(item=>{if(output.length<limit&&!output.includes(item))take(item);});
+  return output;
+}
+
 function reportItems(report){
   return [...(report?.hot_items||[]),...(report?.sections||[]).flatMap(section=>section.items||[])];
+}
+
+function lowSignalNewsItem(item){
+  const title=String(item?.title||'').replace(/\s+-\s+[^–—-]{2,50}$/,'').trim();
+  if(title.length<8)return true;
+  if(/^(错误码|帮助文档|首页|登录|注册|搜索结果|产品文档)|提示词指南$|服务条款|隐私政策/.test(title))return true;
+  const normalize=value=>String(value||'').toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g,'');
+  const summary=normalize(item?.summary),normalizedTitle=normalize(title);
+  return !summary||summary===normalizedTitle||(summary.length<=normalizedTitle.length+6&&(summary.includes(normalizedTitle)||normalizedTitle.includes(summary)));
+}
+
+function exactArticleLink(item){
+  if(item?.link_kind==="source_homepage"||item?.link_kind==="unavailable")return false;
+  try{
+    const parsed=new URL(String(item?.link||item?.url||''));
+    if(!/^https?:$/.test(parsed.protocol)||/(^|\.)news\.google\.com$/i.test(parsed.hostname))return false;
+    const path=parsed.pathname.replace(/\/+$/,'')||'/';
+    if(new Set(['/','/news','/technology/ai','/category/artificial-intelligence','/topic/artificial-intelligence','/ai-and-ml']).has(path))return false;
+    if(/\.(?:rss|xml|atom)$/i.test(path))return false;
+    const sourceRaw=String(item?.source_url||item?.publisher_url||'');
+    if(sourceRaw){
+      const source=new URL(sourceRaw);
+      const sourcePath=source.pathname.replace(/\/+$/,'')||'/';
+      if(parsed.origin===source.origin&&path===sourcePath&&!/\.(?:rss|xml|atom)$/i.test(path))return false;
+    }
+    return true;
+  }catch(_error){return false;}
+}
+
+function misleadingNoticeSummary(source,summary){
+  const title=String(source?.title||'');
+  const text=String(summary||'');
+  if(!/(回应|澄清|辟谣|否认)/.test(title))return false;
+  return /(这意味着|因此|由此可见).{0,30}(将|会|开始|已经).{0,20}(收费|收取费用|涨价|停服|停止|取消|关闭)/.test(text);
 }
 
 function noticeTextSimilarity(left,right){
@@ -577,12 +829,14 @@ async function repairReportLanguages(env,report){
   };
   // One item per request is more reliable for the small Workers AI model than
   // asking it to preserve several ids in one JSON array.
+  const repairTimeout=Math.max(10,Number(env.COZY_NEWS_AI_TIMEOUT_MS)||18000);
+  const generate=(prompt,tokens)=>Promise.race([callText(env,prompt,tokens),new Promise((_,reject)=>setTimeout(()=>reject(new Error("资讯摘要修复超时")),repairTimeout))]);
   const jobs=input.flatMap((value,index)=>{
     const state=reportItemLanguageState(items[index]);
     const context=JSON.stringify({title:value.title,source_summary:value.summary,media:value.media,translation_zh:items[index].translation_zh||''}).slice(0,5000);
     const result=[];
-    if(state.needsTranslation)result.push(callText(env,`你是忠实翻译员。把下面英文摘要忠实翻译为简体中文，保留产品名、模型名和数字，不增加分析或建议。只返回翻译正文，不要 JSON、标题或解释。资料：${context}`,500).then(response=>({index,field:'translation_zh',value:fieldText(response.text,'translation_zh'),provider:response.provider})));
-    if(state.needsSummary)result.push(callText(env,`你是中文资讯编辑。根据下面资料写一段 80 到 180 字的 AI 总结，必须与“中文翻译”职责不同：先说明核心变化，再说明适用对象或场景，最后给出值得关注的结论或边界。可以做谨慎推断，但必须使用“这意味着”“值得关注的是”或“仍需验证”等措辞标明，不得逐句翻译或换词复述，不得编造具体数据。只返回总结正文，不要 JSON、标题或解释。资料：${context}`,700).then(response=>({index,field:'ai_summary',value:fieldText(response.text,'ai_summary'),provider:response.provider})));
+    if(state.needsTranslation)result.push(generate(`你是忠实翻译员。把下面英文摘要忠实翻译为简体中文，保留产品名、模型名和数字，不增加分析或建议。只返回翻译正文，不要 JSON、标题或解释。资料：${context}`,500).then(response=>({index,field:'translation_zh',value:fieldText(response.text,'translation_zh'),provider:response.provider})));
+    if(state.needsSummary)result.push(generate(`你是中文资讯编辑。根据下面资料写一段 80 到 180 字的 AI 总结，必须与“中文翻译”职责不同：先说明核心变化，再说明适用对象或场景，最后给出值得关注的结论或边界。可以做谨慎推断，但必须使用“这意味着”“值得关注的是”或“仍需验证”等措辞标明，不得逐句翻译或换词复述，不得编造具体数据。只返回总结正文，不要 JSON、标题或解释。资料：${context}`,700).then(response=>({index,field:'ai_summary',value:fieldText(response.text,'ai_summary'),provider:response.provider})));
     return result;
   });
   const generated=await Promise.all(jobs);
@@ -596,6 +850,7 @@ async function repairReportLanguages(env,report){
     let aiSummary=String(summaries.get(id)||item.ai_summary||'').slice(0,1600);
     if(state.needsTranslation&&!translation.trim())throw new Error(`模型没有返回“${String(item.title||'该资讯').slice(0,40)}”的中文翻译`);
     if(state.needsSummary&&(aiSummary.match(/[\u4e00-\u9fff]/g)||[]).length<30)throw new Error(`模型没有返回“${String(item.title||'该资讯').slice(0,40)}”的有效 AI 总结`);
+    if(/自动中文整理暂时没有可靠完成|阿栗先保留来源|避免把英文原文误当成中文总结|可以打开原文核对详情/.test(aiSummary))throw new Error(`“${String(item.title||'该资讯').slice(0,40)}”仍返回了失败占位语`);
     if(translation&&noticeTextSimilarity(translation,aiSummary)>=0.55)throw new Error(`“${String(item.title||'该资讯').slice(0,40)}”的 AI 总结仍与中文翻译过于相似`);
     replacements.set(item,{...item,translation_zh:translation,ai_summary:aiSummary,ai_summary_version:2});
   });
@@ -607,10 +862,7 @@ async function runCloudReport(env, force = false) {
   const reportsData = await readData(env, "notice_reports");
   const butlerState = await readData(env, "butler_state");
   const watchTopics = (butlerState.watch_topics || []).map(item => String(item.text || item.title || "").trim()).filter(Boolean).slice(0, 8);
-  const savedSourceQueries=(butlerState.sources||[]).filter(item=>item&&item.enabled!==false).map(item=>{
-    try{return `site:${new URL(String(item.url||item.feed||'')).hostname.replace(/^www\./,'')} (AI OR 人工智能 OR 大模型) when:14d`;}
-    catch(_error){return '';}
-  }).filter(Boolean).slice(0,12);
+  const customFeeds=(butlerState.sources||[]).filter(item=>item&&item.enabled!==false&&item.feed).map((item,index)=>({id:`custom-${index}`,name:String(item.name||item.title||'自定义信源'),url:String(item.feed)})).slice(0,12);
   const latest = (reportsData.reports || [])[0];
   if (!force && latest?.generated_at && Date.now() - Date.parse(latest.generated_at) < 46 * 60 * 60 * 1000) {
     return {...latest, unchanged: true, report_count: (reportsData.reports || []).length};
@@ -625,25 +877,14 @@ async function runCloudReport(env, force = false) {
       return {...repaired.report,unchanged:true,repaired:true,report_count:next.reports.length};
     }
   }
-  const queries = [
-    '(OpenAI OR Anthropic OR Google Gemini OR Claude) AI when:3d',
-    '(DeepSeek OR Kimi OR 通义千问 OR 豆包 OR Seedance OR Seedream) when:3d',
-    '(AI 产品 原型 OR Agent 评测 OR 记忆系统 OR AI 工作流) when:7d',
-    '(site:deepseek.com OR site:api-docs.deepseek.com) DeepSeek when:30d',
-    '(site:seed.bytedance.com OR site:volcengine.com OR site:doubao.com) (豆包 OR Seedance OR Seedream OR Seed) when:14d',
-    '(site:qwen.ai OR site:aliyun.com) (Qwen OR 通义千问) when:14d',
-    'site:moonshot.cn (Kimi OR 月之暗面) when:14d',
-    ...CHINESE_TECH_MEDIA_QUERIES,
-    ...savedSourceQueries,
-    ...watchTopics.map(topic => `${topic.replace(/[()"']/g, " ").slice(0, 80)} when:7d`)
-  ];
-  const settled = await Promise.allSettled([...queries.map(fetchNewsRss), ...DIRECT_NEWS_FEEDS.map(fetchNewsFeed), ...PROXIED_NEWS_FEEDS.map(fetchNewsFeedJson), fetch36KrNewsflashes()]);
+  const settled = await Promise.allSettled([...DIRECT_NEWS_FEEDS.map(fetchNewsFeed),...customFeeds.map(fetchNewsFeed),...PROXIED_NEWS_FEEDS.map(fetchNewsFeedJson),fetch36KrNewsflashes()]);
   const fulfilled = settled.filter(item => item.status === "fulfilled");
   const liveGroups=fulfilled.map(item=>item.value).filter(group=>group.length);
   const sourceCache=await readState(env,"notice:source-cache",{groups:[]});
-  const cachedGroups=(sourceCache.groups||[]).filter(Array.isArray);
+  const exactLinkItem=exactArticleLink;
+  const cachedGroups=(sourceCache.groups||[]).filter(Array.isArray).map(group=>group.filter(exactLinkItem)).filter(group=>group.length);
   if(liveGroups.length)await writeState(env,"notice:source-cache",{updated_at:now(),groups:liveGroups.slice(0,24).map(group=>group.slice(0,12))},{expirationTtl:7*24*60*60});
-  const latestGroup=latest?reportItems(latest):[];
+  const latestGroup=latest?reportItems(latest).filter(exactLinkItem):[];
   const usingSourceFallback=!liveGroups.length;
   const sourceGroups=liveGroups.length?[...liveGroups,...cachedGroups]:cachedGroups.length?cachedGroups:latestGroup.length?[latestGroup]:[];
   if (!sourceGroups.length) {
@@ -668,7 +909,7 @@ async function runCloudReport(env, force = false) {
       const parsed = new URL(String(item?.link || item?.url || ""));
       [...parsed.searchParams.keys()].forEach(key => { if (key.toLowerCase().startsWith("utm_") || ["from", "source", "ref", "spm"].includes(key.toLowerCase())) parsed.searchParams.delete(key); });
       parsed.hash = ""; parsed.pathname = parsed.pathname.replace(/\/$/, "");
-      keys.add(`url:${parsed.toString()}`);
+      if(item?.link_kind!=="source_homepage")keys.add(`url:${parsed.toString()}`);
     } catch (_error) {}
     return keys;
   };
@@ -676,6 +917,7 @@ async function runCloudReport(env, force = false) {
   (reportsData.reports || []).forEach(report => [...(report.hot_items || []), ...(report.sections || []).flatMap(section => section.items || [])].forEach(item => articleKeys(item).forEach(key => previousKeys.add(key))));
   const currentKeys=new Set();
   const pool=interleaveNewsGroups(sourceGroups,80).filter(item=>{
+    if(lowSignalNewsItem(item))return false;
     const keys=[...articleKeys(item)];
     if(keys.some(key=>previousKeys.has(key)||currentKeys.has(key)))return false;
     keys.forEach(key=>currentKeys.add(key));
@@ -695,11 +937,11 @@ async function runCloudReport(env, force = false) {
     const reportCount=(reportsData.reports || []).length;
     const message=usingSourceFallback?`资讯源暂时不可用，已保留 ${reportCount} 版巡报，稍后自动重试`:`已检查，暂无新资讯；保留 ${reportCount} 版巡报`;
     await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "completed", last_success: now(), unchanged: true, degraded:usingSourceFallback, message}}});
-    return {...(latest || {focus_title: "暂无新资讯"}), unchanged: true, report_count: reportCount};
+    return {...(latest || {focus_title: "暂无新资讯"}), unchanged: true, degraded:usingSourceFallback, report_count: reportCount};
   }
   const prompt = `你是阿栗，负责为 AI 产品经理整理一次“资讯巡报”。从候选中只挑真正重要、具体、多样的 7 到 11 条，不要为了凑数收录普通软文。
 只返回 JSON：{"focus_title":"本期最重要变化","hot_items":[{"source_id":"候选id","category":"模型与技术","translation_zh":"原摘要非中文时给忠实中文翻译，原摘要是中文时留空","ai_summary":"120到200字中文总结，说明具体变化、关键数字或能力、值得关注的结论"}],"sections":[{"name":"国内外动态","items":[同结构]},{"name":"产品相关动态","items":[同结构]},{"name":"主人关注","items":[同结构]}],"insights":["跨文章案例总结"],"advice":["给正在做AI产品的主人一个有深度且可执行的建议"]}。
-热点速览只放行业级重要发布；整版必须尽量覆盖至少 4 个不同来源，单一来源最多 2 条。国内外动态兼顾 OpenAI、Anthropic、Google 与国内 DeepSeek、Kimi、通义、豆包，并优先从 36氪、量子位、机器之心、InfoQ 中文候选中选择至少 2 条有实质信息的内容；同时兼顾国际科技媒体、GitHub 开源实践、AWS 工程案例和 arXiv 研究，但候选不足时不要凑数。产品相关动态只放评测、记忆、Agent、原型、工作流等真正能提升产品能力的案例。分类只用模型与技术、产品与实践、行业动态、学术研究。不得编造候选中没有的价格、指标和事实。
+热点速览只放行业级重要发布；整版必须尽量覆盖至少 4 个不同来源，单一来源最多 2 条。国内外动态兼顾 OpenAI、Anthropic、Google 与国内 DeepSeek、Kimi、通义、豆包，并优先从 36氪、量子位、机器之心、InfoQ 中文候选中选择至少 2 条有实质信息的内容；同时兼顾国际科技媒体、GitHub 开源实践、AWS 工程案例和 arXiv 研究，但候选不足时不要凑数。产品相关动态只放评测、记忆、Agent、原型、工作流等真正能提升产品能力的案例。分类只用模型与技术、产品与实践、行业动态、学术研究。不得编造候选中没有的价格、指标和事实。标题含“回应、澄清、辟谣、否认”时必须保留原文立场，绝不能把被回应的传言写成已确认事实；信息不足就明确写“原文未确认”，不要推断收费、涨价、停服等结论。
 主人关注方向：${JSON.stringify(watchTopics)}。只有候选中确实有直接相关内容时才增加“主人关注”栏目；没有匹配内容就不要生成该栏目，不能拿普通 AI 新闻凑数。
 候选：${JSON.stringify(pool).slice(0, 30000)}`;
   let result = {provider: "source-fallback"};
@@ -709,22 +951,32 @@ async function runCloudReport(env, force = false) {
     result = await Promise.race([callText(env,prompt,3600),new Promise((_,reject)=>setTimeout(()=>reject(new Error("资讯整理模型响应超时")),curationTimeout))]);
     curated = extractJson(result.text);
     const selectedRaw=[...(curated.hot_items||[]),...(curated.sections||[]).flatMap(section=>section.items||[])];
+    const selectedIds=selectedRaw.map(item=>String(item?.source_id||'')).filter(Boolean);
+    if(new Set(selectedIds).size!==selectedIds.length)throw new Error("模型重复选择了同一条资讯");
     const poolById=new Map(pool.map(item=>[String(item.id),item]));
     const sourceKey=item=>String(item?.media||item?.source_url||'未知来源').toLowerCase();
     const availableSources=new Set(pool.map(sourceKey));
     const selectedCounts=new Map();
+    const availableRegions=new Set(pool.map(newsRegion));
+    const selectedRegions=new Map();
     selectedRaw.forEach(item=>{
-      const key=sourceKey(poolById.get(String(item?.source_id||'')));
+      const selectedSource=poolById.get(String(item?.source_id||''));
+      if(misleadingNoticeSummary(selectedSource,item?.ai_summary))throw new Error("模型把回应或澄清错误写成了事实");
+      const key=sourceKey(selectedSource);
       selectedCounts.set(key,(selectedCounts.get(key)||0)+1);
+      const region=newsRegion(selectedSource);
+      selectedRegions.set(region,(selectedRegions.get(region)||0)+1);
     });
     if(availableSources.size>=4&&(selectedCounts.size<4||Math.max(0,...selectedCounts.values())>2))throw new Error("模型选择的资讯来源不够多样");
+    if(availableRegions.has("domestic")&&availableRegions.has("international")&&selectedRaw.length>=4&&(!(selectedRegions.get("domestic"))||!(selectedRegions.get("international"))))throw new Error("模型选择的资讯缺少国内外平衡");
   } catch (_error) {
-    const selected = pool.slice(0, 9);
+    const selected = balancedNewsSelection(pool,9);
     const shape = item => ({
       source_id: item.id,
       category: categoryForArticle(item.title),
-      original_summary: item.summary || item.title,
-      ai_summary: ensureChineseAiSummary(item.summary, item, categoryForArticle(item.title))
+      original_summary: item.summary || '',
+      translation_zh: '',
+      ai_summary: ''
     });
     curated = {
       focus_title: selected[0]?.title || "近期 AI 进展",
@@ -739,26 +991,39 @@ async function runCloudReport(env, force = false) {
     const source = byId.get(String(raw?.source_id || ""));
     if (!source) return null;
     const category = String(raw.category || categoryForArticle(source.title));
-    const sourceSummary = String(source.summary || source.title).slice(0, 1200);
-    const translation=(sourceSummary.match(/[\u4e00-\u9fff]/g)||[]).length>=8?'':String(raw.translation_zh||raw.original_summary||'').slice(0,1200);
-    const aiSummary=ensureChineseAiSummary(raw.ai_summary,source,category);
+    const sourceSummary = String(source.summary || '').slice(0, 1200);
+    const normalize=value=>String(value||'').toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g,'');
+    if(!sourceSummary||normalize(sourceSummary)===normalize(source.title)||!exactArticleLink(source))return null;
+    const translation=(sourceSummary.match(/[\u4e00-\u9fff]/g)||[]).length>=8?'':String(raw.translation_zh||'').slice(0,1200);
+    const aiSummary=result.provider==="source-fallback"?'':ensureChineseAiSummary(raw.ai_summary,source,category);
     return {...source, category,
       source_summary: sourceSummary,
       original_summary: sourceSummary,
       summary: sourceSummary,
       translation_zh: translation,
       ai_summary: aiSummary,
-      ai_summary_version: result.provider!=="source-fallback"&&(!translation||noticeTextSimilarity(translation,aiSummary)<0.55)?2:0};
+      ai_summary_version: aiSummary&&result.provider!=="source-fallback"&&(!translation||noticeTextSimilarity(translation,aiSummary)<0.55)?2:0};
   };
   const hotItems = (curated.hot_items || []).map(hydrate).filter(Boolean).slice(0, 4);
   const sections = (curated.sections || []).slice(0, 3).map(section => ({name: String(section.name || "动态"), items: (section.items || []).map(hydrate).filter(Boolean).slice(0, 5)})).filter(section => section.items.length);
   if (!hotItems.length && !sections.length) throw new Error("模型没有选出可用资讯");
-  const report = {id: `report_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, generated_at: now(), week_start: dateInShanghai(-6), week_end: dateInShanghai(),
+  let report = {id: `report_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, generated_at: now(), week_start: dateInShanghai(-6), week_end: dateInShanghai(), degraded:usingSourceFallback,
+    source_status:{succeeded:fulfilled.length,failed:settled.length-fulfilled.length,used_cache:usingSourceFallback},
     focus_title: String(curated.focus_title || hotItems[0]?.title || "近期 AI 进展").slice(0, 120), hot_items: hotItems, sections,
     insights: (curated.insights || []).slice(0, 5).map(String), advice: (curated.advice || []).slice(0, 5).map(String), provider: result.provider};
+  if(reportItems(report).some(reportItemNeedsLanguageRepair)){
+    try{
+      const repaired=await repairReportLanguages(env,report);
+      if(repaired.repaired)report=repaired.report;
+    }catch(_error){
+      const clean=item=>({...item,translation_zh:reportItemLanguageState(item).originalChinese?'':String(item.translation_zh||''),ai_summary:ensureChineseAiSummary(item.ai_summary,item,item.category),ai_summary_version:0});
+      report={...report,hot_items:(report.hot_items||[]).map(clean),sections:(report.sections||[]).map(section=>({...section,items:(section.items||[]).map(clean)}))};
+    }
+  }
   const next = {version: 1, updated_at: now(), reports: [report, ...(reportsData.reports || []).filter(item => item.id !== report.id)].slice(0, 30)};
   await writeData(env, "notice_reports", next);
-  await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "completed", last_success: now(), message: "新的资讯巡报已生成"}}});
+  const completionMessage=usingSourceFallback?"实时信源暂时不可用，已用缓存资料生成巡报，稍后自动重试":"新的资讯巡报已生成";
+  await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "completed", last_success: now(), degraded:usingSourceFallback, message: completionMessage}}});
   return report;
 }
 
@@ -1107,7 +1372,10 @@ async function executeCloudTools(env, message) {
 
 async function assistantReply(env, message, clientContext = {}) {
   const toolResults = await executeCloudTools(env, message);
-  const memory = await memoryContext(env);
+  const memory = await memoryContext(env, "butler", {
+    query: message,
+    recentIds: Array.isArray(clientContext?.recent_memory_ids) ? clientContext.recent_memory_ids : []
+  });
   const courtyard = await readData(env, "butler_state");
   const completed = toolResults.filter(item => item.ok).map(item => item.summary);
   await addMemoryEvents(env, {source: "butler", type: "owner_command", layer: "short", weight: 2, content: message, summary: `交给阿栗：${message.slice(0, 120)}`});
@@ -1119,7 +1387,7 @@ async function assistantReply(env, message, clientContext = {}) {
     if (completed.length) return {reply: `已经完成：${completed.join("；")}。`, provider: "tools-only", tool_results: toolResults};
     throw new Error("阿栗的云端运行已就绪，但还没有配置文本模型 API Key");
   }
-  const prompt = `你是栗壳小院的管家阿栗，一只守护私人小院的棕色小狗管家。你温和、清醒、行动优先，回复简洁但不敷衍。\n规则：\n1. 只把工具结果中 ok=true 的动作说成已经完成；失败要明确说明。\n2. 不得假装访问网页、知识库、文件或执行工具。\n3. 当前指令优先于历史偏好。普通回答只能使用非封存记忆，绝不猜测密阁内容。\n4. 回答主人问题时给出具体判断和下一步，不写空泛套话。\n\n主人当前消息：${message.slice(0, 6000)}\n页面上下文：${JSON.stringify(clientContext).slice(0, 5000)}\n非封存记忆：${JSON.stringify(memory).slice(0, 7000)}\n小院资料状态：${JSON.stringify({watch_topics: courtyard.watch_topics, sources: courtyard.sources, categories: courtyard.custom_categories}).slice(0, 3000)}\n已执行工具结果：${JSON.stringify(toolResults).slice(0, 6000)}\n请直接回复主人。`;
+  const prompt = `你是栗壳小院的管家阿栗，一只守护私人小院的棕色小狗管家。你温和、清醒、行动优先，回复简洁但不敷衍。\n规则：\n1. 只把工具结果中 ok=true 的动作说成已经完成；失败要明确说明。\n2. 不得假装访问网页、知识库、文件或执行工具。\n3. 当前指令优先于历史偏好。管家默认只使用学习、工作方式和通用沟通偏好，不读取树洞内容，也不主动提起旅行。\n4. 回答主人问题时给出具体判断和下一步，不写空泛套话。\n5. 记忆最多使用两条，也可以完全不用；不要反复告诉主人“你一直怎样”。\n\n主人当前消息：${message.slice(0, 6000)}\n页面上下文：${JSON.stringify(clientContext).slice(0, 5000)}\n本轮相关记忆：${JSON.stringify(memory).slice(0, 7000)}\n小院资料状态：${JSON.stringify({watch_topics: courtyard.watch_topics, sources: courtyard.sources, categories: courtyard.custom_categories}).slice(0, 3000)}\n已执行工具结果：${JSON.stringify(toolResults).slice(0, 6000)}\n请直接回复主人。`;
   try {
     const result = await callText(env, prompt);
     return {reply: result.text, provider: result.provider, tool_results: toolResults};
@@ -1129,9 +1397,24 @@ async function assistantReply(env, message, clientContext = {}) {
   }
 }
 
+const COMPANION_DIALOGUE_GUIDE = `陪伴对话规则：
+1. 先回应眼前这句话，记忆只是可选背景，不要为了显得记得而主动翻旧账。
+2. 从 listen、clarify、reframe、suggest、lighten、challenge 中选择此刻最有帮助的一种，避开 recent_reply_styles 最近两种。
+3. 最多照见一个具体细节，不复述整段话；最多问一个真正有用的问题，也可以完全不问。
+4. 可以给看法、具体办法、自然幽默或温和反驳，不把每段对话都变成安慰。
+5. 最多使用两条高度相关记忆，也可以不用；不得用单次经历定义主人。`;
+const COMPANION_STYLES = new Set(["listen", "clarify", "reframe", "suggest", "lighten", "challenge", "oracle", "archive"]);
+const normalizedCompanionText = value => String(value || "").toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g, "");
+const travelCompanionIsDistinct = value => {
+  const summary = normalizedCompanionText(value?.summary);
+  const reply = normalizedCompanionText(value?.reply);
+  return summary.length >= 4 && reply.length >= 4 && summary !== reply && !summary.includes(reply) && !reply.includes(summary);
+};
+
 async function roomReply(env, room, message, context) {
+  const decisionAudit = room === "orchard" && (String(context?.intent || "") === "decision_audit" || /我(?:现在)?(?:倾向|决定|打算)|要不要|是否应该|值不值得/.test(message));
   const roomPrompts = {
-    heart_hollow: "这里是树洞。若 mode 是 oracle，请在主人完整倾诉后给一句像塔罗牌但不故弄玄虚的回应；若 mode 是 dialogue，就自然来回对话。不要强行围绕树，不急着安慰。",
+    heart_hollow: `这里是树洞。若 mode 是 oracle，请在主人完整倾诉后给一句像塔罗牌但不故弄玄虚的回应；若 mode 是 dialogue，就自然来回对话。不要强行围绕树，不急着安慰。\n${COMPANION_DIALOGUE_GUIDE}`,
     orchard: `这里是成长田的“问问阿栗”，这是一个认真解惑和学习的多轮对话，不是树洞、签语或成长鸡汤。
 回答规则：
 1. 当前“主人”消息是唯一主任务，必须准确回答它所问的对象和问题，不能擅自换题。
@@ -1140,44 +1423,81 @@ async function roomReply(env, room, message, context) {
 4. 先给明确结论，再用2到4个清晰要点解释原因、差异、步骤或适用场景；必要时给一个具体例子。不得只复述问题，不得只提问，不得泛泛安慰。
 5. 用户问事实、产品或技术时，回答具体机制和边界；不确定、可能过时或未经联网核验的信息必须明确标注，不能编造。
 6. 只有确实缺少关键条件、无法合理作答时，才在已经给出当前可答部分后追问最多一个问题。
-7. 禁止田野隐喻、诗意散文、玄学签语和强制安排“几天内实验”。下一步没有实际帮助时留空。`,
-    travel: "这里是旅行记录。帮助主人提炼具体旅行感悟，保留地点、事件和变化，不写旅游宣传语。",
+7. 学习偏好只允许调整解释结构、例子密度和表达方式，不能改变事实结论，不能隐藏相反观点，也不能把过去偏好强加给当前问题。
+8. 禁止田野隐喻、诗意散文、玄学签语和强制安排“几天内实验”。下一步没有实际帮助时留空。
+${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最强反方立场，寻找遗漏事实、乐观假设、不可逆成本、机会成本、最坏结果和认知偏差；第二阶段给出最强支持理由；第三阶段只比较最有分量的证据，明确哪方更强、最大未知变量和结论反转条件。禁止为了显得平衡而包装成五五开。` : ""}`,
+    travel: `这里是旅行记录。帮助主人提炼具体旅行感悟，保留地点、事件和变化，不写旅游宣传语。归档摘要与陪伴回应必须分开。\n${COMPANION_DIALOGUE_GUIDE}`,
     blackboard: "这里是产品黑板。围绕题目逐点评改，区分主人答案、标准答案和具体改进建议。"
   };
   const guide = roomPrompts[room] || "根据当前房间和上下文直接回应。";
   const formats = {
     blackboard: String(context?.intent || "grade_answer") === "question_helper"
       ? '只返回 JSON：{"reply":"80到180字、直接关联当前题目和用户追问的背景解释","material":"用户问：问题；阿栗补充：可独立阅读的答案摘要"}。可使用模型通用知识补足背景；最新归属、版本、价格和指标未联网核验时必须明确标注。不得泄露标准答案或代写方案。'
-      : '只返回 JSON：{"score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25的整数,"reason":"先引用原答案中的具体证据，再说明覆盖和缺失"},{"criterion":"方案完整","max":25,"awarded":0到25的整数,"reason":"先引用原答案中的具体证据，再说明覆盖和缺失"},{"criterion":"验证与指标","max":25,"awarded":0到25的整数,"reason":"先引用原答案中的具体证据，再说明覆盖和缺失"},{"criterion":"风险与回滚","max":25,"awarded":0到25的整数,"reason":"先引用原答案中的具体证据，再说明覆盖和缺失"}],"score_summary":"一句总评，不写总分","diagnosis":["逐点写已覆盖与遗漏"],"polished_answer":"按判断、拆解、验证、边界、例子五段输出的完整回答","standard_points":["4到7条互不重复、直接回答题目的参考要点"],"suggestions":["具体修改建议"],"thinking_directions":["思考方向"],"next_question":"下一步练习"}。评分对象是主人提交的答案，不是题目背景资料。必须根据原答案实际写出的观点给予部分分，不能因为答案简短就全部0分。题目若是“假设你负责某类产品”或要求设计通用机制，不得要求主人补充具体产品名称、公司资料或未在题目中给出的信息。只有“不会、好难、不知道”等没有任何观点的答案才四项全部0分；非空但答偏的答案也要引用其内容解释为什么低分。standard_points 必须去重，并覆盖题目要求的机制、执行、验证和风险闭环。polished_answer 严格使用“判断：”“拆解：1...2...3...”“验证：”“边界：”“例子：”并换行。',
+      : BLACKBOARD_GRADING_FORMAT,
     orchard: '只返回合法 JSON，不要 Markdown 代码围栏：{"reply":"直接回答当前问题的完整中文回复，通常180到500字；结论优先，分段或编号清楚，问题简单时可以更短","answer_focus":"20到50字概括本轮实际回答的问题，用于检查是否答偏","seed_summary":"本轮关注点的简短概括","key_insight":"一句可独立复习的核心判断","next_step":"一个确实有帮助的后续验证或学习动作，没有必要则留空","knowledge_topic":{"match_id":"能归入 context.knowledge_topics 中现有专题时必须填写其id，否则留空","title":"稳定且可扩展的专题名，不要把一次问题或单个产品机械建成一类","category":"优先复用现有分类，确实不同才新建","entities":["本轮实际涉及的产品、组织或概念"],"summary":"融合本轮正确答案与已有专题后的可复习摘要","knowledge_points":["3到7条具体事实、差异、方法或判断"],"comparison_rows":[{"item":"比较对象","traits":"主要特点","scenarios":"适用场景","considerations":"限制或注意点"}],"scenarios":["实际应用场景"],"conclusion":"专题当前结论"}}。reply 必须独立完整，即使后面的专题整理字段全部删掉也能直接解决用户问题。',
     heart_hollow: String(context?.mode || "oracle") === "dialogue"
-      ? '只返回 JSON：{"reply":"自然的对话回应","mode":"dialogue","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。'
-      : '只返回 JSON：{"reply":"18到45字、回应具体内容的一句签语","mode":"oracle","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。',
-    travel: '只返回 JSON：{"summary":"120字内旅行感悟摘要","title":"简短名称"}'
+      ? '只返回 JSON：{"reply":"自然、有内容的对话回应","mode":"dialogue","response_style":"listen/clarify/reframe/suggest/lighten/challenge 六选一","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。回应一个具体细节后向前推进，不复述整段话。可以表达判断或自然幽默；不必每轮安慰或追问。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。'
+      : '只返回 JSON：{"reply":"18到45字、回应具体内容的一句签语","mode":"oracle","response_style":"oracle","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。',
+    travel: String(context?.intent || "") === "summarize_trip_description"
+      ? '只返回 JSON：{"summary":"忠于原话、80字内的旅行描述","title":"简短名称","reply":"","response_style":"archive"}。只整理事实，不添加感悟或虚构经历。'
+      : '只返回 JSON：{"summary":"忠于原话、120字内且适合归档的旅行感悟摘要","title":"简短名称","reply":"针对这段感悟的自然陪伴回应","response_style":"listen/clarify/reframe/suggest/lighten/challenge 六选一"}。summary 负责归档，只能使用当前主人原话，房间记忆不得改写摘要；reply 负责陪伴，两者不得相同。reply 可以分享看法、轻松接话或温和反驳，不必每次总结人生意义，也不必每次追问。'
   };
-  const memory = await memoryContext(env);
-  const answerMemory = room === "orchard" ? {note: "成长田回答阶段不注入全局记忆，避免其他模块内容干扰当前问题"} : memory;
-  const roomPrompt = `${guide}\n${formats[room] || "请直接回应。"}\n不得编造主人没有说过的经历。\n房间：${room}\n当前主人问题（最高优先级）：${message.slice(0, 8000)}\n辅助上下文（只用于指代消解和归档）：${JSON.stringify(context).slice(0, 7000)}\n相关非封存记忆（无关内容必须忽略）：${JSON.stringify(answerMemory).slice(0, 5000)}`;
-  let result = await callText(env, roomPrompt, room === "orchard" ? 2600 : 1800);
+  const recentIds = Array.isArray(context?.recent_memory_ids) ? context.recent_memory_ids : [];
+  const memoryPurpose = room === "orchard" ? "learning_support" : room === "heart_hollow" ? "heart_companion" : room === "travel" ? "travel_companion" : room === "blackboard" ? "blackboard_question" : "general";
+  const memory = room === "blackboard" && String(context?.intent || "grade_answer") === "grade_answer"
+    ? {enabled: false, selected_memory_ids: [], note: "公平评分不读取个人记忆"}
+    : await memoryContext(env, memoryPurpose, {query: message, recentIds, roomId: String(context?.trip_id || "")});
+  const answerMemory = memory;
+  const roomPrompt = `${guide}\n${formats[room] || "请直接回应。"}\n不得编造主人没有说过的经历。\n房间：${room}\n当前主人问题（最高优先级）：${message.slice(0, 8000)}\n辅助上下文（只用于指代消解和归档）：${JSON.stringify(context).slice(0, 7000)}\n房间限定记忆（最多两条，可以完全不用；不得为了展示记忆而提起过去）：${JSON.stringify(answerMemory).slice(0, 5000)}`;
+  const roomTokens=room === "orchard" ? 2600 : room === "blackboard"&&String(context?.intent||"grade_answer")==="grade_answer" ? 3200 : 1800;
+  const generationOptions = room === "blackboard" && String(context?.intent || "grade_answer") === "grade_answer" ? {temperature: 0.1} : {temperature: 0.35};
+  let result = await callText(env, roomPrompt, roomTokens, generationOptions);
   let parsed;
   try { parsed = extractJson(result.text); } catch (_error) { parsed = {reply: result.text}; }
+  if (room === "heart_hollow" && !COMPANION_STYLES.has(String(parsed.response_style || ""))) {
+    parsed.response_style = String(context?.mode || "oracle") === "oracle" ? "oracle" : "listen";
+  }
+  if (room === "travel" && String(context?.intent || "") !== "summarize_trip_description" && !travelCompanionIsDistinct(parsed)) {
+    result = await callText(env, `${roomPrompt}\n\n上一版把归档摘要和陪伴回应写成了同一件事。请重写：summary 只忠实整理主人说过的经历与感受；reply 必须向前推进，可以给看法、换角度、轻松接话或温和反驳，不能复述 summary。上一版：${String(result.text).slice(0, 3000)}`, roomTokens, generationOptions);
+    parsed = extractJson(result.text);
+    if (!travelCompanionIsDistinct(parsed)) {
+      parsed.reply = "这段感受我先照原样替你收好，不急着把它包装成某种人生结论。";
+      parsed.response_style = "listen";
+    }
+  }
   if (room === "orchard" && !orchardAnswerAligned(message, parsed)) {
-    result = await callText(env, `${roomPrompt}\n\n上一版输出没有准确对齐当前问题，禁止沿用其中无关内容。请重新阅读“当前主人问题”，确保 answer_focus 准确概括该问题，reply 明确提到问题中的产品、组织或概念并直接作答。上一版输出：${String(result.text).slice(0, 5000)}`, 2600);
+    result = await callText(env, `${roomPrompt}\n\n上一版输出没有准确对齐当前问题，禁止沿用其中无关内容。请重新阅读“当前主人问题”，确保 answer_focus 准确概括该问题，reply 明确提到问题中的产品、组织或概念并直接作答。上一版输出：${String(result.text).slice(0, 5000)}`, 2600, generationOptions);
     parsed = extractJson(result.text);
     if (!orchardAnswerAligned(message, parsed)) throw new Error("阿栗两次回答都没有对准当前问题，请换一种问法后重试");
   }
   if (room === "blackboard" && String(context?.intent || "grade_answer") === "grade_answer" && blackboardGradeNeedsRetry(message, context, parsed)) {
-    result = await callText(env, `${roomPrompt}\n\n上一版评分错误地把题目背景不足当成主人没有作答，或对非空答案无证据地给了0分。请重新评分：逐项引用主人原答案中的具体词句，承认已覆盖内容，再扣除缺失项。通用假设题不得索要具体产品信息。上一版输出：${String(result.text).slice(0, 5000)}`, 2200);
+    result = await callText(env, `${roomPrompt}\n\n上一版批改未通过证据或教学质量校验。重新执行：逐项复制 rubric 的 id、criterion 和 max；每个正分项都引用原答案并解释为什么有价值；参考点关系只能使用 covered、partial、equivalent、not_covered、off_track，合理替代论证必须标为 equivalent 并正常给分；direction 和 correction_path 必须完整；每个 teaching 都要写出可直接采用的补强或纠正步骤；minimal_revision 必须保留原答案主张和措辞。上一版输出：${String(result.text).slice(0, 5000)}`, 3200, generationOptions);
     parsed = extractJson(result.text);
     if (blackboardGradeNeedsRetry(message, context, parsed)) throw new Error("评分结果仍缺少对原答案的有效依据，请稍后重新核分");
   }
+  if (room === "blackboard" && String(context?.intent || "grade_answer") === "grade_answer") parsed = finalizeBlackboardGrade(parsed, context);
   const reply = String(parsed.reply || parsed.summary || result.text);
-  await addMemoryEvents(env, {
-    source: room, type: "room_conversation", content: message, summary: reply.slice(0, 300),
-    layer: room === "travel" || room === "orchard" ? "long" : "short", weight: 2,
-    sensitivity: room === "heart_hollow" ? "sealed" : "personal"
-  });
-  return {reply, result: parsed, provider: result.provider};
+  let memoryEvent = null;
+  const shouldCommit = room !== "travel" || Boolean(context?.commit);
+  if (shouldCommit) {
+    const eventContent = String(context?.current_text || context?.latest_entry || message);
+    const eventSummary = room === "heart_hollow" ? "树洞对话已封存"
+      : room === "travel" ? `旅行感悟：${String(parsed.summary || eventContent).slice(0, 260)}`
+      : reply.slice(0, 300);
+    [memoryEvent] = await addMemoryEvents(env, {
+      id: String(context?.memory_event_id || `mem_${crypto.randomUUID()}`),
+      source: room, type: room === "travel" ? "travel_reflection" : "room_conversation",
+      content: eventContent, summary: eventSummary,
+      layer: room === "travel" || room === "orchard" ? "long" : "short", weight: 2,
+      scope: room === "heart_hollow" ? "heart_only" : room === "travel" ? "travel_only" : "record_only",
+      room_id: String(context?.trip_id || ""),
+      sensitivity: room === "heart_hollow" ? "sealed" : "personal"
+    });
+  }
+  return {
+    reply, result: parsed, provider: result.provider, memory_event: memoryEvent,
+    memory_usage: {purpose: memoryPurpose, selected_ids: memory.selected_memory_ids || []}
+  };
 }
 
 async function runAssistantTask(env, taskId, message, context) {
@@ -1283,26 +1603,51 @@ async function transcribeVoice(request, env) {
 
 async function distillMemory(env) {
   const memory = await memoryState(env, false);
-  const events = memory.events.slice(0, 120);
-  if (!events.length) throw new Error("还没有足够的非封存记忆可整理");
-  const status = {status: "running", last_run: now(), provider: textProvider(env), recent_runs: []};
+  const cards = memory.cards.filter(item => item.status === "active" && item.sensitivity !== "sealed").slice(0, 120);
+  if (!cards.length) throw new Error("还没有经过确认或重复验证的记忆可整理");
+  const previousStatus = await readState(env, "memory:distillation", {status: "idle", recent_runs: []});
+  const runId = `distill_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
+  const snapshotKey = `memory:profile:snapshot:${runId}`;
+  await writeState(env, snapshotKey, {profile: memory.profile || null, saved_at: now()}, {expirationTtl: 60 * 60 * 24 * 90});
+  const status = {status: "running", run_id: runId, last_run: now(), provider: textProvider(env), recent_runs: previousStatus.recent_runs || []};
   await writeState(env, "memory:distillation", status);
   try {
-    let result = await callText(env, `请增量更新一份给私人AI助手使用的中文记忆档案。输入包含旧档案和新近非封存行为；保留仍有效的稳定偏好、长期目标、关注领域、合作方式，纠正冲突信息，不写逐条流水，不推断敏感身份。返回 JSON：{"summary":"...","sections":[{"title":"偏好与合作方式","text":"..."},{"title":"长期目标与成长方向","text":"..."},{"title":"知识关注","text":"..."}]}。\n旧档案：${JSON.stringify(memory.profile)}\n新近行为：${JSON.stringify(events)}`, 1800);
+    let result = await callText(env, `请增量更新一份给私人 AI 助手使用的中文记忆档案。只能使用下列 status=active 的卡片；候选线索和树洞封存原文没有提供给你，也不得推测。记忆只描述稳定的学习偏好、习惯、长期目标和关注领域，不得把单次行为写成人格结论。返回 JSON：{"summary":"...","sections":[{"title":"偏好与合作方式","text":"...","source_card_ids":["card id"]},{"title":"长期目标与成长方向","text":"...","source_card_ids":["card id"]},{"title":"知识关注","text":"...","source_card_ids":["card id"]}]}。每个非空 section 必须引用至少一个输入 card id。\n旧档案：${JSON.stringify(memory.profile)}\n已确认卡片：${JSON.stringify(cards)}`, 2000, {temperature: 0.1});
     let parsed;
     try { parsed = extractJson(result.text); }
     catch (_error) {
-      result = await callText(env, `只修复下面输出的 JSON 语法和缺失闭合，不新增事实，不输出 Markdown：\n${String(result.text).slice(0, 14000)}`, 1800);
+      result = await callText(env, `只修复下面输出的 JSON 语法和缺失闭合，不新增事实，不输出 Markdown：\n${String(result.text).slice(0, 14000)}`, 1800, {temperature: 0});
       parsed = extractJson(result.text);
     }
-    const profile = {summary: String(parsed.summary || "").slice(0, 800), sections: (parsed.sections || []).slice(0, 8).map(item => ({title: String(item.title || "记忆").slice(0, 40), text: String(item.text || "").slice(0, 1800)})), generator: "ai_distillation", generated_at: now()};
+    const allowedIds = new Set(cards.map(item => item.id));
+    const sections = (Array.isArray(parsed.sections) ? parsed.sections : []).slice(0, 8).map(item => ({
+      title: String(item.title || "记忆").slice(0, 40), text: String(item.text || "").slice(0, 1800),
+      source_card_ids: (Array.isArray(item.source_card_ids) ? item.source_card_ids : []).map(String).filter(id => allowedIds.has(id))
+    })).filter(item => item.text && item.source_card_ids.length);
+    if (!sections.length || String(parsed.summary || "").trim().length < 8) throw new Error("AI 整理结果缺少可核验的记忆卡片引用，原档案已保留");
+    const sourceCardIds = [...new Set(sections.flatMap(item => item.source_card_ids))];
+    const profile = {summary: String(parsed.summary || "").slice(0, 800), sections, source_card_ids: sourceCardIds, source_count: sourceCardIds.length, generator: "ai_distillation", generated_at: now()};
     await writeState(env, "memory:profile", profile);
-    await writeState(env, "memory:distillation", {...status, status: "completed", last_success: now(), last_error: "", provider: result.provider});
+    const run = {id: runId, completed_at: now(), provider: result.provider, snapshot_key: snapshotKey, source_card_ids: sourceCardIds};
+    await writeState(env, "memory:distillation", {...status, status: "completed", last_success: now(), last_error: "", provider: result.provider, recent_runs: [run, ...(status.recent_runs || []).filter(item => item.id !== runId)].slice(0, 12)});
     return profile;
   } catch (error) {
     await writeState(env, "memory:distillation", {...status, status: "failed", last_error: String(error.message || error).slice(0, 500)});
     throw error;
   }
+}
+
+async function undoMemoryDistillation(env, runId) {
+  const status = await readState(env, "memory:distillation", {status: "idle", recent_runs: []});
+  const run = (status.recent_runs || []).find(item => item.id === runId);
+  if (!run) throw new Error("没有找到这次记忆整理记录");
+  const snapshot = await readState(env, run.snapshot_key || `memory:profile:snapshot:${runId}`, null);
+  if (!snapshot || typeof snapshot !== "object" || !Object.prototype.hasOwnProperty.call(snapshot, "profile")) throw new Error("这次整理的回退快照已经过期");
+  const profile = snapshot.profile;
+  await writeState(env, "memory:profile", profile);
+  const restored = {...status, status: "restored", restored_run_id: runId, restored_at: now(), last_error: ""};
+  await writeState(env, "memory:distillation", restored);
+  return {ok: true, profile, distillation: restored};
 }
 
 export async function handleRequest(request, env, ctx = {}) {
@@ -1354,7 +1699,7 @@ export async function handleRequest(request, env, ctx = {}) {
     if (request.method === "GET" && url.pathname === "/api/state") return json({ok: true, state: await readData(env, "butler_state")});
     if (request.method === "GET" && url.pathname === "/api/local-state") return json({ok: true, state: await readData(env, "local_state")});
     if (request.method === "GET" && url.pathname === "/api/permissions") return json({ok: true, permissions: await permissions(env)});
-    if (request.method === "GET" && url.pathname === "/api/memory") return json({ok: true, memory: await memoryState(env, (await permissions(env)).steward_mode)});
+    if (request.method === "GET" && url.pathname === "/api/memory") return json({ok: true, memory: await memoryState(env, identity.email === "owner" && env.DEMO_MODE !== "true")});
     if (request.method === "GET" && url.pathname === "/api/memory/distillation") return json({ok: true, distillation: await readState(env, "memory:distillation", {status: "idle", recent_runs: []})});
     if (request.method === "GET" && url.pathname === "/api/tasks") return json({ok: true, tasks: await tasks(env)});
     if (request.method === "GET" && url.pathname === "/api/skills") return json({ok: true, skills: {tools: [
@@ -1362,7 +1707,7 @@ export async function handleRequest(request, env, ctx = {}) {
       {name: "关注方向", description: "调整后续资讯关注"}, {name: "媒体来源", description: "维护巡逻信息源"},
       {name: "工具箱", description: "从链接整理工具卡片"}, {name: "记忆整理", description: "维护非封存记忆档案"}
     ], skills: [
-      "archive-travel", "coach-blackboard", "curate-news", "curate-photos", "generate-media", "imagegen-assets", "remove-background", "guide-orchard",
+      "archive-travel", "coach-blackboard", "companion-dialogue", "grade-blackboard-answer", "curate-news", "curate-photos", "generate-media", "imagegen-assets", "remove-background", "guide-orchard",
       "listen-tree-hollow", "manage-memory", "manage-toolbox", "run-automation"
     ].map(name => ({name, origin: "bundled", status: "installed", kind: "guide", permission: "normal"})),
     can_build: false, health: {ok: true, summary: "云端内置能力已连接"}}});
@@ -1418,11 +1763,18 @@ export async function handleRequest(request, env, ctx = {}) {
     if (url.pathname === "/api/events") return json({ok: true, items: await logEvents(env, input)});
     if (url.pathname === "/api/local-state") return json({ok: true, state: await mergeLocalState(env, input)});
     if (url.pathname === "/api/state/sync") return json({ok: true, state: await syncButlerState(env, input.state || input)});
-    if (url.pathname === "/api/permissions") return json({ok: true, permissions: await setStewardMode(env, Boolean(input.steward_mode))});
+    if (url.pathname === "/api/permissions") {
+      let value = await permissions(env);
+      if (Object.prototype.hasOwnProperty.call(input, "memory_assist_enabled")) value = await setMemoryAssist(env, Boolean(input.memory_assist_enabled));
+      if (Object.prototype.hasOwnProperty.call(input, "steward_mode")) value = await setStewardMode(env, Boolean(input.steward_mode));
+      return json({ok: true, permissions: value});
+    }
     if (url.pathname === "/api/memory/event") return json({ok: true, item: (await addMemoryEvents(env, input.event || input))[0]});
     if (url.pathname === "/api/memory/sync") return json({ok: true, items: await addMemoryEvents(env, input.events || [])});
     if (url.pathname === "/api/memory/action") return json(await memoryAction(env, input));
     if (url.pathname === "/api/memory/distill") return json({ok: true, started: true, summary: "阿栗已整理记忆档案", profile: await distillMemory(env)});
+    if (url.pathname === "/api/memory/distill/undo") return json(await undoMemoryDistillation(env, String(input.run_id || "")));
+    if (url.pathname === "/api/tasks/undo") return json({ok: false, error: "公网版不能直接回滚代码文件；系统修改需要在部署环境执行并重新发布"}, 501);
     if (url.pathname === "/api/assistant") {
       const message = String(input.message || "").trim(); if (!message) throw new Error("留言不能为空");
       const result = await assistantReply(env, message, input.context || {});
@@ -1487,7 +1839,7 @@ export async function scheduled(_event, env, ctx) {
     try {
       const report = await runCloudReport(env, false);
       status.jobs.notice_report = report.unchanged
-        ? {status: "completed", last_success: now(), unchanged: true, message: `已检查，暂无新资讯；保留 ${report.report_count || 0} 版巡报`}
+        ? {status: "completed", last_success: now(), unchanged: true, degraded:Boolean(report.degraded), message: report.degraded?`资讯源暂时不可用，已保留 ${report.report_count || 0} 版巡报，稍后自动重试`:`已检查，暂无新资讯；保留 ${report.report_count || 0} 版巡报`}
         : {status: "completed", last_success: now(), message: `巡报已准备：${report.focus_title}`};
     } catch (error) {
       status.jobs.notice_report = {status: "failed", last_error: now(), message: String(error.message || error).slice(0, 300)};

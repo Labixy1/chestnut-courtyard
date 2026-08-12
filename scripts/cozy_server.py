@@ -405,6 +405,84 @@ def blackboard_source_summary(item: dict) -> str:
     return str(item.get("ai_summary") or item.get("main_takeaway") or item.get("summary") or "").strip()
 
 
+def blackboard_task_profile(question: str = "") -> dict:
+    text = str(question or "")
+    if re.search(r"比较|对比|区别|差异|异同|各自.{0,8}(特点|优缺点)|哪一.{0,4}更", text):
+        return {"type": "compare", "label": "比较分析题",
+                "focus": "在同一维度下比较差异、原因、取舍与适用场景；不强求题目没有要求的上线方案或产品指标。"}
+    if re.search(r"复盘|反思|启示|总结|学到|迁移|成长", text):
+        return {"type": "reflection", "label": "反思迁移题",
+                "focus": "从材料或经历中提炼可复用原则，并说明证据、适用条件和可能例外；不强求虚构产品数据。"}
+    if re.search(r"什么是|是什么|是个什么|什么叫|为何|为什么|解释|如何理解|本质|含义|机制", text):
+        return {"type": "explain", "label": "概念解释题",
+                "focus": "用概念边界、形成机制、例子或反例证明理解；不强求题目没有要求的决策流程或量化指标。"}
+    return {"type": "decision", "label": "决策设计题",
+            "focus": "说明判断标准、方案机制、验证路径、风险边界或停止条件；题目未提供的具体产品数据不得作为扣分理由。"}
+
+
+def blackboard_score_bands(max_score: int, descriptions: list) -> list:
+    ranges = ([('excellent', 27, 30), ('solid', 20, 26), ('developing', 10, 19), ('weak', 1, 9), ('absent', 0, 0)]
+              if max_score == 30 else
+              [('excellent', 18, 20), ('solid', 13, 17), ('developing', 7, 12), ('weak', 1, 6), ('absent', 0, 0)])
+    labels = {'excellent': '准确充分', 'solid': '基本扎实', 'developing': '部分成立', 'weak': '较为薄弱', 'absent': '尚未形成'}
+    return [{"band": band, "label": labels[band], "min": lower, "max": upper, "description": descriptions[index]}
+            for index, (band, lower, upper) in enumerate(ranges)]
+
+
+def build_frozen_rubric(points=None, question: str = "") -> list:
+    reference = [str(value).strip() for value in (points or []) if str(value).strip()][:6]
+    profile = blackboard_task_profile(question)
+    rows = [
+        {"id": "comprehension", "criterion": "题意理解与核心判断", "max": 20,
+         "scoring_scope": "只评价是否识别正确的对象、任务和范围，并形成相关、基本准确的核心判断。遗漏其他要点不在此项扣分；时效性事实没有可靠材料时只标待核验，不武断判错。",
+         "score_bands": blackboard_score_bands(20, ["对象、任务、范围和核心判断准确，无实质性概念或事实错误。", "主方向正确，仅有次要含糊或局部误差，不改变核心结论。", "答到部分任务，但范围、立场或概念有明显缺口。", "只有零散相关内容，核心判断偏题或存在关键误解。", "没有可识别的相关判断。"])},
+        {"id": "coverage", "criterion": "任务完成与要点覆盖", "max": 30,
+         "scoring_scope": "只评价题目明确子任务与必要分析角度覆盖了多少，以及是否分清主次。合理替代观点可与参考要点等价；已提出但没展开的问题留给推理项，不重复扣分。",
+         "score_bands": blackboard_score_bands(30, ["所有明确子任务和关键角度均覆盖，主次清楚。", "主要任务已完成，仅缺一个次要角度或主次略弱。", "覆盖部分关键角度，但至少一个主要子任务缺失。", "只有孤立相关点，尚未构成对任务的基本完成。", "没有覆盖任何可计分要点。"])},
+        {"id": "reasoning", "criterion": "推理链条与证据支撑", "max": 30,
+         "scoring_scope": "只评价答案已经提出的观点能否由原因、机制、比较、条件、事实、例子或推演支撑。完全缺失的要点只在覆盖项处理，不在本项再次扣分。",
+         "score_bands": blackboard_score_bands(30, ["主要观点有充分支撑，推理闭合且无明显跳步。", "主推理链成立，局部支撑、反证或连接仍可加强。", "有一些解释，但主要仍是结论罗列或存在明显跳步。", "以断言、循环论证、矛盾或不匹配的支撑为主。", "没有可评估的推理。"])},
+        {"id": "transfer", "criterion": "边界意识与迁移应用", "max": 20,
+         "scoring_scope": f"按{profile['label']}评价答案能否说明适用范围，并把理解用于恰当的例子、场景、取舍、验证、限制或反例。{profile['focus']}",
+         "score_bands": blackboard_score_bands(20, ["能按题型准确迁移，并说明关键适用条件、限制或反例。", "已有具体应用或边界，仅缺一个关键条件、反例或验证环节。", "提到应用或限制但较泛，尚不足以检验理解或指导判断。", "只有装饰性场景或口号，和核心结论连接很弱。", "没有显示适用范围或迁移能力的内容。"])},
+    ]
+    return [{**row, "task_type": profile["type"], "task_focus": profile["focus"], "reference_points": reference} for row in rows]
+
+
+def blackboard_fingerprint(value: str) -> str:
+    number = 2166136261
+    for char in str(value or ""):
+        number ^= ord(char)
+        number = (number * 16777619) & 0xFFFFFFFF
+    return "q_" + base36(number)
+
+
+def base36(number: int) -> str:
+    alphabet = "0123456789abcdefghijklmnopqrstuvwxyz"
+    number = max(0, int(number))
+    if number == 0:
+        return "0"
+    output = ""
+    while number:
+        number, remainder = divmod(number, 36)
+        output = alphabet[remainder] + output
+    return output
+
+
+def attach_frozen_rubric(question: dict) -> dict:
+    points = question.get("standard_points") or question.get("standard") or []
+    points = [str(value).strip() for value in points if str(value).strip()]
+    profile = blackboard_task_profile(question.get("question") or "")
+    fingerprint = blackboard_fingerprint(f"{question.get('date', '')}|{question.get('question', '')}|{'|'.join(points)}|rubric:v3")
+    return {
+        **question, "standard": points, "standard_points": points,
+        "rubric": build_frozen_rubric(points, question.get("question") or ""), "rubric_version": 3,
+        "task_type": profile["type"], "task_scoring_focus": profile["focus"],
+        "reference_frozen_at": question.get("reference_frozen_at") or datetime.now().astimezone().isoformat(timespec="seconds"),
+        "question_fingerprint": fingerprint, "answer_independent": True,
+    }
+
+
 def fallback_daily_question(today: str, latest_report: dict, seeds: list, variant: str = ""):
     topics = [
         ("评测集设计", "如果要判断一个 AI 功能是否真的变好，你会怎样设计一套包含正常、边界和失败样例的评测集？"),
@@ -433,7 +511,7 @@ def fallback_daily_question(today: str, latest_report: dict, seeds: list, varian
     if seeds:
         if not hot:
             materials.append("果园线索：" + str(seeds[0].get("text") or "")[:120])
-    return {
+    return attach_frozen_rubric({
         "date": today, "title": title, "question": question,
         "types": ["产品场景", "方法设计", "边界判断"], "materials": materials,
         "standard_points": [
@@ -444,17 +522,26 @@ def fallback_daily_question(today: str, latest_report: dict, seeds: list, varian
             "用一个足够小的实验验证最关键假设，再决定是否扩大投入。",
         ],
         "source": "local_fallback", "source_title": str(hot[0].get("title") or "") if hot else "",
-        "alignment_version": 3,
-    }
+        "alignment_version": 4,
+    })
 
 
 def valid_daily_question(item: dict, today: str):
     if not isinstance(item, dict) or item.get("date") != today or len(str(item.get("question") or "").strip()) < 18:
         return False
-    if int(item.get("alignment_version") or 0) < 3:
+    if int(item.get("alignment_version") or 0) < 4:
         return False
     points = [str(value).strip() for value in item.get("standard_points", []) if str(value).strip()] if isinstance(item.get("standard_points"), list) else []
     if len(points) < 4 or any(len(value) < 8 for value in points):
+        return False
+    rubric = item.get("rubric") if isinstance(item.get("rubric"), list) else []
+    if int(item.get("rubric_version") or 0) < 3 or len(rubric) != 4 or sum(int(row.get("max") or 0) for row in rubric) != 100:
+        return False
+    if [str(row.get("id") or "") for row in rubric] != ["comprehension", "coverage", "reasoning", "transfer"]:
+        return False
+    if any(not isinstance(row.get("score_bands"), list) or len(row["score_bands"]) != 5 for row in rubric):
+        return False
+    if not item.get("answer_independent") or not item.get("reference_frozen_at") or not item.get("question_fingerprint"):
         return False
     return not any(re.fullmatch(r"\d*\s*到?\s*\d*\s*条?\s*(参考答案)?要点[。.]?", value) for value in points)
 
@@ -485,11 +572,11 @@ def get_daily_question(variant: str = ""):
 最近作答：{json.dumps(prior_answers[:5], ensure_ascii=False)[:5000]}
 今天已经出现过的题：{json.dumps([item.get('question') for item in data.get('items', []) if item.get('date') == today][:8], ensure_ascii=False)[:4000]}
 换题编号：{variant or '首题'}。换题时必须与上述题目的核心问题明显不同。
-相关记忆：{json.dumps(MEMORY_STORE.prompt_context("黑板出题"), ensure_ascii=False)[:5000]}"""
+相关记忆：{json.dumps(MEMORY_STORE.prompt_context("黑板出题", purpose="blackboard_question", limit=4), ensure_ascii=False)[:5000]}"""
     try:
         raw, provider = call_ai(prompt)
         generated = extract_json_object(raw)
-        candidate = {**fallback, **generated, "id": "question-" + today + "-" + (variant or "daily"), "date": today, "source": provider, "alignment_version": 3}
+        candidate = attach_frozen_rubric({**fallback, **generated, "id": "question-" + today + "-" + (variant or "daily"), "date": today, "source": provider, "alignment_version": 4})
         source_title = str(primary_source.get("title") or "").strip()
         if source_title and source_title not in str(candidate.get("question") or ""):
             raise ValueError("每日题与指定资讯不一致")
@@ -564,9 +651,9 @@ def core_context(message: str = "") -> dict:
     sources = read_json(ROOT / "core/butler_sources.json", {})
     local_values = read_json(LOCAL_STATE_PATH, {"values": {}}).get("values", {})
     knowledge_topics = local_values.get("cozy_orchard_topics", []) if isinstance(local_values.get("cozy_orchard_topics"), list) else []
-    owner_profile = read_text(ROOT / "core/user_profile.yaml", 5000)
-    if not owner_profile:
-        owner_profile = read_text(ROOT / "core/user_profile_runtime.yaml", 5000)
+    memory_package = MEMORY_STORE.prompt_context(message, purpose="butler", limit=2) if "MEMORY_STORE" in globals() else {}
+    explicit_private_memory = (MEMORY_STORE.search(message, include_sealed=True, limit=2)
+                               if "MEMORY_STORE" in globals() and include_sealed else [])
     return {
         "weekly_reports": compact_reports,
         "toolbox_and_manifest": [{key: item.get(key, "") for key in ("id", "type", "title", "use_when", "url", "tags")}
@@ -575,10 +662,10 @@ def core_context(message: str = "") -> dict:
                                 for item in sources.get("sources", [])[:80]],
         "growth_knowledge_topics": [{key: item.get(key, "") for key in ("id", "title", "category", "entities", "summary", "updatedAt")}
                                     for item in knowledge_topics[:30]],
-        "owner_profile": owner_profile,
+        "owner_profile": "",
         "permissions": permissions,
-        "relevant_memory": MEMORY_STORE.search(message, include_sealed=include_sealed, limit=12) if "MEMORY_STORE" in globals() else [],
-        "memory_profile": MEMORY_STORE.prompt_context(message) if "MEMORY_STORE" in globals() else {},
+        "relevant_memory": explicit_private_memory,
+        "memory_profile": memory_package,
     }
 
 
@@ -1108,9 +1195,83 @@ def orchard_answer_aligned(message: str, result: dict) -> bool:
     return all(anchor in answer for anchor in anchors)
 
 
+def normalized_blackboard_rubric(context: dict) -> list:
+    supplied = context.get("rubric") if isinstance(context.get("rubric"), list) else []
+    rows = supplied or build_frozen_rubric(context.get("reference") or [], context.get("question") or "")
+    result = []
+    for index, item in enumerate(rows[:6]):
+        if not isinstance(item, dict):
+            continue
+        criterion = str(item.get("criterion") or item.get("requirement") or "").strip()
+        if not criterion:
+            continue
+        result.append({
+            "id": str(item.get("id") or f"r{index + 1}"), "criterion": criterion,
+            "max": max(1, int(float(item.get("max") or 0))),
+            "scoring_scope": str(item.get("scoring_scope") or ""),
+            "score_bands": item.get("score_bands") if isinstance(item.get("score_bands"), list) else [],
+        })
+    return result
+
+
+def blackboard_quote_in_answer(answer: str, evidence: str) -> bool:
+    normalize = lambda value: re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", str(value or "").lower())
+    source, quote = normalize(answer), normalize(evidence)
+    return len(quote) >= 4 and quote in source
+
+
+def blackboard_score_band(awarded: float, max_score: float) -> str:
+    score, ceiling = max(0, float(awarded or 0)), max(1, float(max_score or 1))
+    if score == 0:
+        return "absent"
+    if score / ceiling >= 0.9:
+        return "excellent"
+    if score / ceiling >= 0.65:
+        return "solid"
+    if score / ceiling >= 1 / 3:
+        return "developing"
+    return "weak"
+
+
+def finalize_blackboard_grade(result: dict, context: dict) -> dict:
+    rubric = normalized_blackboard_rubric(context)
+    supplied = result.get("score_breakdown") if isinstance(result.get("score_breakdown"), list) else []
+    by_id = {str(item.get("rubric_id") or item.get("id") or ""): item for item in supplied if isinstance(item, dict)}
+    score_breakdown = []
+    for index, criterion in enumerate(rubric):
+        row = by_id.get(criterion["id"]) or (supplied[index] if index < len(supplied) and isinstance(supplied[index], dict) else {})
+        awarded = round(max(0, min(criterion["max"], float(row.get("awarded") or 0))))
+        score_breakdown.append({
+            "rubric_id": criterion["id"], "criterion": criterion["criterion"], "max": criterion["max"],
+            "awarded": awarded, "band": blackboard_score_band(awarded, criterion["max"]),
+            "evidence": str(row.get("evidence") or ""),
+            "reason": str(row.get("reason") or row.get("assessment") or ""),
+            "teaching": str(row.get("teaching") or row.get("action") or ""),
+        })
+    reference = [str(value) for value in (context.get("reference") or []) if str(value).strip()]
+    supplied_map = result.get("requirement_map") if isinstance(result.get("requirement_map"), list) else []
+    requirement_map = []
+    for index, reference_point in enumerate(reference):
+        row = supplied_map[index] if index < len(supplied_map) and isinstance(supplied_map[index], dict) else {}
+        requirement_map.append({
+            "reference_point": reference_point,
+            "relation": str(row.get("relation") or row.get("status") or "not_covered").lower(),
+            "evidence": str(row.get("evidence") or ""), "assessment": str(row.get("assessment") or ""),
+            "teaching": str(row.get("teaching") or row.get("action") or ""),
+        })
+    strengths = []
+    for item in (result.get("strengths") if isinstance(result.get("strengths"), list) else [])[:4]:
+        strengths.append({"evidence": "", "why_good": str(item)} if isinstance(item, str) else {
+            "evidence": str(item.get("evidence") or ""), "why_good": str(item.get("why_good") or item.get("reason") or "")})
+    return {**result, "score_breakdown": score_breakdown, "requirement_map": requirement_map,
+            "strengths": strengths, "total_score": sum(item["awarded"] for item in score_breakdown),
+            "grading_policy": "评分标准在作答前冻结；四项能力先按五档锚点定档、再在档内给分；同一缺陷只归一个维度；合理的替代论证正常得分。"}
+
+
 def blackboard_grade_needs_retry(message: str, context: dict, result: dict) -> bool:
     scores = result.get("score_breakdown") if isinstance(result.get("score_breakdown"), list) else []
-    if len(scores) < 4:
+    rubric = normalized_blackboard_rubric(context)
+    if not rubric or len(scores) != len(rubric):
         return True
     compact = re.sub(r"\s+", "", message)
     empty = len(compact) < 12 and bool(re.fullmatch(
@@ -1118,12 +1279,90 @@ def blackboard_grade_needs_retry(message: str, context: dict, result: dict) -> b
         re.sub(r"[，。！？,.!?~～…]", "", compact)))
     if empty:
         return False
+    for index, item in enumerate(scores):
+        if not isinstance(item, dict):
+            return True
+        expected = rubric[index]
+        awarded = float(item.get("awarded") or 0)
+        supplied_band = str(item.get("band") or "")
+        if (str(item.get("rubric_id") or item.get("id") or "") != expected["id"] or
+                str(item.get("criterion") or "") != expected["criterion"] or
+                int(float(item.get("max") or 0)) != expected["max"] or
+                awarded < 0 or awarded > expected["max"] or
+                (supplied_band and supplied_band != blackboard_score_band(awarded, expected["max"])) or
+                len(str(item.get("reason") or "").strip()) < 8 or
+                len(str(item.get("teaching") or item.get("action") or "").strip()) < 8 or
+                (awarded > 0 and not blackboard_quote_in_answer(message, str(item.get("evidence") or "")))):
+            return True
+    requirement_map = result.get("requirement_map") if isinstance(result.get("requirement_map"), list) else []
+    reference = [str(value) for value in (context.get("reference") or []) if str(value).strip()]
+    if len(requirement_map) != len(reference):
+        return True
+    valid_relations = {"covered", "partial", "equivalent", "not_covered", "off_track"}
+    actionable = re.compile(r"访谈|测试|对照|记录|计算|设置|限定|验证|抽样|比较|回滚|停止|定义|追踪|分层|补写|说明|观察|统计|阈值|样本|周期|决策|举例|区分|连接|解释|改为")
+    for index, item in enumerate(requirement_map):
+        if not isinstance(item, dict):
+            return True
+        relation = str(item.get("relation") or item.get("status") or "").lower()
+        evidence = str(item.get("evidence") or "")
+        teaching = str(item.get("teaching") or item.get("action") or "")
+        if (str(item.get("reference_point") or item.get("requirement") or "").strip() != reference[index] or
+                relation not in valid_relations or len(str(item.get("assessment") or "").strip()) < 8 or
+                len(teaching.strip()) < 8):
+            return True
+        if relation in {"not_covered", "off_track"} and evidence.strip():
+            return True
+        if relation not in {"not_covered", "off_track"} and not blackboard_quote_in_answer(message, evidence):
+            return True
+        if not actionable.search(teaching) and not re.search(r"因为|所以|如果|意味着|可以|应该", teaching):
+            return True
     awarded = sum(max(0, int(float(item.get("awarded") or 0))) for item in scores if isinstance(item, dict))
-    reasons = " ".join([str(result.get("score_summary") or ""), " ".join(map(str, result.get("diagnosis") or [])),
-                        " ".join(str(item.get("reason") or "") for item in scores if isinstance(item, dict))])
+    reasons = " ".join([str(result.get("score_summary") or ""),
+                        " ".join(str(item.get("reason") or "") for item in scores if isinstance(item, dict)),
+                        " ".join(f"{item.get('assessment', '')} {item.get('teaching', item.get('action', ''))}" for item in requirement_map)])
     general = bool(re.search(r"假设|如何设计|你会如何|方案|机制|流程", str(context.get("question") or "")))
     wrong_requirement = bool(re.search(r"没有提供.{0,6}产品信息|缺乏.{0,6}产品信息|产品信息不足|无法评估", reasons))
-    return awarded == 0 and (general or wrong_requirement)
+    contradictions = [
+        (r"用户价值|用户需求|用户痛点", r"(没有|缺少|未提及)[^。！？；\n]{0,8}(用户价值|用户需求|用户痛点)"),
+        (r"付费意愿|愿意付费|支付意愿", r"(没有|缺少|未提及)[^。！？；\n]{0,8}(付费意愿|愿意付费|支付意愿)"),
+        (r"单位经济|毛利|收入.*成本|成本.*收入", r"(没有|缺少|未提及)[^。！？；\n]{0,8}(单位经济|毛利|成本收益)"),
+        (r"指标|成功率|转化率|留存|成本", r"(没有|缺少|未提及)[^。！？；\n]{0,6}(任何)?指标"),
+    ]
+    reason_parts = [str(result.get("score_summary") or "")]
+    reason_parts.extend(str(item.get("reason") or "") for item in scores if isinstance(item, dict))
+    for item in requirement_map:
+        reason_parts.extend([str(item.get("assessment") or ""), str(item.get("teaching") or item.get("action") or "")])
+    if any(re.search(present, message) and any(re.search(denied, part) for part in reason_parts)
+           for present, denied in contradictions):
+        return True
+    direction = str(result.get("direction") or "").lower()
+    if direction not in {"correct", "partly_correct", "misdirected"} or len(str(result.get("correction_path") or "").strip()) < 12:
+        return True
+    strengths = result.get("strengths") if isinstance(result.get("strengths"), list) else []
+    if awarded > 0 and (not strengths or any(
+            not isinstance(item, dict) or not blackboard_quote_in_answer(message, str(item.get("evidence") or ""))
+            or len(str(item.get("why_good") or "").strip()) < 8 for item in strengths)):
+        return True
+    normalize = lambda value: re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", str(value or "").lower())
+    revision = str(result.get("minimal_revision") or "").strip()
+    answer_chars, revision_chars = set(normalize(message)), set(normalize(revision))
+    overlap = len(answer_chars & revision_chars) / max(1, len(answer_chars | revision_chars))
+    if not revision or len(revision) < min(24, len(message.strip())) or overlap < 0.20:
+        return True
+    if re.search(r"补充具体(方案|指标)|缺少具体(方案|指标)|不够具体|进一步完善", str(result.get("priority_fix") or "")) and not actionable.search(str(result.get("priority_fix") or "")):
+        return True
+    return (awarded == 0 and general) or wrong_requirement
+
+
+COMPANION_STYLES = {"listen", "clarify", "reframe", "suggest", "lighten", "challenge", "oracle", "archive"}
+
+
+def travel_companion_is_distinct(result: dict) -> bool:
+    summary = re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", str(result.get("summary") or "").lower())
+    reply = re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", str(result.get("reply") or "").lower())
+    if len(summary) < 4 or len(reply) < 4:
+        return False
+    return summary != reply and summary not in reply and reply not in summary
 
 
 def room_reply(room: str, message: str, context: dict) -> dict:
@@ -1139,13 +1378,29 @@ def room_reply(room: str, message: str, context: dict) -> dict:
     }
     if room not in skill_files:
         raise ValueError("这个房间还没有对话能力")
-    skill = read_text(ROOT / skill_files[room], 6000)
     context = context or {}
-    if room != "heart_hollow":
+    skill_file = ("core/skills/grade-blackboard-answer/SKILL.md"
+                  if room == "blackboard" and str(context.get("intent") or "grade_answer") == "grade_answer"
+                  else skill_files[room])
+    skill = read_text(ROOT / skill_file, 9000)
+    if room in {"heart_hollow", "travel"}:
+        skill += "\n\n" + read_text(ROOT / "core/skills/companion-dialogue/SKILL.md", 9000)
+    is_blackboard_grading = room == "blackboard" and str(context.get("intent") or "grade_answer") == "grade_answer"
+    if room not in {"heart_hollow", "travel"} and not is_blackboard_grading:
         MEMORY_STORE.observe_message(message, source=room)
-    memory_profile = MEMORY_STORE.prompt_context(message)
-    answer_memory = ({"note": "成长田回答阶段不注入全局记忆，避免其他模块内容干扰当前问题"}
-                     if room == "orchard" else memory_profile)
+    recent_memory_ids = context.get("recent_memory_ids") if isinstance(context.get("recent_memory_ids"), list) else []
+    purpose = ("learning_support" if room == "orchard" else
+               "heart_companion" if room == "heart_hollow" else
+               "travel_companion" if room == "travel" else
+               "blackboard_question" if room == "blackboard" else "butler")
+    memory_profile = MEMORY_STORE.prompt_context(
+        message, purpose=purpose, recent_ids=recent_memory_ids,
+        room_id=str(context.get("trip_id") or ""), limit=4 if purpose == "blackboard_question" else 2,
+    )
+    answer_memory = ({"note": "成长田只使用已确认的学习支持偏好，其他模块内容不得盖过当前问题"}
+                     if room == "orchard" else
+                     {"note": "公平评分不读取个人记忆；只依据冻结题目、评分维度、参考锚点和本次答案"}
+                     if is_blackboard_grading else memory_profile)
     heart_mode = str(context.get("mode") or "oracle").strip()
     if room == "heart_hollow" and heart_mode == "oracle" and len(re.sub(r"\s+", "", message)) < 55:
         return {
@@ -1155,18 +1410,20 @@ def room_reply(room: str, message: str, context: dict) -> dict:
     formats = {
         "orchard": '只返回合法 JSON，不要 Markdown 代码围栏：{"reply":"直接回答当前问题的完整中文回复，通常180到500字；结论优先，分段或编号清楚，问题简单时可以更短","answer_focus":"20到50字概括本轮实际回答的问题","seed_summary":"本轮关注点的简短概括","key_insight":"一句可独立复习的核心判断","next_step":"一个确实有帮助的后续动作，没有必要则留空","knowledge_topic":{"match_id":"能归入上下文现有专题时必须填该id，否则留空","title":"稳定、可继续扩展的专题名，不要把一次问题或单个产品机械建成一类","category":"优先复用现有分类，确实不同才新建","entities":["本轮涉及的产品、组织或概念"],"summary":"融合本轮正确答案与已有专题后的可复习摘要","knowledge_points":["3到7条具体事实、差异、方法或判断"],"comparison_rows":[{"item":"比较对象","traits":"主要特点","scenarios":"适用场景","considerations":"限制或注意点"}],"scenarios":["实际应用场景"],"conclusion":"专题当前结论"}}。当前用户消息是唯一主任务，必须准确回答所问对象，不得擅自换题。context.conversation 只用于理解追问指代，context.knowledge_topics 只用于答完后的归档，旧对话和记忆不得盖过当前问题。reply 必须独立完整。禁止比喻、拟人、诗意散文、田野签语、玄学隐喻、泛泛安慰和强制安排几天内实验。涉及产品能力时区分已知事实与推断，不确定或可能过时的内容要明确说明，不要编造。',
         "heart_hollow": (
-            '只返回 JSON：{"reply":"一句签语","mode":"oracle","growth_signal":{"should_grow":true或false,"title":"不包含原话和私密细节的成长主题，最多20字","hint":"这段经历正在形成的判断或变化，最多60字","nourishment":1到3}}。'
+            '只返回 JSON：{"reply":"一句签语","mode":"oracle","response_style":"oracle","growth_signal":{"should_grow":true或false,"title":"不包含原话和私密细节的成长主题，最多20字","hint":"这段经历正在形成的判断或变化，最多60字","nourishment":1到3}}。'
             '签语必须只有一句、18-45字，像塔罗牌上的句子一样有画面与余味，但不预言命运；必须回应主人刚才说的具体内容，不空泛安慰、不说教、不硬套树的隐喻。'
             '只有内容具体、包含真实经历或形成了可持续成长线索时 should_grow 才为 true；短促情绪、试音和重复句必须为 false。成长信号不得复述树洞原话、人物、公司、地点或其他私密细节。'
             if heart_mode == "oracle" else
-            '只返回 JSON：{"reply":"自然的对话回应","mode":"dialogue","growth_signal":{"should_grow":true或false,"title":"不包含原话和私密细节的成长主题，最多20字","hint":"这段经历正在形成的判断或变化，最多60字","nourishment":1到3}}。'
-            '用60-160字回应主人话里的一个具体细节，可以提供判断或陪伴梳理，最多问一个真正有用的问题；不急着安慰，不硬套树的隐喻。'
+            '只返回 JSON：{"reply":"自然、有内容的对话回应","mode":"dialogue","response_style":"listen/clarify/reframe/suggest/lighten/challenge 六选一","growth_signal":{"should_grow":true或false,"title":"不包含原话和私密细节的成长主题，最多20字","hint":"这段经历正在形成的判断或变化，最多60字","nourishment":1到3}}。'
+            '先判断此刻更需要倾听、澄清、换个角度、具体建议、轻松陪聊还是温和反驳；避开 context.recent_reply_styles 最近两种方式。回应一个具体细节后就向前推进，不复述整段话。可以表达判断，也可以有一点自然幽默；最多问一个真正有用的问题，不必每轮都问，不把每段情绪都变成安慰。'
             '只有内容具体、包含真实经历或形成了可持续成长线索时 should_grow 才为 true；短促情绪、试音和重复句必须为 false。成长信号不得复述树洞原话、人物、公司、地点或其他私密细节。'
         ),
-        "blackboard": ('只返回 JSON：{"reply":"仅小助手模式使用","material":"仅小助手模式使用的一条可独立阅读的补充资料","score_breakdown":[{"criterion":"问题理解","max":25,"awarded":0到25,"reason":"先引用原答案证据，再说明覆盖和缺失"},{"criterion":"方案完整","max":25,"awarded":0到25,"reason":"先引用原答案证据，再说明覆盖和缺失"},{"criterion":"验证与指标","max":25,"awarded":0到25,"reason":"先引用原答案证据，再说明覆盖和缺失"},{"criterion":"风险与回滚","max":25,"awarded":0到25,"reason":"先引用原答案证据，再说明覆盖和缺失"}],"score_summary":"一句总评，不自行写总分","diagnosis":["逐点指出原答案已覆盖和遗漏"],"polished_answer":"严格按判断、拆解、验证、边界、例子五段输出的完整回答","standard_points":["4到7条互不重复、直接回答题目的标准答案要点"],"suggestions":["具体修改建议"],"thinking_directions":["后续思考方向"],"next_question":"下一步练习","next_question_reference":["4到6条直接回答下一步练习的参考答案要点"]}。'
+        "blackboard": ('若 context.intent=grade_answer，像批改政治大题一样给过程分并教会主人怎样答得更好，只返回 JSON：{"score_breakdown":[{"rubric_id":"逐字复制rubric id","criterion":"逐字复制rubric criterion","max":"逐字复制rubric max","awarded":"0到max整数","band":"excellent/solid/developing/weak/absent，与分数档一致","evidence":"正分时逐字引用原答案，0分才留空","reason":"解释这段思考为什么成立、完成到什么程度或错在哪里","teaching":"沿原答案思路怎样补成更强论证"}],"score_summary":"一句话概括当前水平和最值得提升处","requirement_map":[{"reference_point":"逐字复制reference中的一条","relation":"covered/partial/equivalent/not_covered/off_track","evidence":"covered/partial/equivalent时引用原答案，其余留空","assessment":"与参考思路的关系及理由","teaching":"怎样利用、补充或纠正这一处"}],"strengths":[{"evidence":"原答案短引","why_good":"这处思考好在哪里、为什么有价值"}],"direction":"correct/partly_correct/misdirected","correction_path":"方向正确时给升级顺序；方向错误时解释错误推理并给纠正顺序","priority_fix":"最优先提升的一件事，包含动作与判断标准","minimal_revision":"保留原答案主张、措辞和顺序的最小补强版","next_question":"可选练习","next_question_reference":["可选参考要点"]}。'
                        '若 context.intent=question_helper：回答必须直接关联当前题目和用户追问；可以使用模型通用知识补足背景，但最新归属、版本、价格和指标未联网核验时必须标注。reply 用80到180字解释，material 必须写成“用户问：问题；阿栗补充：答案摘要”，其余评分字段返回空数组。不得泄露标准答案或替主人完成方案。'
-                       '若 context.intent=grade_answer：评分对象是主人答案，不是题目背景资料。必须根据原答案实际观点给部分分，不能因为简短就全0。假设型、通用机制设计题不得要求补充题目没有要求的具体产品信息。没有在原答案明确出现的内容不得给分；只有“不会、好难、不知道”等完全没有观点的答案才四项全部为0。standard_points 必须去重并覆盖机制、执行、验证和风险闭环。polished_answer 严格按“判断：”“拆解：1...2...3...”“验证：”“边界：”“例子：”分段。next_question_reference 必须直接回答 next_question，不能重复当前题目的 standard_points；内容要具体、可执行，适合用户展开后自行对照。'),
-        "travel": '只返回 JSON：{"summary":"忠于原话的旅行感悟摘要，120字内","title":"简短名称"}',
+                       '若 context.intent=grade_answer：评分维度和参考答案已经在作答前冻结。先独立理解题意，再阅读主人答案；reference 只是高质量答案锚点，不是关键词清单或唯一解。每一项先按 rubric.score_bands 选档，再在档内定分，不得脱离档位凭感觉给整数。严格按 rubric.scoring_scope 分开计分，同一根因只能归入一个主要扣分维度：偏题、范围或核心概念错误归题意理解；完全缺失的子任务归任务覆盖；已经提出但没解释或支撑的观点归推理证据；缺少按题型应有的适用条件、例子、场景、取舍、验证、限制或反例归边界迁移。合理替代论证必须正常给分，并在最接近的参考点标 equivalent。短答案可以得高分，不按篇幅扣分。时效性事实没有 materials 或可靠来源支撑时只标待核验，不得武断判错。每个正分项和 strengths 都要引用原答案，并解释为什么好；方向正确时沿原思路具体补强，方向错误时指出错误发生在哪个推理环节并给纠正顺序。不得要求题目没要求的公司或产品信息。teaching 必须具体，禁止“补充具体方案和指标”“进一步完善”等套话。minimal_revision 必须保留原答案结论、措辞和顺序，不得另写模板答案。不得返回 standard_points、polished_answer、通用 diagnosis 或 thinking_directions。next_question_reference 必须直接回答 next_question。'),
+        "travel": ('只返回 JSON：{"summary":"忠于原话、80字内的旅行描述","title":"简短名称","reply":"","response_style":"archive"}。只整理事实，不添加感悟或虚构经历。'
+                   if str(context.get("intent") or "") == "summarize_trip_description" else
+                   '只返回 JSON：{"summary":"忠于原话、120字内且适合归档的旅行感悟摘要","title":"简短名称","reply":"针对这段感悟的自然陪伴回应","response_style":"listen/clarify/reframe/suggest/lighten/challenge 六选一"}。summary 负责归档，只能使用当前主人原话，房间记忆不得改写摘要；reply 负责陪伴，两者内容不得相同。reply 选择此刻真正有帮助的回应方式，避开 context.recent_reply_styles 最近两种；可以分享看法、轻松接话或温和反驳，不必每次总结人生意义，也不必每次追问。'),
     }
     prompt = f"""你在栗壳小院中处理一个房间内任务。
 {skill}
@@ -1175,9 +1432,22 @@ def room_reply(room: str, message: str, context: dict) -> dict:
 房间：{room}
 当前主人问题（最高优先级）：{message[:6000]}
 辅助上下文（只用于指代消解和归档）：{json.dumps(context, ensure_ascii=False)[:10000]}
-主人偏好与相关记忆（无关内容必须忽略）：{json.dumps(answer_memory, ensure_ascii=False)[:8000]}"""
+房间限定记忆（最多两条，可以完全不用；不得为了展示记忆而提起过去）：{json.dumps(answer_memory, ensure_ascii=False)[:8000]}"""
     raw, provider = call_ai(prompt)
     result = extract_json_object(raw)
+    if room == "heart_hollow":
+        expected_style = "oracle" if heart_mode == "oracle" else "listen"
+        if str(result.get("response_style") or "") not in COMPANION_STYLES:
+            result["response_style"] = expected_style
+    if room == "travel" and str(context.get("intent") or "") != "summarize_trip_description" and not travel_companion_is_distinct(result):
+        raw, provider = call_ai(
+            prompt + "\n\n上一版把归档摘要和陪伴回应写成了同一件事。请重写：summary 只忠实整理主人说过的经历与感受；"
+            "reply 必须向前推进，可以给看法、换角度、轻松接话或温和反驳，不能复述 summary。上一版：" + raw[:3000]
+        )
+        result = extract_json_object(raw)
+        if not travel_companion_is_distinct(result):
+            result["reply"] = "这段感受我先照原样替你收好，不急着把它包装成某种人生结论。"
+            result["response_style"] = "listen"
     if room == "orchard" and not orchard_answer_aligned(message, result):
         raw, provider = call_ai(
             prompt + "\n\n上一版输出没有准确对齐当前问题，禁止沿用其中无关内容。"
@@ -1190,14 +1460,21 @@ def room_reply(room: str, message: str, context: dict) -> dict:
     if (room == "blackboard" and str(context.get("intent") or "grade_answer") == "grade_answer"
             and blackboard_grade_needs_retry(message, context, result)):
         raw, provider = call_ai(
-            prompt + "\n\n上一版评分错误地把题目背景不足当成主人没有作答，或对非空答案无证据地给了0分。"
-            "请重新评分：逐项引用主人原答案，承认已覆盖内容，再扣除缺失项。通用假设题不得索要具体产品信息。"
+            prompt + "\n\n上一版批改未通过证据或教学质量校验。请重新执行：逐项复制 rubric 的 id、criterion 和 max；"
+            "每项先按 score_bands 选档并返回匹配的 band；每个正分项都引用原答案并解释为什么有价值；参考点关系只使用 covered、partial、equivalent、not_covered、off_track，"
+            "合理替代论证必须标 equivalent 并正常给分；direction 和 correction_path 必须完整；每个 teaching 写出可直接采用的补强或纠正步骤；"
+            "minimal_revision 必须保留原答案主张和措辞。"
             + "上一版输出：" + raw[:5000]
         )
         result = extract_json_object(raw)
         if blackboard_grade_needs_retry(message, context, result):
             raise RuntimeError("评分结果仍缺少对原答案的有效依据，请稍后重新核分")
-    return {"reply": result.get("reply") or result.get("summary") or "", "result": result, "provider": provider}
+    if room == "blackboard" and str(context.get("intent") or "grade_answer") == "grade_answer":
+        result = finalize_blackboard_grade(result, context)
+    return {
+        "reply": result.get("reply") or result.get("summary") or "", "result": result, "provider": provider,
+        "memory_usage": {"purpose": purpose, "selected_ids": [] if is_blackboard_grading else memory_profile.get("selected_memory_ids", [])},
+    }
 
 
 class CozyHandler(SimpleHTTPRequestHandler):
@@ -1347,13 +1624,26 @@ class CozyHandler(SimpleHTTPRequestHandler):
             elif self.path == "/api/room":
                 room = str(payload.get("room") or "")
                 message = str(payload.get("message") or "").strip()
-                result = room_reply(room, message, payload.get("context") or {})
-                layer = "sealed" if room == "heart_hollow" else ("long" if room == "travel" else "short")
-                MEMORY_STORE.add_event({
-                    "source": room, "type": "room_conversation", "content": message,
-                    "summary": str(result.get("reply") or message)[:500], "layer": layer,
-                    "weight": 2, "sensitivity": "sealed" if room == "heart_hollow" else "personal",
-                })
+                room_context = payload.get("context") or {}
+                result = room_reply(room, message, room_context)
+                memory_event = None
+                should_commit = room != "travel" or bool(room_context.get("commit"))
+                if should_commit:
+                    parsed_result = result.get("result") if isinstance(result.get("result"), dict) else {}
+                    event_content = str(room_context.get("current_text") or room_context.get("latest_entry") or message)
+                    event_summary = ("树洞对话已封存" if room == "heart_hollow" else
+                                     "旅行感悟：" + str(parsed_result.get("summary") or event_content)[:460] if room == "travel" else
+                                     str(result.get("reply") or message)[:500])
+                    memory_event = MEMORY_STORE.add_event({
+                        "id": str(room_context.get("memory_event_id") or ""),
+                        "source": room, "type": "travel_reflection" if room == "travel" else "room_conversation",
+                        "content": event_content, "summary": event_summary,
+                        "layer": "sealed" if room == "heart_hollow" else ("long" if room == "travel" else "short"),
+                        "scope": "heart_only" if room == "heart_hollow" else ("travel_only" if room == "travel" else "record_only"),
+                        "room_id": str(room_context.get("trip_id") or ""),
+                        "weight": 2, "sensitivity": "sealed" if room == "heart_hollow" else "personal",
+                    })
+                result["memory_event"] = memory_event
                 self.send_json(200, {"ok": True, **result})
             elif self.path == "/api/parse":
                 url = str(payload.get("url", "")).strip()
@@ -1446,6 +1736,8 @@ class CozyHandler(SimpleHTTPRequestHandler):
                     result = MEMORY_STORE.set_card_status(str(payload.get("id") or ""), "candidate")
                 elif action == "card_reject":
                     result = MEMORY_STORE.set_card_status(str(payload.get("id") or ""), "rejected")
+                elif action == "card_scope":
+                    result = MEMORY_STORE.set_card_scope(str(payload.get("id") or ""), str(payload.get("scope") or "record_only"))
                 elif action == "card_move_category":
                     result = MEMORY_STORE.move_card(str(payload.get("id") or ""), str(payload.get("category_id") or ""))
                 elif action == "category_create":

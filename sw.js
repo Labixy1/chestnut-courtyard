@@ -1,4 +1,4 @@
-const CACHE='cozy-shell-v8';
+const CACHE='cozy-shell-v13';
 const SHELL=[
   './','./index.html','./manifest.webmanifest',
   './core/runtime-config.js','./core/runtime.js','./core/data.js','./core/memory.js',

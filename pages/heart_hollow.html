@@ -121,7 +121,7 @@
   .memory-actions{display:flex;gap:6px;margin-top:7px}.memory-actions button{border:0;border-radius:999px;background:rgba(105,88,65,.09);color:#806b53;padding:4px 8px;font-family:inherit;font-size:10px;cursor:pointer}.memory-actions button.danger{color:#9a655d}.memory-editor{display:grid;gap:7px}.memory-editor textarea{width:100%;min-height:72px;box-sizing:border-box;border:1px solid rgba(91,70,48,.18);border-radius:8px;background:rgba(255,255,255,.72);color:#4a3b2b;padding:8px;font-family:inherit;font-size:12px;line-height:1.6;resize:vertical}.memory-editor label{font-size:10px;color:#927d64}
   @media(max-width:760px){
     body{padding-bottom:var(--mobile-nav-h,62px)}.back{display:none}.hollow-stage{height:calc(100dvh - var(--mobile-nav-h,62px));padding:12px}.hollow-stage:before{background-image:linear-gradient(180deg,rgba(218,235,237,.06),rgba(38,65,60,.23)),url("../assets/estate/heart_hollow_mobile.webp");background-position:center center}
-    .talk-btn{bottom:16%}.talk-status{bottom:25%}.tree-reply{bottom:31%;width:88vw;font-size:14px}.tree-reply.dialogue{font-size:13px}.hollow-mode{bottom:4%}.quiet-type{right:12px;bottom:12px}.quiet-type[open]{left:12px;right:12px;bottom:12px}.quiet-type[open] summary{margin-left:auto;width:max-content}.composer{width:100%;margin-top:7px;padding:11px}.composer textarea{min-height:74px;max-height:150px;font-size:13px}.composer button{font-size:12px}
+    .talk-btn{bottom:16%}.talk-status{bottom:25%}.tree-reply{bottom:31%;width:88vw;font-size:14px}.tree-reply.dialogue{font-size:13px}.hollow-mode{bottom:4%}.quiet-type{right:12px;bottom:12px}.quiet-type[open]{left:12px;right:12px;bottom:12px}.quiet-type[open] summary{margin-left:auto;width:max-content}.composer{width:100%;margin-top:7px;padding:11px}.composer textarea{min-height:74px;max-height:150px;font-size:16px}.composer button{font-size:12px}
     .history-wrap{position:fixed;left:0;right:0;top:0;bottom:var(--mobile-nav-h,62px);height:auto;border-radius:0;grid-template-columns:1fr;grid-template-rows:minmax(220px,56%) minmax(0,44%)}.buried-wrap{max-height:none;border-right:0;border-bottom:1px solid rgba(74,59,43,.14);padding:18px 14px}.buried-thumb{height:min(34vh,280px)}.history-main{padding:14px;overflow:auto}.history-close{position:fixed;top:max(10px,env(safe-area-inset-top));right:10px}.live-transcript{top:32%;width:86vw;font-size:15px}
   }
 </style>
@@ -171,6 +171,14 @@ let idx = 0;
 let filterMonth = 'all';
 let hollowMode = localStorage.getItem('cozy_hollow_mode') || 'oracle';
 function stableHeartEntryId(entry){if(entry&&entry.id)return String(entry.id);let h=2166136261;for(const char of [entry?.date,entry?.time,entry?.transcript].join('|')){h^=char.charCodeAt(0);h=Math.imul(h,16777619);}return'heart_legacy_'+Math.abs(h>>>0).toString(36);}
+function hollowRecentMemoryIds(){try{return JSON.parse(localStorage.getItem('cozy_hollow_recent_memory_ids')||'[]').slice(0,6);}catch(error){return[];}}
+function hollowRecentReplyStyles(){try{return JSON.parse(localStorage.getItem('cozy_hollow_reply_styles')||'[]').slice(0,4);}catch(error){return[];}}
+function rememberHollowResponse(data){
+  const ids=Array.isArray(data?.memory_usage?.selected_ids)?data.memory_usage.selected_ids:[];
+  if(ids.length)localStorage.setItem('cozy_hollow_recent_memory_ids',JSON.stringify(Array.from(new Set(ids.concat(hollowRecentMemoryIds()))).slice(0,6)));
+  const style=String(data?.result?.response_style||'').trim();
+  if(style)localStorage.setItem('cozy_hollow_reply_styles',JSON.stringify([style].concat(hollowRecentReplyStyles().filter(value=>value!==style)).slice(0,4)));
+}
 
 async function load(){
   CORE = window.CozyRuntime ? await window.CozyRuntime.loadJson('../core/heart_hollow.json',{entries:[]},'heart_hollow') : ((window.COZY && window.COZY.heart_hollow) || {entries:[]});
@@ -278,14 +286,6 @@ function escapeHtml(str){
   return String(str).replace(/[&<>"']/g, ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 
-/* 本地服务不可用时才使用这组简短回响。 */
-const ECHO_POOL = [
-  "有些疲惫不是要被劝走，而是提醒你把不属于自己的重量放下。","今天不必立刻想通，先把真正刺痛你的那一小块看清。",
-  "你反复提到的不是失败，而是那件事没有得到一个公平的结束。","答案暂时没来，但你已经开始分清什么是自己的声音。",
-  "先别急着原谅或责怪，今晚只需要承认这件事确实让你难过。","当你不再替所有人解释时，自己的感受才终于有位置。"
-];
-function localEcho(){ return ECHO_POOL[Math.floor(Math.random()*ECHO_POOL.length)]; }
-
 function renderHollowMode(){
   document.getElementById('mode-oracle')?.classList.toggle('active',hollowMode==='oracle');
   document.getElementById('mode-dialogue')?.classList.toggle('active',hollowMode==='dialogue');
@@ -332,9 +332,11 @@ async function addEntry(){
   maybeBuryMemory(e);
   if(window.CozyMemory){
     CozyMemory.add({
+      id:e.id,
       source:'heart_hollow',
       type:'heart_entry',
       layer:'sealed',
+      scope:'heart_only',
       sensitivity:'sealed',
       weight:hasDetailedMemory(t) ? 3 : 2,
       content:t,
@@ -352,16 +354,21 @@ async function addEntry(){
   showStatus(hollowMode==='oracle'?'正在抽取一句签语':'树洞正在回你');
   try{
     const recent=entries.filter(item=>item.date===e.date).slice(0,6).map(item=>({transcript:item.transcript,echo:item.echo,mode:item.mode||'oracle'}));
-    const data = window.CozyButler ? await CozyButler.api('/api/room',{room:'heart_hollow',message:requestText,context:{date:e.date,time:e.time,mode:hollowMode,recent}}) : null;
+    const data = window.CozyButler ? await CozyButler.api('/api/room',{room:'heart_hollow',message:requestText,context:{date:e.date,time:e.time,mode:hollowMode,recent,current_text:t,memory_event_id:e.id,recent_memory_ids:hollowRecentMemoryIds(),recent_reply_styles:hollowRecentReplyStyles()}}) : null;
     if(data && data.result && data.result.reply){
       e.echo=data.result.reply;
+      rememberHollowResponse(data);
       recordOrchardGrowth(e,data.result.growth_signal);
       if(hollowMode==='oracle')clearPendingOracle();
       const local=JSON.parse(localStorage.getItem('cozy_heart_entries')||'[]');
       const match=local.find(item=>item.date===e.date&&item.time===e.time&&item.transcript===e.transcript);if(match)match.echo=e.echo;
       localStorage.setItem('cozy_heart_entries',JSON.stringify(local));window.CozyButler?.persistLocal(['cozy_heart_entries']);render();showTreeReply(e.echo,hollowMode);
     }
-  }catch(error){e.echo=hollowMode==='oracle'?localEcho():'我听见了。你愿意再说说，哪一部分最让你放不下？';recordOrchardGrowth(e,null);render();showTreeReply(e.echo,hollowMode);}
+  }catch(error){
+    e.echo=hollowMode==='oracle'?'这会儿阿栗没连上模型，话已经封存好；签语等连接恢复后再抽。':'这会儿阿栗没连上模型，话已经封存好。我先不拿套话敷衍你，连接恢复后再接着聊。';
+    const local=JSON.parse(localStorage.getItem('cozy_heart_entries')||'[]');const match=local.find(item=>item.id===e.id);if(match)match.echo=e.echo;localStorage.setItem('cozy_heart_entries',JSON.stringify(local));window.CozyButler?.persistLocal(['cozy_heart_entries']);
+    recordOrchardGrowth(e,null);render();showTreeReply(e.echo,hollowMode);showStatus('阿栗暂时没连上模型，内容已经封存');
+  }
 }
 
 function saveLocalHeartEntry(entry){
