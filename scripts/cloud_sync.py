@@ -22,7 +22,10 @@ DATA_FILES = (
     "butler_sources", "butler_state", "daily_questions", "permissions",
     "automation_state", "local_state", "weather_cache", "generation_tasks", "tasks", "audit_log",
 )
-MEMORY_KEYS = ("memory:events", "memory:sealed", "memory:profile", "memory:categories", "memory:overrides", "memory:distillation")
+MEMORY_KEYS = (
+    "memory:events", "memory:sealed", "memory:profile", "memory:categories",
+    "memory:overrides", "memory:distillation", "memory:forgotten",
+)
 WRANGLER_CONFIG = ROOT / "cloudflare" / "wrangler.toml"
 
 
@@ -190,12 +193,17 @@ def local_payload() -> dict:
             value = read_json(path, None)
             if isinstance(value, dict):
                 data[key] = value
+    policy = read_json(ROOT / "core/memory/policy.json", None)
+    forgotten = None
+    if isinstance(policy, dict) and isinstance(policy.get("forgotten_ids"), list):
+        forgotten = policy["forgotten_ids"]
     memory = {
         "memory:events": unwrap_items(ROOT / "core/memory/events.json"),
         "memory:sealed": unwrap_items(ROOT / "core/memory/sealed.json"),
         "memory:profile": read_json(ROOT / "core/memory/profile.json", None),
         "memory:categories": unwrap_items(ROOT / "core/memory/categories.json"),
         "memory:distillation": read_json(ROOT / "core/memory/distillation.json", None),
+        "memory:forgotten": forgotten,
     }
     return {"version": 1, "data": data, "memory": {key: value for key, value in memory.items() if value is not None}}
 
@@ -224,6 +232,13 @@ def restore_snapshot(snapshot: dict) -> None:
         atomic_json(ROOT / "core/memory/profile.json", memory["memory:profile"])
     if isinstance(memory.get("memory:distillation"), dict):
         atomic_json(ROOT / "core/memory/distillation.json", memory["memory:distillation"])
+    if isinstance(memory.get("memory:forgotten"), list):
+        policy_path = ROOT / "core/memory/policy.json"
+        policy = read_json(policy_path, {"version": 3})
+        if not isinstance(policy, dict):
+            policy = {"version": 3}
+        policy["forgotten_ids"] = memory["memory:forgotten"]
+        atomic_json(policy_path, policy)
     from ingest import rebuild_data_js
     rebuild_data_js()
     print(f"已从主人云端恢复到本地：{snapshot.get('exported_at', '未知时间')}")
