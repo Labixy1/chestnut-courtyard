@@ -35,6 +35,8 @@ class MemoryR2 {
     if (!value) return null;
     return {
       body: value.bytes, httpEtag: `test-${value.bytes.byteLength}`,
+      async text() { return new TextDecoder().decode(value.bytes); },
+      async json() { return JSON.parse(new TextDecoder().decode(value.bytes)); },
       writeHttpMetadata(headers) { headers.set("content-type", value.contentType); }
     };
   }
@@ -574,17 +576,23 @@ assert.equal(result.status,200);
 assert.equal(result.body.report.notice_followups.matched_requests,0);
 
 const limitedKv=new WriteLimitedKV();
-const cloudflareLimitedEnv={...aiEnv,COZY_STATE:limitedKv};
+const limitedNoticeR2=new MemoryR2();
+const cloudflareLimitedEnv={...aiEnv,COZY_STATE:limitedKv,COZY_MEDIA:limitedNoticeR2};
 await request("/api/data",{key:"notice_reports",value:{version:1,reports:[{id:"saved-report",generated_at:"2026-08-12T00:00:00.000Z",hot_items:[],sections:[]}]}},cloudflareLimitedEnv);
 await request("/api/local-state",{values:{cozy_notice_requests:[{date:"2026-08-12",text:"你后面关注一下cloudflare他的新增加的钱包功能",kind:"media_source",found_count:0}]}},cloudflareLimitedEnv);
 limitedKv.blocked=true;
 result=await payload(await request("/api/weekly/run",{force:true},cloudflareLimitedEnv));
 assert.equal(result.status,200);
 assert.equal(result.body.report.storage_degraded,true);
-assert.equal(result.body.report.notice_followups.persisted,false);
+assert.equal(result.body.report.notice_followups.persisted,true);
+assert.equal(result.body.report.notice_followups.persisted_to,"r2");
+assert.equal(result.body.report.notice_followups.kv_persisted,false);
 assert.equal(result.body.report.notice_followups.matches[0].request_text,"你后面关注一下cloudflare他的新增加的钱包功能");
 assert.equal(result.body.report.notice_followups.matches[0].items[0].link,cloudflareArticle);
 assert.equal((await limitedKv.get("data:notice_reports","json")).reports.length,1);
+assert.equal(limitedNoticeR2.objects.has("system/notice-followups.json"),true);
+const limitedCrossDevice=(await payload(await request("/api/local-state",undefined,cloudflareLimitedEnv))).body.state.values.cozy_notice_requests;
+assert.equal(limitedCrossDevice[0].found_items[0].link,cloudflareArticle);
 globalThis.fetch=nativeFetch;
 
 const todayShanghai = new Date().toLocaleDateString("en-CA", {timeZone: "Asia/Shanghai"});

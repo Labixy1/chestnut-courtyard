@@ -1826,6 +1826,20 @@ function removeAlbumPhoto(albumId,index){if(!confirm('从这组照片里删除�
 function deletePhotoAlbum(albumId){if(!confirm('删除整组照片吗？照片文件不会从其他旅行记录中删除。'))return;savePhotoAlbums(seedPhotoAlbums().filter(item=>item.id!==albumId));renderPhotoAlbums();}
 
 let NOTICE_FOUND_RESULTS=[];
+const NOTICE_FOUND_SEEN_KEY='cozy_notice_found_seen_v1';
+function readNoticeFoundSeen(){
+  try{const value=JSON.parse(localStorage.getItem(NOTICE_FOUND_SEEN_KEY)||'{}');return value&&typeof value==='object'&&!Array.isArray(value)?value:{};}
+  catch(_error){return {};}
+}
+function writeNoticeFoundSeen(value){
+  const trimmed=Object.fromEntries(Object.entries(value).sort((left,right)=>String(right[1]).localeCompare(String(left[1]))).slice(0,240));
+  localStorage.setItem(NOTICE_FOUND_SEEN_KEY,JSON.stringify(trimmed));
+}
+function markNoticeFoundItemsSeen(items){
+  const seen=readNoticeFoundSeen(),seenAt=new Date().toISOString();let changed=false;
+  (items||[]).forEach(item=>{const key=(item._request_id||'')+'|'+noticeItemKey(item);if(item._request_id&&noticeItemKey(item)&&!seen[key]){seen[key]=seenAt;changed=true;}});
+  if(changed)writeNoticeFoundSeen(seen);
+}
 function noticeRequestIdentity(request,index){
   if(request.id||request.task_id)return String(request.id||request.task_id);
   const value=[request.date||'',request.text||'',index].join('|');
@@ -1835,18 +1849,13 @@ function noticeRequestIdentity(request,index){
 }
 function prepareNoticeFoundResults(){
   const requests=readNoticeList('cozy_notice_requests');
-  const pending=[];
-  let changed=false;
+  const pending=[],seen=readNoticeFoundSeen();
   requests.forEach((request,index)=>{
-    if(!Array.isArray(request.found_items)||!request.found_items.length||request.found_items_seen_at)return;
-    request.id=noticeRequestIdentity(request,index);
-    request.found_items.forEach(item=>pending.push({...item,_request_text:request.text||'未命名留言',_request_id:request.id}));
-    request.found_items_seen_at=new Date().toISOString();
-    request.updatedAt=request.found_items_seen_at;
-    changed=true;
+    if(!Array.isArray(request.found_items)||!request.found_items.length)return;
+    const requestId=noticeRequestIdentity(request,index);
+    request.found_items.forEach(item=>{const key=requestId+'|'+noticeItemKey(item);if(noticeItemKey(item)&&!seen[key])pending.push({...item,_request_text:request.text||'未命名留言',_request_id:requestId});});
   });
-  if(pending.length)NOTICE_FOUND_RESULTS=pending;
-  if(changed)writeNoticeList('cozy_notice_requests',requests,40);
+  if(pending.length){NOTICE_FOUND_RESULTS=pending;markNoticeFoundItemsSeen(pending);}
   return pending;
 }
 
@@ -1866,6 +1875,7 @@ function acceptNoticeFollowupResponse(followups){
     (Array.isArray(match?.items)?match.items:[]).forEach(item=>incoming.push({...item,_request_text:requestText,_request_id:requestId}));
   });
   if(!incoming.length)return [];
+  markNoticeFoundItemsSeen(incoming);
   const seen=new Set();
   NOTICE_FOUND_RESULTS=[...incoming,...NOTICE_FOUND_RESULTS].filter(item=>{
     const key=(item._request_id||'')+'|'+noticeItemKey(item);
@@ -1953,8 +1963,9 @@ async function runWeeklyNow(){
       const foundCount=new Set([...cloudFound,...responseFound].map(item=>(item._request_id||'')+'|'+noticeItemKey(item))).size;
       noticeManualRefreshPending=false;
       const coverage=data.report?.coverage||{},sources=data.report?.source_status||{};
+      const followupStorage=data.report?.notice_followups?.persisted_to||'';
       const detail=data.report?.storage_degraded
-        ?'云端 KV 今日写入额度已用完；现有 '+((CORE.notice_reports?.reports||[]).filter(report=>report?.id!=='fallback').length)+' 版巡报未受影响。'+(foundCount?' 已在当前页面找到 '+foundCount+' 条留言相关内容，额度恢复后再写回云端。':'')
+        ?'云端 KV 今日写入额度已用完；现有 '+((CORE.notice_reports?.reports||[]).filter(report=>report?.id!=='fallback').length)+' 版巡报未受影响。'+(foundCount?(followupStorage==='r2'?' 已找到 '+foundCount+' 条留言相关内容，并由 R2 兜底同步到手机和电脑。':' 已在当前页面找到 '+foundCount+' 条留言相关内容，额度恢复后再写回云端。'):'')
         :Number.isFinite(coverage.domestic)&&Number.isFinite(coverage.international)
           ?'国内 '+coverage.domestic+' 条、海外 '+coverage.international+' 条；'+(sources.failed||0)+' 个失败信源已自动跳过。'+(foundCount?' 另找到 '+foundCount+' 条留言相关内容。':'')
           :'巡报已经更新完成。';

@@ -183,8 +183,9 @@ if ((currentRendered.match(/<h4>留言独有资料<\/h4>/g) || []).length !== 1)
 if ((currentRendered.match(/<h4>主栏目同链接<\/h4>/g) || []).length !== 1) throw new Error('same-url found item duplicated a primary section');
 if ((currentRendered.match(/<h4>主栏目同标题<\/h4>/g) || []).length !== 1) throw new Error('same-title found item duplicated a primary section');
 const seenRequests=JSON.parse(storage.get('cozy_notice_requests'));
-if (!seenRequests[0].found_items_seen_at) throw new Error('displayed found items must be marked as seen');
-if (!seenRequests[0].id || !seenRequests[0].updatedAt) throw new Error('seen request state must have stable sync identity and update time');
+const locallySeen=JSON.parse(storage.get('cozy_notice_found_seen_v1'));
+if (!Object.keys(locallySeen).some(key=>key.includes('found-only'))) throw new Error('displayed found items must be marked as seen on this device');
+if (seenRequests[0].found_items_seen_at || seenRequests[0].updatedAt) throw new Error('one device must not mark a found item as seen for every synced device');
 context.prepareNoticeFoundResults();
 context.showNoticeView('current');
 if (!node('notice-content').innerHTML.includes('留言独有资料')) throw new Error('in-memory found items must survive same-page status refreshes');
@@ -192,6 +193,10 @@ vm.runInContext('NOTICE_FOUND_RESULTS=[]',context);
 context.prepareNoticeFoundResults();
 context.showNoticeView('current');
 if (node('notice-content').innerHTML.includes('留言独有资料')) throw new Error('seen found items must not remain after a refresh');
+storage.delete('cozy_notice_found_seen_v1');
+context.prepareNoticeFoundResults();
+context.showNoticeView('current');
+if (!node('notice-content').innerHTML.includes('留言独有资料')) throw new Error('a second device must be able to see the same found item once');
 
 const responseFound=context.acceptNoticeFollowupResponse({matches:[{request_id:'request-kv-limit',request_text:'关注 Cloudflare 钱包',items:[{title:'Cloudflare Wallets 更新',url:'https://example.com/cloudflare-wallets',summary:'钱包功能更新'}]}]});
 if(responseFound.length!==1)throw new Error('weekly response fallback must preserve message-matched news when KV writes are exhausted');

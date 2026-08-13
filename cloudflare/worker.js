@@ -1306,6 +1306,55 @@ function cloudNoticeRequestSyncId(request){
   return '';
 }
 
+const NOTICE_FOLLOWUP_R2_KEY='system/notice-followups.json';
+
+function cloudNoticeRequestContentKey(request){
+  return `${String(request?.date||'')}|${String(request?.text||'').trim().toLowerCase().replace(/\s+/g,' ')}`;
+}
+
+function mergeCloudNoticeRequests(primary,fallback){
+  const merged=(Array.isArray(primary)?primary:[]).map(item=>({...item}));
+  for(const incoming of Array.isArray(fallback)?fallback:[]){
+    const id=String(incoming?.id||incoming?.task_id||'');
+    const contentKey=cloudNoticeRequestContentKey(incoming);
+    const index=merged.findIndex(item=>(id&&String(item?.id||item?.task_id||'')===id)||(contentKey!=='|'&&cloudNoticeRequestContentKey(item)===contentKey));
+    const current=index>=0?merged[index]:{};
+    const items=[];const itemKeys=new Set();
+    [...(incoming?.found_items||[]),...(current?.found_items||[])].forEach(item=>{const key=noticeItemKeyCloud(item);if(key&&!itemKeys.has(key)){itemKeys.add(key);items.push(item);}});
+    const next={...current,...incoming,found_items:items.slice(0,6),found_item_keys:Array.from(new Set([...(current?.found_item_keys||[]),...(incoming?.found_item_keys||[]),...itemKeys])).slice(-80),found_count:Math.max(Number(current?.found_count||0),Number(incoming?.found_count||0),items.length)};
+    delete next.found_items_seen_at;
+    if(index>=0)merged[index]=next;else merged.unshift(next);
+  }
+  return merged.slice(0,40);
+}
+
+async function readNoticeFollowupFallback(env){
+  if(!env.COZY_MEDIA)return [];
+  try{
+    const object=await env.COZY_MEDIA.get(NOTICE_FOLLOWUP_R2_KEY);
+    if(!object)return [];
+    const value=typeof object.json==='function'?await object.json():JSON.parse(await object.text());
+    return Array.isArray(value?.requests)?value.requests:[];
+  }catch(_error){return [];}
+}
+
+async function persistNoticeFollowupFallback(env,upserts){
+  if(!env.COZY_MEDIA||!upserts.length)return false;
+  const requests=mergeCloudNoticeRequests(await readNoticeFollowupFallback(env),upserts);
+  await env.COZY_MEDIA.put(NOTICE_FOLLOWUP_R2_KEY,JSON.stringify({version:1,updated_at:now(),requests}),{
+    httpMetadata:{contentType:'application/json; charset=utf-8'},customMetadata:{kind:'notice_followups'}
+  });
+  return true;
+}
+
+async function readLocalStateWithNoticeFallback(env){
+  const state=await readData(env,'local_state');
+  const fallback=await readNoticeFollowupFallback(env);
+  if(!fallback.length)return state;
+  const values=state.values&&typeof state.values==='object'?state.values:{};
+  return {...state,values:{...values,cozy_notice_requests:mergeCloudNoticeRequests(values.cozy_notice_requests,fallback)}};
+}
+
 async function enrichNoticeFoundItems(env,items){
   if(!items.length)return items;
   try{
@@ -1315,7 +1364,7 @@ async function enrichNoticeFoundItems(env,items){
 }
 
 async function resolveCloudNoticeRequests(env,pool){
-  const local=await readData(env,"local_state");
+  const local=await readLocalStateWithNoticeFallback(env);
   const requests=Array.isArray(local?.values?.cozy_notice_requests)?local.values.cozy_notice_requests:[];
   const pending=[];
   requests.forEach((request,index)=>{
@@ -1336,7 +1385,7 @@ async function resolveCloudNoticeRequests(env,pool){
   for(const value of pending){
     const original=value.request;
     const id=cloudNoticeRequestIdentity(original,value.index);
-    const existingPending=original.found_items_seen_at?[]:(Array.isArray(original.found_items)?original.found_items:[]);
+    const existingPending=Array.isArray(original.found_items)?original.found_items:[];
     const matchedFound=value.found.map(item=>enrichedByKey.get(noticeItemKeyCloud(item))||item);
     const nextFound=[...existingPending,...matchedFound].slice(0,6);
     const foundKeys=Array.from(new Set([...(original.found_item_keys||[]),...nextFound.map(noticeItemKeyCloud)].filter(Boolean))).slice(-80);
@@ -1354,7 +1403,9 @@ async function resolveCloudNoticeRequests(env,pool){
     return {...result,persisted:true};
   }catch(error){
     if(!noticeKvWriteLimitExceeded(error))throw error;
-    return {...result,persisted:false,storage_error:"KV_DAILY_WRITE_LIMIT"};
+    let fallbackPersisted=false;
+    try{fallbackPersisted=await persistNoticeFollowupFallback(env,upserts);}catch(_fallbackError){}
+    return {...result,persisted:fallbackPersisted,persisted_to:fallbackPersisted?'r2':'response',kv_persisted:false,storage_error:"KV_DAILY_WRITE_LIMIT"};
   }
 }
 
@@ -2739,7 +2790,7 @@ export async function handleRequest(request, env, ctx = {}) {
     }
     if (request.method === "GET" && url.pathname === "/api/weather") return json(await currentWeather(request, env, url.searchParams.get("refresh") === "1"));
     if (request.method === "GET" && url.pathname === "/api/state") return json({ok: true, state: await readData(env, "butler_state")});
-    if (request.method === "GET" && url.pathname === "/api/local-state") return json({ok: true, state: await readData(env, "local_state")});
+    if (request.method === "GET" && url.pathname === "/api/local-state") return json({ok: true, state: await readLocalStateWithNoticeFallback(env)});
     if (request.method === "GET" && url.pathname === "/api/permissions") return json({ok: true, permissions: await permissions(env)});
     if (request.method === "GET" && url.pathname === "/api/memory") return json({ok: true, memory: await memoryState(env, identity.email === "owner" && env.DEMO_MODE !== "true")});
     if (request.method === "GET" && url.pathname === "/api/memory/distillation") return json({ok: true, distillation: await readState(env, "memory:distillation", {status: "idle", recent_runs: []})});
