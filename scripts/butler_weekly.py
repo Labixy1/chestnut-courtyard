@@ -699,6 +699,20 @@ def build_product_advice(hot_items, selected):
     return advice[:4]
 
 
+def text_is_chinese(value, min_chinese=8):
+    text = str(value or "")
+    chinese = len(re.findall(r"[\u4e00-\u9fff]", text))
+    latin = len(re.findall(r"[A-Za-z]", text))
+    return chinese >= min_chinese and chinese >= latin * 0.25
+
+
+def valid_chinese_ai_summary(value):
+    text = str(value or "").strip()
+    if re.search(r"自动中文整理暂时没有可靠完成|阿栗先保留来源|避免把英文原文误当成中文总结", text):
+        return False
+    return text_is_chinese(text, 20)
+
+
 def refine_report_with_ai(report):
     """Add article-specific summaries with the owner's configured text API."""
     gateway = ModelGateway()
@@ -744,10 +758,14 @@ def refine_report_with_ai(report):
             if item.get("title") in refined:
                 generated = refined[item["title"]]
                 original = str(item.get("summary") or "")
-                original_is_chinese = len(re.findall(r"[\u4e00-\u9fff]", original)) >= 8
-                item["translation_zh"] = "" if original_is_chinese else str(generated.get("translation_zh") or "")[:500]
-                if generated.get("ai_summary"):
-                    item["ai_summary"] = str(generated["ai_summary"])[:500]
+                original_is_chinese = text_is_chinese(original)
+                translation = str(generated.get("translation_zh") or "").strip()[:500]
+                item["translation_zh"] = "" if original_is_chinese else translation if text_is_chinese(translation, 4) else ""
+                ai_summary = str(generated.get("ai_summary") or "").strip()[:500]
+                if valid_chinese_ai_summary(ai_summary):
+                    item["ai_summary"] = ai_summary
+                elif not valid_chinese_ai_summary(item.get("ai_summary")):
+                    item.pop("ai_summary", None)
         hot_titles = {item.get("title") for item in report.get("hot_items", [])}
         used_titles = set(hot_titles)
         for section in report.get("sections", []):

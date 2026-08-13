@@ -180,6 +180,11 @@ with tempfile.TemporaryDirectory(prefix="cozy_system_test_") as directory:
     scheduled_time = datetime.now().astimezone().replace(
         year=monday.year, month=monday.month, day=monday.day, hour=8, minute=0, second=0, microsecond=0
     )
+    (root / "core/notice_reports.json").write_text(json.dumps({"reports": [{
+        "generated_at": (scheduled_time + timedelta(hours=1)).isoformat()
+    }]}), encoding="utf-8")
+    assert automation._has_current_report(scheduled_time + timedelta(days=1)) is True
+    assert automation._has_current_report(scheduled_time + timedelta(days=2)) is False
     runs = []
     automation.run_weekly = lambda force=False: (runs.append(force), automation._record("weekly_report", "completed", "测试周报已生成"))
     assert automation.run_scheduled_weekly(scheduled_time) is True and runs == [True]

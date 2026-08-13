@@ -32,8 +32,11 @@ def main() -> None:
     wrangler = (ROOT / "cloudflare" / "wrangler.toml").read_text(encoding="utf-8")
     assert 'AUTH_MODE = "passcode"' in wrangler
     assert "run_worker_first = true" in wrangler
+    assert 'binding = "COZY_MEDIA"' in wrangler
+    assert 'bucket_name = "chestnut-courtyard-media"' in wrangler
+    assert 'COZY_MEDIA_LIMIT_BYTES = "9000000000"' in wrangler
     assert "REPLACE_WITH_KV_NAMESPACE_ID" not in wrangler
-    print("cloud owner test ok: owner runtime; remote state; writable; starter-only bundle; private cache policy")
+    print("cloud owner test ok: owner runtime; remote state; writable; private R2 media; starter-only bundle; private cache policy")
 
 
 if __name__ == "__main__":

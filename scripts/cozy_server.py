@@ -24,6 +24,7 @@ import uuid
 import urllib.error
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from html.parser import HTMLParser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -472,10 +473,15 @@ def base36(number: int) -> str:
 def attach_frozen_rubric(question: dict) -> dict:
     points = question.get("standard_points") or question.get("standard") or []
     points = [str(value).strip() for value in points if str(value).strip()]
+    ideal_answer = qualify_blackboard_illustrative_numbers(
+        str(question.get("ideal_answer") or "").strip(),
+        {"question": question.get("question") or "", "materials": question.get("materials") or []})
     profile = blackboard_task_profile(question.get("question") or "")
-    fingerprint = blackboard_fingerprint(f"{question.get('date', '')}|{question.get('question', '')}|{'|'.join(points)}|rubric:v3")
+    fingerprint = blackboard_fingerprint(f"{question.get('date', '')}|{question.get('question', '')}|{'|'.join(points)}|{ideal_answer}|rubric:v3")
     return {
         **question, "standard": points, "standard_points": points,
+        "ideal_answer": ideal_answer,
+        "ideal_answer_version": 1 if valid_blackboard_ideal_answer(ideal_answer) else 0,
         "rubric": build_frozen_rubric(points, question.get("question") or ""), "rubric_version": 3,
         "task_type": profile["type"], "task_scoring_focus": profile["focus"],
         "reference_frozen_at": question.get("reference_frozen_at") or datetime.now().astimezone().isoformat(timespec="seconds"),
@@ -483,17 +489,209 @@ def attach_frozen_rubric(question: dict) -> dict:
     }
 
 
+def valid_blackboard_ideal_answer(value: str) -> bool:
+    text = str(value or "").strip()
+    chinese_count = len(re.findall(r"[\u4e00-\u9fff]", text))
+    return chinese_count >= 180 and all(label in text for label in ["判断：", "拆解：", "验证：", "边界：", "例子："])
+
+
+def valid_blackboard_personalized_revision(value: str, original_answer: str) -> bool:
+    text = str(value or "").strip()
+    chinese_count = len(re.findall(r"[\u4e00-\u9fff]", text))
+    normalize = lambda item: re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", str(item or "").lower())
+    source_text, revision_text = normalize(original_answer), normalize(text)
+    return (chinese_count >= 160 and blackboard_text_matches_question(source_text, revision_text)
+            and all(label in text for label in ["判断：", "拆解：", "验证：", "边界：", "例子："]))
+
+
+def blackboard_revision_distinct_from_ideal(revision: str, ideal_answer: str) -> bool:
+    normalize = lambda item: re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", str(item or "").lower())
+    revision_text, ideal_text = normalize(revision), normalize(ideal_answer)
+    if len(ideal_text) < 80:
+        return True
+    if revision_text == ideal_text or revision_text in ideal_text or ideal_text in revision_text:
+        return False
+    chunks = {ideal_text[index:index + 12] for index in range(0, max(1, len(ideal_text) - 11), 6)}
+    overlap = sum(1 for chunk in chunks if chunk in revision_text)
+    return not chunks or overlap / len(chunks) < .72
+
+
+def blackboard_text_matches_question(question: str, value: str) -> bool:
+    question_text = str(question or "").lower()
+    answer_text = str(value or "").lower()
+    latin = {item for item in re.findall(r"[a-z][a-z0-9._-]{2,}", question_text)
+             if item not in {"what", "why", "how", "which"}}
+    stop = {"如何", "怎样", "什么", "一个", "如果", "请你", "说明", "回答", "设计", "分析", "问题", "可以", "应该",
+            "使用", "处理", "进行", "通过", "需要", "用户", "产品", "任务", "方案", "效果", "这个", "原来"}
+    chinese = set()
+    for segment in re.findall(r"[\u4e00-\u9fff]{2,}", question_text):
+        chinese.update(segment[index:index + 2] for index in range(len(segment) - 1))
+    chinese -= stop
+    if any(keyword in answer_text for keyword in latin):
+        return True
+    matches = sum(1 for keyword in chinese if keyword in answer_text)
+    return not latin and not chinese or matches >= min(2, len(chinese))
+
+
+def valid_blackboard_plain_language_coaching(value: dict, question: str = "") -> bool:
+    if not isinstance(value, dict):
+        return False
+    wants = str(value.get("what_the_question_wants") or "").strip()
+    steps = value.get("answer_steps") if isinstance(value.get("answer_steps"), list) else []
+    remember = value.get("remember") if isinstance(value.get("remember"), list) else []
+    hook = str(value.get("memory_hook") or "").strip()
+    generic = re.compile(r"^(?:具体问题具体分析|补充具体方案和指标|进一步完善|多思考多练习)[。！]?$|^(?:暂无|无)$")
+    return (12 <= len(wants) <= 220 and blackboard_text_matches_question(question, wants)
+            and 3 <= len(steps) <= 5 and all(8 <= len(str(item).strip()) <= 180 and not generic.search(str(item).strip()) for item in steps)
+            and 2 <= len(remember) <= 5 and all(6 <= len(str(item).strip()) <= 120 and not generic.search(str(item).strip()) for item in remember)
+            and 6 <= len(hook) <= 80 and not generic.search(hook))
+
+
+def valid_blackboard_next_practice_outline(result: dict, context: dict | None = None) -> bool:
+    context = context or {}
+    question = str(result.get("next_question") or "").strip()
+    reference = result.get("next_question_reference") if isinstance(result.get("next_question_reference"), list) else []
+    current_question = re.sub(r"\s+", "", str(context.get("question") or ""))
+    next_question = re.sub(r"\s+", "", question)
+    return (12 <= len(question) <= 260 and next_question != current_question
+            and 3 <= len(reference) <= 6 and all(8 <= len(str(item).strip()) <= 160 for item in reference))
+
+
+def valid_blackboard_next_practice(result: dict, context: dict | None = None) -> bool:
+    context = context or {}
+    if not valid_blackboard_next_practice_outline(result, context):
+        return False
+    question = str(result.get("next_question") or "").strip()
+    reference = result.get("next_question_reference") if isinstance(result.get("next_question_reference"), list) else []
+    ideal_answer = str(result.get("next_question_ideal_answer") or "").strip()
+    answer_context = {"question": question, "materials": [], "reference": reference}
+    return (valid_blackboard_ideal_answer(ideal_answer)
+            and blackboard_text_matches_question(question, ideal_answer)
+            and not blackboard_has_uncalibrated_numbers(ideal_answer, answer_context))
+
+
+def normalize_blackboard_learning_outputs(result: dict, context: dict | None = None) -> dict:
+    context = context or {}
+    coaching = result.get("plain_language_coaching") if isinstance(result.get("plain_language_coaching"), dict) else {}
+    result["plain_language_coaching"] = {
+        "what_the_question_wants": str(coaching.get("what_the_question_wants") or "").strip(),
+        "answer_steps": [str(item).strip() for item in coaching.get("answer_steps", []) if str(item).strip()][:5]
+        if isinstance(coaching.get("answer_steps"), list) else [],
+        "remember": [str(item).strip() for item in coaching.get("remember", []) if str(item).strip()][:5]
+        if isinstance(coaching.get("remember"), list) else [],
+        "memory_hook": str(coaching.get("memory_hook") or "").strip(),
+    }
+    result["next_question"] = str(result.get("next_question") or "").strip()
+    raw_reference = result.get("next_question_reference") if isinstance(result.get("next_question_reference"), list) else []
+    result["next_question_reference"] = [str(item).strip() for item in raw_reference if str(item).strip()][:6]
+    next_context = {
+        "question": result["next_question"], "materials": [],
+        "reference": result["next_question_reference"],
+    }
+    result["next_question_ideal_answer"] = qualify_blackboard_illustrative_numbers(
+        result.get("next_question_ideal_answer") or "", next_context).strip()
+    return result
+
+
+def blackboard_has_uncalibrated_numbers(value: str, context: dict | None = None) -> bool:
+    context = context or {}
+    source = json.dumps([context.get("question") or "", context.get("materials") or []], ensure_ascii=False)
+    metric = re.compile(r"(?:\d+(?:\.\d+)?\s*%|[><≥≤]\s*\d+(?:\.\d+)?|(?:超过|低于|高于|至少|不超过|超)\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:次|天|年|个月|个|家|人))")
+    calibrated = re.compile(r"例子：|例如|假设|示例|待.{0,8}校准|根据.{0,12}(历史|基线|风险)|由.{0,12}(历史|基线)")
+    return any(not calibrated.search(paragraph) and any(match.group(0) not in source for match in metric.finditer(paragraph))
+               for paragraph in str(value or "").splitlines())
+
+
+def qualify_blackboard_illustrative_numbers(value: str, context: dict | None = None) -> str:
+    context = context or {}
+    source = json.dumps([context.get("question") or "", context.get("materials") or []], ensure_ascii=False)
+    metric = re.compile(r"(?:\d+(?:\.\d+)?\s*%|[><≥≤]\s*\d+(?:\.\d+)?|(?:超过|低于|高于|至少|不超过|超)\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:次|天|年|个月|个|家|人))")
+    calibrated = re.compile(r"例子：|例如|假设|示例|待.{0,8}校准|根据.{0,12}(历史|基线|风险)|由.{0,12}(历史|基线)")
+    paragraphs = []
+    for paragraph in str(value or "").split("\n"):
+        ungrounded = (not calibrated.search(paragraph)
+                      and any(match.group(0) not in source for match in metric.finditer(paragraph)))
+        paragraphs.append(paragraph + "（本段数字仅为示例，实际需由历史基线、风险等级和合规要求校准。）" if ungrounded else paragraph)
+    return "\n".join(paragraphs)
+
+
+def blackboard_has_unsupported_specifics(value: str, context: dict | None = None) -> bool:
+    context = context or {}
+    source = json.dumps([context.get("question") or "", context.get("materials") or []], ensure_ascii=False)
+    pattern = re.compile(r"ISO\s*27001|CNVD|CNNVD", re.I)
+    return bool(pattern.search(str(value or "")) and not pattern.search(source))
+
+
+def sanitize_blackboard_unsupported_specifics(value, context: dict | None = None):
+    context = context or {}
+    source = json.dumps([context.get("question") or "", context.get("materials") or []], ensure_ascii=False)
+    if re.search(r"ISO\s*27001|CNVD|CNNVD", source, re.I):
+        return value
+    if isinstance(value, list):
+        return [sanitize_blackboard_unsupported_specifics(item, context) for item in value]
+    if isinstance(value, dict):
+        return {key: (item if key == "evidence" else sanitize_blackboard_unsupported_specifics(item, context))
+                for key, item in value.items()}
+    if not isinstance(value, str):
+        return value
+    text = re.sub(r"ISO\s*27001\s*或\s*(?:拥有\s*)?CNVD/CNNVD\s*技术支撑单位资质",
+                  "与任务风险相匹配的企业安全资质和合规证明", value, flags=re.I)
+    text = re.sub(r"ISO\s*27001\s*或\s*CNVD(?:/CNNVD)?\s*(?:证书|资质)?",
+                  "企业安全资质、授权合同和历史合规记录", text, flags=re.I)
+    text = re.sub(r"ISO\s*27001", "企业安全管理资质", text, flags=re.I)
+    text = re.sub(r"CNVD(?:/CNNVD)?(?:\s*技术支撑单位)?(?:\s*证书|\s*资质)?",
+                  "经核验的安全服务资质", text, flags=re.I)
+    return text
+
+
 def fallback_daily_question(today: str, latest_report: dict, seeds: list, variant: str = ""):
     topics = [
-        ("评测集设计", "如果要判断一个 AI 功能是否真的变好，你会怎样设计一套包含正常、边界和失败样例的评测集？"),
-        ("记忆系统", "一个长期陪伴型 AI 应该记住什么、忘记什么，又怎样让用户看见并纠正它的记忆？"),
-        ("Agent 权限", "当 AI 可以替用户执行任务时，哪些动作可以自动做，哪些动作必须确认，失败后如何回滚？"),
-        ("原型验证", "如果只有三天验证一个 AI 产品想法，你会选择什么最小原型、观察什么信号、如何决定继续或停止？"),
-        ("成本与体验", "模型能力、响应速度和调用成本不能同时最优时，你会如何为不同用户任务做取舍？"),
-        ("信息可信度", "一个会检索资讯的 AI 产品怎样区分事实、推断和观点，并在信息不足时诚实表达不确定性？"),
-        ("工作流设计", "怎样把一次 AI 回答变成可持续的工作流，同时设计进度、重试、人工接管和结果追踪？"),
+        {
+            "title": "评测集设计",
+            "question": "如果要判断一个 AI 功能是否真的变好，你会怎样设计一套包含正常、边界和失败样例的评测集？",
+            "standard": ["从真实用户任务分层抽取正常样例，并冻结旧版本对照。", "单列模糊输入、无答案、长上下文和冲突信息等边界样例。", "加入越权、提示注入、隐私泄露和工具失败等高风险样例。", "同时评价任务完成、关键错误、延迟、成本和人工接管。", "按风险设置上线阈值，严重事故一票否决并保留固定回归集。"],
+            "ideal": "判断：评测目标不是证明模型回答更像人，而是证明它在真实用户任务中比旧方案更有效，并且高风险错误可控。\n拆解：1. 从日志和访谈中按任务类型、难度和风险抽样，建立正常集并保留旧版本结果。2. 单列模糊输入、无答案、冲突来源、超长材料等边界集。3. 加入越权、提示注入、隐私泄露、工具超时和错误写入等失败与对抗集。4. 每条样例冻结可接受答案、禁止错误、证据要求和人工评分规则。\n验证：同时统计任务完成率、事实或动作正确率、严重错误率、P95 延迟、单次成本和人工接管率；按风险设阈值，严重隐私或不可逆副作用必须为零。\n边界：平均分不能掩盖严重事故；无法可靠回答时，正确行为是说明不确定并停止高风险动作。\n例子：评测报销 Agent 时，不只测能否识别发票，还要测重复报销、金额冲突、审批超时和权限不足，并检查它是否查询状态后再重试，而不是重复提交。",
+        },
+        {
+            "title": "记忆系统",
+            "question": "一个长期陪伴型 AI 应该记住什么、忘记什么，又怎样让用户看见并纠正它的记忆？",
+            "standard": ["按未来价值、稳定性、敏感度和可撤回性决定是否记忆。", "区分短期上下文、待确认偏好、长期事实和封存私密内容。", "敏感信息和重要事实进入长期记忆前必须由用户确认。", "提供查看、纠正、删除、暂停记忆和本轮引用说明。", "测试误记、过时、冲突、删除残留和跨场景误用。"],
+            "ideal": "判断：陪伴型 AI 不应追求记得最多，而应只保存对未来确有帮助、相对稳定、用户可理解且可撤回的内容；记忆权限必须小于聊天权限。\n拆解：1. 当前会话只做短期上下文；表达习惯等可形成待确认偏好；姓名和长期目标等稳定事实由用户确认后长期保存；健康、关系、财务和私密经历默认封存。2. 每条记忆保存来源、时间、置信度、适用范围和过期规则，不能把一次情绪推成永久人格。3. 冲突时保留版本并让用户选择。\n验证：用误记、过时、相互冲突、删除后重现和跨房间调用用例，观察误记率、纠正成功率、删除残留率和不相关引用率。\n边界：医疗、财务、身份和关系判断不得由模型自行推断；删除必须处理主存储、索引和备份，不能只在界面隐藏。\n例子：用户说“今天别给建议”只影响当次对话；多次明确要求“先结论后解释”可以成为待确认偏好；树洞私事不得自动拿到工作问答中。",
+        },
+        {
+            "title": "Agent 权限",
+            "question": "当 AI 可以替用户执行任务时，哪些动作可以自动做，哪些动作必须确认，失败后如何回滚？",
+            "standard": ["按只读、可撤销写入、对外影响和不可逆高风险划分权限。", "确认发生在参数完整但尚未产生副作用的最后安全节点。", "使用最小授权、短期令牌和工具级范围，任务结束后失效。", "记录用户指令、模型计划、参数摘要、工具回执和最终状态。", "用幂等、版本、软删除、补偿动作和人工恢复处理失败。"],
+            "ideal": "判断：Agent 能自动做多少，应由动作的可逆性、影响范围和错误代价决定，而不是由模型能力决定。\n拆解：1. 读取、搜索和生成草稿可自动执行；改标签、建待办等可撤销写入可执行后提示；对外发送、共享和批量修改必须在执行前确认；付款、永久删除和改权限需要强确认或禁止自动执行。2. 确认应展示对象、范围和后果，并放在参数已完整、尚未产生副作用的最后节点。3. 工具使用最小范围的短时授权，所有写入保存操作 ID 和回执。\n验证：测试越权、参数被扩大、重复提交、执行中断和回滚失败，观察未授权拦截率、重复执行率和恢复成功率。\n边界：接口超时但状态未知时先查询结果，不能直接重试；外部系统不支持回滚时只能做补偿或转人工。\n例子：AI 删除照片时先生成清单并确认，执行后进入回收站；部分失败只重试失败项，且每张照片都能按审计记录恢复。",
+        },
+        {
+            "title": "原型验证",
+            "question": "如果只有三天验证一个 AI 产品想法，你会选择什么最小原型、观察什么信号、如何决定继续或停止？",
+            "standard": ["把最大未知假设写成可证伪问题，而不是三天内做完整产品。", "用现成模型、人工后台和轻界面完成一个核心任务闭环。", "让真实目标用户带自己的材料完成任务，并保留现有方案对照。", "观察独立完成、时间节省、关键错误、重复使用和人工成本。", "预先定义继续、调整和停止阈值，避免被口头好评误导。"],
+            "ideal": "判断：三天不是为了证明产品成功，而是用最低成本证伪最关键的假设。我会优先验证用户是否愿意把一个真实任务交给它，以及结果是否明显优于现有方式。\n拆解：第 1 天访谈目标用户并挑一个高频、高痛且结果可判断的任务；用表单或聊天界面加现成模型，复杂步骤由人工后台补齐。第 2 天让 5 到 8 名用户带自己的材料独立完成任务，同时保留原做法作为对照。第 3 天只修改最关键问题后复测，并核算每单模型与人工成本。\n验证：记录独立完成率、相对旧方案节省的时间、关键错误数、是否主动再次使用、真实付费选择和每单人工分钟数；预先设继续与停止线。\n边界：不把“看起来很酷”当需求，不在三天内做完整账号、社区和后台；敏感任务只用脱敏材料。\n例子：验证简历诊断时，只交付针对目标岗位的修改清单，并比较修改前后可读性和用户是否愿意再次使用，不先做完整求职平台。",
+        },
+        {
+            "title": "成本与体验",
+            "question": "模型能力、响应速度和调用成本不能同时最优时，你会如何为不同用户任务做取舍？",
+            "standard": ["按任务复杂度、实时性、错误代价和敏感度分层，而不是固定一个模型。", "低风险简单任务走快模型，高风险复杂任务走强模型并增加核验。", "路由要有质量门槛、超时和预算，并记录选择原因。", "兜底区分重试、切模型、规则降级和人工接管。", "用同任务影子对照评估质量、P95 延迟、成本和切换损失。"],
+            "ideal": "判断：取舍的原则不是追求单一最强模型，而是为每类任务设置不可突破的质量与风险底线，再选择满足底线且总成本最低的路径。\n拆解：1. 入口识别任务复杂度、实时性、上下文长度、是否调用工具、错误代价和数据敏感度。2. 改写等低风险任务走快模型，多约束分析走强模型，高风险动作还要加规则核验和人工确认。3. 每条路由设置质量门槛、超时和预算；限流可短重试，质量不足升级模型，供应商故障切备用，仍不可靠则转人工。\n验证：在同一任务集上跑影子流量，比较任务完成率、关键错误、P95 延迟、单次成本、升级率和切换后的质量损失。\n边界：敏感数据不能发给不合规的备用模型；上下文和工具能力不兼容时不能盲切；连续重试可能比一次强模型更贵。\n例子：会议摘要默认快模型，检测到多语言、超长录音或决策冲突时升级强模型；强模型超时则返回已验证纪要并标明未完成部分。",
+        },
+        {
+            "title": "信息可信度",
+            "question": "一个会检索资讯的 AI 产品怎样区分事实、推断和观点，并在信息不足时诚实表达不确定性？",
+            "standard": ["在数据和界面中区分来源原文、忠实摘要、翻译和模型判断。", "每个事实绑定具体文章链接、发布者、日期和抓取时间。", "来源冲突时并列证据和立场，不把多数报道自动当真。", "模型推断使用显式措辞，禁止无来源的数字、因果和结论。", "部分失败局部降级，全部失败时显示旧版时间且不伪装最新。"],
+            "ideal": "判断：资讯 AI 的可信度来自证据链透明，而不是把所有内容写成确定事实。用户必须一眼看出来源说了什么、模型翻译了什么、模型又推断了什么。\n拆解：1. 卡片分原文摘要、忠实翻译、AI 分析和用户笔记四层。2. 事实绑定具体文章 URL、发布者、发布日期和抓取时间，官网首页不能冒充文章来源。3. 同一事件去重但保留官方公告、当事方回应和媒体推测的不同立场。4. 模型写“这意味着”时必须能指回证据，不能补造价格或指标。\n验证：抽样核对标题、数字、引用和立场，统计引用可达率、事实支持率、错误合并率和冲突识别率。\n边界：单个来源失败只影响对应卡片；全部失败时显示上次成功更新时间，继续展示旧版但不能标成今天更新。\n例子：厂商否认涨价时，事实层写“厂商否认涨价传闻”，AI 可以说“价格策略仍需观察”，但不能总结成“即将涨价”。",
+        },
+        {
+            "title": "工作流设计",
+            "question": "怎样把一次 AI 回答变成可持续的工作流，同时设计进度、重试、人工接管和结果追踪？",
+            "standard": ["把目标拆成可观察状态和有明确输入输出的步骤。", "每一步保存检查点、幂等键和工具回执，失败从断点续跑。", "按可重试、需补充、需确认和不可恢复错误选择处理。", "人工接管交接目标、上下文、已完成动作和待决问题。", "用端到端完成、恢复成功、重复执行和最终结果正确性衡量。"],
+            "ideal": "判断：可持续工作流不是把多次提示词串起来，而是把任务建成可观察、可恢复、可审计的状态机，并对最终业务结果负责。\n拆解：1. 明确目标和完成标准，把流程拆成有输入、输出和状态的步骤。2. 每步保存检查点、幂等键、工具回执和结果摘要；超时与限流可重试，参数不足请用户补充，高风险或未知状态转人工。3. 界面显示当前步骤、已完成结果和剩余工作，人工接管时一次性交接上下文和待决问题。4. 完成后验证业务结果，不把接口 200 当任务成功。\n验证：统计端到端完成率、失败后恢复成功率、平均恢复时长、重复执行率、人工接管后解决率和最终结果正确率。\n边界：付款、删除、对外发送等副作用动作不能自动重放；状态未知时必须查询或人工确认。\n例子：报告生成流程在数据抓取成功、图表生成失败后，只重跑图表步骤，并保留已核验数据；多次失败则把数据和错误回执交给人工。",
+        },
     ]
-    title, question = topics[sum(ord(char) for char in today + variant) % len(topics)]
+    selected = topics[sum(ord(char) for char in today + variant) % len(topics)]
+    title, question = selected["title"], selected["question"]
+    standard_points, ideal_answer = selected["standard"], selected["ideal"]
     report_items = list(latest_report.get("hot_items") or [])
     for section in latest_report.get("sections") or []:
         report_items.extend(section.get("items") or [])
@@ -508,28 +706,41 @@ def fallback_daily_question(today: str, latest_report: dict, seeds: list, varian
         materials.append("资讯原题：" + source_title)
         if source_summary:
             materials.append("中文摘要：" + source_summary[:220])
+        standard_points = [
+            f"明确“{source_title}”可能改变的目标用户和具体任务，不只复述发布内容。",
+            "把新旧方案在质量、时延、成本、稳定性和合规要求上做同任务对照。",
+            "用真实样本、影子流量或小范围灰度验证，并预先定义通过指标。",
+            "识别供应商依赖、能力缺口、数据边界和故障时的降级方案。",
+            "根据证据给出接入、限定试用或暂缓的明确决策，而不是默认追新。",
+        ]
+        if re.search(r"Daybreak|Cyber|网络安全|漏洞", source_title + " " + source_summary, re.I):
+            ideal_answer = (f"判断：我不会因为“{source_title}”已在 AWS 可用就直接接入。它降低的是获取和部署门槛，是否值得用仍取决于授权安全研究任务是否真实存在、专业能力是否优于现有方案，以及滥用和数据风险能否被控制。\n"
+                            "拆解：先限定目标用户为经过授权的内部安全团队或研究人员，再把任务拆成漏洞线索筛查、复现辅助、报告整理等可审计环节。对每一环节比较新旧方案的有效发现、误报、耗时、人工复核成本和敏感数据处理方式；同时审查 AWS 区域、日志、权限、模型版本变化、供应商依赖与故障回退。\n"
+                            "验证：用脱敏且有已知结论的授权样本做盲测，按任务分别记录有效发现率、严重误报、复核时间、P95 时延和单次完全成本。通过线必须在测试前按历史基线和风险等级确定，先影子运行，再限定研究环境灰度。\n"
+                            "边界：模型不得自主扫描未授权目标、执行不可逆利用或绕过审批；涉及生产系统、敏感漏洞和外部发送时必须人工确认并保留审计。数据合规、隔离环境或可用回退任一不成立，就暂缓接入。\n"
+                            "例子：可以选择一组已获授权且结论已知的漏洞验证任务，让新旧模型分别提出验证步骤和证据，研究员只在隔离环境执行。只有新模型减少无效步骤、没有增加高风险误报，并且故障时能回到现有流程，才开放给限定团队。")
+        else:
+            ideal_answer = (f"判断：我不会因为“{source_title}”已经发布就直接接入，而会先确认它是否改善最重要的用户任务，且收益足以覆盖迁移成本和风险。\n"
+                            "拆解：1. 锁定受影响的用户与任务，记录当前质量、时延、成本和失败点。2. 把资讯中的能力变化翻译成可验证假设，没有资料支持的部分标为待验证。3. 用同一批真实样本让新旧方案并行，先走影子流量，再小范围灰度。4. 同时评估接口稳定性、数据合规、供应商锁定和故障降级。\n"
+                            "验证：按任务分层观察完成率、关键错误率、P95 时延、单次完全成本和人工接管率，预先设置通过线并覆盖一个完整业务周期。\n"
+                            "边界：如果只在少数样例更好、关键任务不稳定、敏感数据无法合规处理，或故障时没有替代方案，就只做限定试用或暂缓。\n"
+                            "例子：选择一项高价值复杂任务和一项低风险简单任务做同样本盲测；只有前者显著改善且成本、延迟和风险仍在预算内，才把新能力限定路由到该场景，而不是全量替换。")
     if seeds:
         if not hot:
             materials.append("果园线索：" + str(seeds[0].get("text") or "")[:120])
     return attach_frozen_rubric({
         "date": today, "title": title, "question": question,
         "types": ["产品场景", "方法设计", "边界判断"], "materials": materials,
-        "standard_points": [
-            "先明确用户任务、成功标准和不可接受的风险。",
-            "把方案拆成输入、执行、反馈、失败和人工接管五个环节。",
-            "给出能被观察或衡量的指标，而不是只写原则。",
-            "覆盖边界情况，并说明什么时候不应该使用 AI。",
-            "用一个足够小的实验验证最关键假设，再决定是否扩大投入。",
-        ],
+        "standard_points": standard_points, "ideal_answer": ideal_answer,
         "source": "local_fallback", "source_title": str(hot[0].get("title") or "") if hot else "",
-        "alignment_version": 4,
+        "alignment_version": 6,
     })
 
 
 def valid_daily_question(item: dict, today: str):
     if not isinstance(item, dict) or item.get("date") != today or len(str(item.get("question") or "").strip()) < 18:
         return False
-    if int(item.get("alignment_version") or 0) < 4:
+    if int(item.get("alignment_version") or 0) < 6:
         return False
     points = [str(value).strip() for value in item.get("standard_points", []) if str(value).strip()] if isinstance(item.get("standard_points"), list) else []
     if len(points) < 4 or any(len(value) < 8 for value in points):
@@ -542,6 +753,14 @@ def valid_daily_question(item: dict, today: str):
     if any(not isinstance(row.get("score_bands"), list) or len(row["score_bands"]) != 5 for row in rubric):
         return False
     if not item.get("answer_independent") or not item.get("reference_frozen_at") or not item.get("question_fingerprint"):
+        return False
+    if int(item.get("ideal_answer_version") or 0) < 1 or not valid_blackboard_ideal_answer(item.get("ideal_answer") or ""):
+        return False
+    ideal_context = {"question": item.get("question") or "", "materials": item.get("materials") or [], "reference": points}
+    if blackboard_has_uncalibrated_numbers(item.get("ideal_answer") or "", ideal_context):
+        return False
+    if blackboard_has_unsupported_specifics(
+            "\n".join([item.get("ideal_answer") or "", *points]), ideal_context):
         return False
     return not any(re.fullmatch(r"\d*\s*到?\s*\d*\s*条?\s*(参考答案)?要点[。.]?", value) for value in points)
 
@@ -562,9 +781,9 @@ def get_daily_question(variant: str = ""):
     fallback = fallback_daily_question(today, latest, seeds, variant)
     primary_source = ((latest.get("hot_items") or []) + [item for section in (latest.get("sections") or []) for item in (section.get("items") or [])])[:1]
     primary_source = primary_source[0] if primary_source else {}
-    prompt = f"""你是栗壳小院黑板的产品教练。基于指定的近期真实资讯出一道有思考价值、可以列点回答的产品问答题。
-只返回 JSON：{{"title":"10字内题名","question":"明确的开放问答题","types":["类型"],"materials":["最多2条具体资料"],"standard_points":["4到6条标准答案要点"]}}
-要求：有指定资讯时，题目必须直接讨论该资讯，question 中必须完整引用它的原标题；materials 也只能解释同一篇资讯，不能拼接无关题目。题目不能是选择题；避免空泛；资料不够时不要编造事实；答案必须包含方法、具体动作、边界或验证标准。
+    prompt = f"""你是栗壳小院黑板的产品教练。基于指定的近期真实资讯出一道有思考价值、可以列点回答的产品问答题。你必须在看到主人本次答案之前独立写好并冻结完整示范回答。
+只返回 JSON：{{"title":"10字内题名","question":"明确的开放问答题","types":["类型"],"materials":["最多2条具体资料"],"standard_points":["4到6条只针对本题的评分参考要点"],"ideal_answer":"350到700字、可直接用于面试的完整回答"}}
+要求：有指定资讯时，题目必须直接讨论该资讯，question 中必须完整引用它的原标题；materials 也只能解释同一篇资讯，不能拼接无关题目。题目不能是选择题；避免空泛；资料不够时不要编造事实。standard_points 禁止使用适用于所有题的万能五点。ideal_answer 必须真正回答 question，严格使用“判断：”“拆解：”“验证：”“边界：”“例子：”五段，给出具体机制、动作、指标或例子，不编造主人经历。材料没有数据时不得虚构客户、准确率、提升幅度或硬阈值；需要数字只能明确写成待历史基线校准的示例。
 日期：{today}
 指定资讯：{json.dumps(primary_source, ensure_ascii=False)[:5000]}
 果园种子：{json.dumps(seeds[:5], ensure_ascii=False)[:3000]}
@@ -574,9 +793,9 @@ def get_daily_question(variant: str = ""):
 换题编号：{variant or '首题'}。换题时必须与上述题目的核心问题明显不同。
 相关记忆：{json.dumps(MEMORY_STORE.prompt_context("黑板出题", purpose="blackboard_question", limit=4), ensure_ascii=False)[:5000]}"""
     try:
-        raw, provider = call_ai(prompt)
+        raw, provider = call_ai(prompt, max_output_tokens=3200, thinking=False, temperature=0.25)
         generated = extract_json_object(raw)
-        candidate = attach_frozen_rubric({**fallback, **generated, "id": "question-" + today + "-" + (variant or "daily"), "date": today, "source": provider, "alignment_version": 4})
+        candidate = attach_frozen_rubric({**fallback, **generated, "id": "question-" + today + "-" + (variant or "daily"), "date": today, "source": provider, "alignment_version": 6})
         source_title = str(primary_source.get("title") or "").strip()
         if source_title and source_title not in str(candidate.get("question") or ""):
             raise ValueError("每日题与指定资讯不一致")
@@ -703,10 +922,17 @@ def call_openai(prompt: str) -> str:
     return text
 
 
-def call_ai(prompt: str) -> tuple[str, str]:
+def call_ai(
+        prompt: str, max_output_tokens: int | None = None,
+        thinking: bool | None = None, temperature: float = 0.5) -> tuple[str, str]:
     if MODEL_GATEWAY.text_providers():
-        token_budget = 4200 if ("记忆编辑器" in prompt or "蒸馏提案" in prompt or "只修复下面输出" in prompt) else 1800
-        return MODEL_GATEWAY.call_text_with_fallback(prompt, max_output_tokens=token_budget)
+        blackboard_grading = "grade-blackboard-answer Skill" in prompt
+        blackboard_structured = blackboard_grading or "独立准备一道黑板题" in prompt or "产品黑板出题人" in prompt
+        token_budget = max_output_tokens or ((6500 if blackboard_grading else 3200) if blackboard_structured else (
+            4200 if ("记忆编辑器" in prompt or "蒸馏提案" in prompt or "只修复下面输出" in prompt) else 1800))
+        return MODEL_GATEWAY.call_text_with_fallback(
+            prompt, temperature=temperature, max_output_tokens=token_budget,
+            thinking=thinking if thinking is not None else (False if blackboard_structured else None))
     raise RuntimeError("阿栗还没有连接你自己的文本模型 API。请配置 OpenAI、DeepSeek、GLM 或通义 API Key。")
 
 
@@ -1220,6 +1446,30 @@ def blackboard_quote_in_answer(answer: str, evidence: str) -> bool:
     return len(quote) >= 4 and quote in source
 
 
+def blackboard_best_source_quote(answer: str, hint: str) -> str:
+    """Map a model paraphrase back to the closest verbatim clause in the answer."""
+    if blackboard_quote_in_answer(answer, hint):
+        return str(hint or "").strip()
+    normalize = lambda value: re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", str(value or "").lower())
+    hint_text = normalize(hint)
+    if len(hint_text) < 4:
+        return ""
+    clauses = [item.strip() for item in re.split(r"[。！？；;\n]+", str(answer or "")) if len(normalize(item)) >= 4]
+    hint_pairs = {hint_text[index:index + 2] for index in range(max(0, len(hint_text) - 1))}
+    hint_latin = set(re.findall(r"[a-z][a-z0-9._-]{2,}", hint_text))
+    best, best_score = "", 0
+    for clause in clauses:
+        candidate = normalize(clause)
+        pairs = {candidate[index:index + 2] for index in range(max(0, len(candidate) - 1))}
+        latin = set(re.findall(r"[a-z][a-z0-9._-]{2,}", candidate))
+        overlap = len(pairs & hint_pairs)
+        latin_overlap = len(latin & hint_latin)
+        score = overlap * 2 + latin_overlap * 4
+        if score > best_score:
+            best, best_score = clause, score
+    return best if best_score >= 4 else ""
+
+
 def blackboard_score_band(awarded: float, max_score: float) -> str:
     score, ceiling = max(0, float(awarded or 0)), max(1, float(max_score or 1))
     if score == 0:
@@ -1231,6 +1481,45 @@ def blackboard_score_band(awarded: float, max_score: float) -> str:
     if score / ceiling >= 1 / 3:
         return "developing"
     return "weak"
+
+
+def normalize_blackboard_grade_candidate(result: dict, message: str, context: dict) -> dict:
+    """Align fixed schema fields and recover only evidence that exists verbatim."""
+    normalized = normalize_blackboard_learning_outputs(dict(result or {}), context)
+    revision = qualify_blackboard_illustrative_numbers(
+        normalized.get("personalized_revision") or normalized.get("minimal_revision") or "", context)
+    normalized["personalized_revision"] = revision
+    normalized["minimal_revision"] = revision
+    normalized = finalize_blackboard_grade(normalized, context)
+    for item in normalized.get("score_breakdown", []):
+        if item.get("awarded") and not blackboard_quote_in_answer(message, item.get("evidence") or ""):
+            item["evidence"] = blackboard_best_source_quote(
+                message, " ".join([str(item.get("evidence") or ""), str(item.get("reason") or ""), str(item.get("criterion") or "")]))
+    for item in normalized.get("requirement_map", []):
+        relation = str(item.get("relation") or "").lower()
+        if relation in {"not_covered", "off_track"}:
+            item["evidence"] = ""
+        elif not blackboard_quote_in_answer(message, item.get("evidence") or ""):
+            item["evidence"] = blackboard_best_source_quote(
+                message, " ".join([str(item.get("evidence") or ""), str(item.get("assessment") or ""), str(item.get("reference_point") or "")]))
+        teaching = str(item.get("teaching") or item.get("action") or "").strip()
+        actionable = re.compile(r"访谈|测试|对照|记录|计算|设置|限定|验证|抽样|比较|回滚|停止|定义|追踪|分层|补写|补充|说明|观察|统计|阈值|样本|周期|决策|举例|区分|连接|解释|改为|提供|审核|审批|拒绝|暂停|撤销|开放|保留|提交|绑定|校验|导出|查看|选择|划分|建立|加入|增加|采用|执行|监控|复核|触发|限制|禁止|因为|所以|如果|意味着|可以|应该")
+        if len(teaching) < 8 or not actionable.search(teaching):
+            point = str(item.get("reference_point") or "这一参考点").strip()
+            lead = teaching.rstrip("。；; ") + "；" if len(teaching) >= 4 else ""
+            if relation in {"covered", "equivalent"}:
+                item["teaching"] = f"{lead}保留这条已成立的思路，再围绕“{point}”写清执行对象、检查证据和失败条件。"
+            elif relation == "partial":
+                item["teaching"] = f"{lead}沿着原答案已有部分，围绕“{point}”补写执行步骤、判断证据和失败条件。"
+            else:
+                item["teaching"] = f"{lead}新增“{point}”这一段：先写具体执行动作，再写可核验的输出，以及什么情况判失败。"
+    for item in normalized.get("strengths", []):
+        if not blackboard_quote_in_answer(message, item.get("evidence") or ""):
+            item["evidence"] = blackboard_best_source_quote(
+                message, " ".join([str(item.get("evidence") or ""), str(item.get("why_good") or "")]))
+    sanitize_context = {"question": context.get("question") or "",
+                        "materials": [*(context.get("materials") or []), message]}
+    return sanitize_blackboard_unsupported_specifics(normalized, sanitize_context)
 
 
 def finalize_blackboard_grade(result: dict, context: dict) -> dict:
@@ -1259,16 +1548,29 @@ def finalize_blackboard_grade(result: dict, context: dict) -> dict:
             "evidence": str(row.get("evidence") or ""), "assessment": str(row.get("assessment") or ""),
             "teaching": str(row.get("teaching") or row.get("action") or ""),
         })
+    if requirement_map:
+        credit = sum(1 if item["relation"] in {"covered", "equivalent"} else .75 if item["relation"] == "partial" else 0
+                     for item in requirement_map) / len(requirement_map)
+        coverage_ceiling = 9 if credit < .25 else 19 if credit < .5 else 26 if credit < .9 else 30
+        coverage = next((item for item in score_breakdown if item["rubric_id"] == "coverage"), None)
+        if coverage and coverage["awarded"] > coverage_ceiling:
+            coverage["awarded"] = coverage_ceiling
+            coverage["band"] = blackboard_score_band(coverage_ceiling, coverage["max"])
     strengths = []
     for item in (result.get("strengths") if isinstance(result.get("strengths"), list) else [])[:4]:
         strengths.append({"evidence": "", "why_good": str(item)} if isinstance(item, str) else {
             "evidence": str(item.get("evidence") or ""), "why_good": str(item.get("why_good") or item.get("reason") or "")})
+    personalized_revision = str(result.get("personalized_revision") or result.get("minimal_revision") or "").strip()
     return {**result, "score_breakdown": score_breakdown, "requirement_map": requirement_map,
-            "strengths": strengths, "total_score": sum(item["awarded"] for item in score_breakdown),
-            "grading_policy": "评分标准在作答前冻结；四项能力先按五档锚点定档、再在档内给分；同一缺陷只归一个维度；合理的替代论证正常得分。"}
+            "strengths": strengths, "personalized_revision": personalized_revision,
+            "minimal_revision": personalized_revision,
+            "total_score": sum(item["awarded"] for item in score_breakdown),
+            "grading_policy": "评分标准在作答前冻结；四项能力先按五档锚点定档、再在档内给分；任务覆盖分按 covered、partial、equivalent 的实际分布校准上限；同一缺陷只归一个维度；合理的替代论证正常得分。"}
 
 
-def blackboard_grade_needs_retry(message: str, context: dict, result: dict) -> bool:
+def blackboard_grade_needs_retry(
+        message: str, context: dict, result: dict,
+        ignore_revision: bool = False, ignore_next_answer: bool = False) -> bool:
     scores = result.get("score_breakdown") if isinstance(result.get("score_breakdown"), list) else []
     rubric = normalized_blackboard_rubric(context)
     if not rubric or len(scores) != len(rubric):
@@ -1277,6 +1579,11 @@ def blackboard_grade_needs_retry(message: str, context: dict, result: dict) -> b
     empty = len(compact) < 12 and bool(re.fullmatch(
         r"(不会|好难|不知道|不懂|不会做|答不出|没思路|太难了|不会好难)+",
         re.sub(r"[，。！？,.!?~～…]", "", compact)))
+    practice_valid = (valid_blackboard_next_practice_outline(result, context)
+                      if ignore_next_answer else valid_blackboard_next_practice(result, context))
+    if (not valid_blackboard_plain_language_coaching(result.get("plain_language_coaching"), context.get("question") or "")
+            or not practice_valid):
+        return True
     if empty:
         return False
     for index, item in enumerate(scores):
@@ -1299,7 +1606,7 @@ def blackboard_grade_needs_retry(message: str, context: dict, result: dict) -> b
     if len(requirement_map) != len(reference):
         return True
     valid_relations = {"covered", "partial", "equivalent", "not_covered", "off_track"}
-    actionable = re.compile(r"访谈|测试|对照|记录|计算|设置|限定|验证|抽样|比较|回滚|停止|定义|追踪|分层|补写|说明|观察|统计|阈值|样本|周期|决策|举例|区分|连接|解释|改为")
+    actionable = re.compile(r"访谈|测试|对照|记录|计算|设置|限定|验证|抽样|比较|回滚|停止|定义|追踪|分层|补写|补充|说明|观察|统计|阈值|样本|周期|决策|举例|区分|连接|解释|改为|提供|审核|审批|拒绝|暂停|撤销|开放|保留|提交|绑定|校验|导出|查看|选择|划分|建立|加入|增加|采用|执行|监控|复核|触发|限制|禁止")
     for index, item in enumerate(requirement_map):
         if not isinstance(item, dict):
             return True
@@ -1343,15 +1650,84 @@ def blackboard_grade_needs_retry(message: str, context: dict, result: dict) -> b
             not isinstance(item, dict) or not blackboard_quote_in_answer(message, str(item.get("evidence") or ""))
             or len(str(item.get("why_good") or "").strip()) < 8 for item in strengths)):
         return True
-    normalize = lambda value: re.sub(r"[^0-9a-z\u4e00-\u9fff]+", "", str(value or "").lower())
-    revision = str(result.get("minimal_revision") or "").strip()
-    answer_chars, revision_chars = set(normalize(message)), set(normalize(revision))
-    overlap = len(answer_chars & revision_chars) / max(1, len(answer_chars | revision_chars))
-    if not revision or len(revision) < min(24, len(message.strip())) or overlap < 0.20:
-        return True
+    if not ignore_revision:
+        revision = str(result.get("personalized_revision") or result.get("minimal_revision") or "").strip()
+        if not valid_blackboard_personalized_revision(revision, message):
+            return True
+        if not blackboard_revision_distinct_from_ideal(revision, context.get("ideal_answer") or ""):
+            return True
+        if blackboard_has_uncalibrated_numbers(revision, context):
+            return True
     if re.search(r"补充具体(方案|指标)|缺少具体(方案|指标)|不够具体|进一步完善", str(result.get("priority_fix") or "")) and not actionable.search(str(result.get("priority_fix") or "")):
         return True
     return (awarded == 0 and general) or wrong_requirement
+
+
+def blackboard_revision_needs_repair(message: str, context: dict, result: dict) -> bool:
+    revision = str(result.get("personalized_revision") or result.get("minimal_revision") or "").strip()
+    return (not valid_blackboard_personalized_revision(revision, message)
+            or not blackboard_revision_distinct_from_ideal(revision, context.get("ideal_answer") or "")
+            or blackboard_has_uncalibrated_numbers(revision, context))
+
+
+def repair_blackboard_personalized_revision(message: str, context: dict, result: dict) -> tuple[dict, str]:
+    strengths = result.get("strengths") if isinstance(result.get("strengths"), list) else []
+    scores = result.get("score_breakdown") if isinstance(result.get("score_breakdown"), list) else []
+    advice = [{"criterion": item.get("criterion"), "reason": item.get("reason"), "teaching": item.get("teaching")}
+              for item in scores if isinstance(item, dict)]
+    prompt = f"""你只重写一份基于主人原答案的面试升级版，不评分，不生成参考答案，也看不到标准示范答案。
+只返回 JSON：{{"personalized_revision":"300到700字的完整中文回答"}}。
+必须严格使用“判断：”“拆解：”“验证：”“边界：”“例子：”五段；保留并明确使用主人原答案中成立的判断、机制或表达，再实质补齐建议指出的缺口。禁止写成万能模板，禁止虚构主人经历、客户、资质、项目数据或事实；需要数字只能明确写成待历史基线校准的示例。
+题目：{str(context.get('question') or '')[:3000]}
+题目资料：{json.dumps(context.get('materials') or [], ensure_ascii=False)[:3000]}
+主人原答案：{message[:5000]}
+已确认优点：{json.dumps(strengths, ensure_ascii=False)[:3000]}
+需要补强：{json.dumps(advice, ensure_ascii=False)[:5000]}"""
+    provider = ""
+    previous = ""
+    for attempt in range(2):
+        retry_note = ("\n上一版未通过质量校验。请保留主人原答案里成立的具体判断，并补齐五段，"
+                      "不要复制标准答案或虚构数字。上一版：" + previous[:3500]) if previous else ""
+        previous, provider = call_ai(
+            prompt + retry_note, max_output_tokens=2600, thinking=False, temperature=0.2)
+        parsed = extract_json_object(previous)
+        revision = qualify_blackboard_illustrative_numbers(parsed.get("personalized_revision") or "", context)
+        revision = sanitize_blackboard_unsupported_specifics(
+            revision, {"question": context.get("question") or "", "materials": [*(context.get("materials") or []), message]})
+        if (valid_blackboard_personalized_revision(revision, message)
+                and blackboard_revision_distinct_from_ideal(revision, context.get("ideal_answer") or "")
+                and not blackboard_has_uncalibrated_numbers(revision, context)):
+            return {**result, "personalized_revision": revision, "minimal_revision": revision}, provider
+    raise RuntimeError("个性化升级版连续两次未通过质量校验")
+
+
+def generate_blackboard_next_ideal_answer(result: dict, context: dict) -> tuple[str, str]:
+    if not valid_blackboard_next_practice_outline(result, context):
+        raise RuntimeError("下一步练习题或作答思路不完整")
+    question = str(result.get("next_question") or "").strip()
+    reference = result.get("next_question_reference") if isinstance(result.get("next_question_reference"), list) else []
+    prompt = f"""你只为下一步练习写一份阿栗示范答案，不评分，不改题目。
+只返回 JSON：{{"next_question_ideal_answer":"260到500字的完整中文回答"}}。
+必须严格使用“判断：”“拆解：”“验证：”“边界：”“例子：”五段，直接回答练习题；不得虚构经历、客户或未经资料支持的数据。需要数字时只能明确写成待历史基线校准的示例。
+练习题：{question[:2000]}
+作答思路：{json.dumps(reference, ensure_ascii=False)[:3000]}"""
+    answer_context = {"question": question, "materials": [], "reference": reference}
+    provider = ""
+    previous = ""
+    for attempt in range(2):
+        retry_note = ("\n上一版没有形成可直接作答的五段完整答案。请逐段回答当前练习题，删除无依据数字。上一版："
+                      + previous[:3500]) if previous else ""
+        previous, provider = call_ai(
+            prompt + retry_note, max_output_tokens=2200, thinking=False, temperature=0.2)
+        parsed = extract_json_object(previous)
+        answer = sanitize_blackboard_unsupported_specifics(
+            qualify_blackboard_illustrative_numbers(parsed.get("next_question_ideal_answer") or "", answer_context),
+            answer_context)
+        if (valid_blackboard_ideal_answer(answer)
+                and blackboard_text_matches_question(question, answer)
+                and not blackboard_has_uncalibrated_numbers(answer, answer_context)):
+            return answer, provider
+    raise RuntimeError("下一步练习的阿栗答案连续两次未通过质量校验")
 
 
 COMPANION_STYLES = {"listen", "clarify", "reframe", "suggest", "lighten", "challenge", "oracle", "archive"}
@@ -1379,14 +1755,17 @@ def room_reply(room: str, message: str, context: dict) -> dict:
     if room not in skill_files:
         raise ValueError("这个房间还没有对话能力")
     context = context or {}
+    blackboard_intent = str(context.get("intent") or "grade_answer") if room == "blackboard" else ""
     skill_file = ("core/skills/grade-blackboard-answer/SKILL.md"
                   if room == "blackboard" and str(context.get("intent") or "grade_answer") == "grade_answer"
                   else skill_files[room])
     skill = read_text(ROOT / skill_file, 9000)
     if room in {"heart_hollow", "travel"}:
         skill += "\n\n" + read_text(ROOT / "core/skills/companion-dialogue/SKILL.md", 9000)
-    is_blackboard_grading = room == "blackboard" and str(context.get("intent") or "grade_answer") == "grade_answer"
-    if room not in {"heart_hollow", "travel"} and not is_blackboard_grading:
+    is_blackboard_grading = room == "blackboard" and blackboard_intent == "grade_answer"
+    is_blackboard_reference = room == "blackboard" and blackboard_intent == "reference_answer"
+    staged_blackboard_grading = is_blackboard_grading and MODEL_GATEWAY.text_provider() == "deepseek"
+    if room not in {"heart_hollow", "travel"} and not is_blackboard_grading and not is_blackboard_reference:
         MEMORY_STORE.observe_message(message, source=room)
     recent_memory_ids = context.get("recent_memory_ids") if isinstance(context.get("recent_memory_ids"), list) else []
     purpose = ("learning_support" if room == "orchard" else
@@ -1400,13 +1779,29 @@ def room_reply(room: str, message: str, context: dict) -> dict:
     answer_memory = ({"note": "成长田只使用已确认的学习支持偏好，其他模块内容不得盖过当前问题"}
                      if room == "orchard" else
                      {"note": "公平评分不读取个人记忆；只依据冻结题目、评分维度、参考锚点和本次答案"}
-                     if is_blackboard_grading else memory_profile)
+                     if is_blackboard_grading else
+                     {"note": "独立示范回答不读取个人记忆，也不会接收主人本次答案"}
+                     if is_blackboard_reference else memory_profile)
     heart_mode = str(context.get("mode") or "oracle").strip()
     if room == "heart_hollow" and heart_mode == "oracle" and len(re.sub(r"\s+", "", message)) < 55:
         return {
             "reply": "", "result": {"reply": "", "deferred": True, "mode": "oracle"},
             "provider": "local", "deferred": True,
         }
+    blackboard_format = (
+        '只返回 JSON：{"ideal_answer":"350到700字的完整中文回答"}。此请求不会包含主人本次答案。ideal_answer 必须真正回答 context.question，'
+        '严格使用“判断：”“拆解：”“验证：”“边界：”“例子：”五段，每段都针对本题给出具体机制、动作、判断标准或例子；不得编造主人经历或资料中没有的事实。材料没有数字时，不得虚构客户、准确率、提升幅度或硬阈值；需要数字只能明确写成待历史基线校准的示例。'
+        if is_blackboard_reference else
+        '若 context.intent=grade_answer，像批改政治大题一样给过程分并教会主人怎样答得更好，只返回 JSON：'
+        '{"score_breakdown":[{"rubric_id":"逐字复制rubric id","criterion":"逐字复制rubric criterion","max":"逐字复制rubric max","awarded":"0到max整数","band":"excellent/solid/developing/weak/absent，与分数档一致","evidence":"正分时逐字引用原答案，0分才留空","reason":"解释这段思考为什么成立、完成到什么程度或错在哪里","teaching":"沿原答案思路怎样补成更强论证，并给可直接采用的表达"}],'
+        '"score_summary":"一句话概括当前水平和最值得提升处","requirement_map":[{"reference_point":"逐字复制reference中的一条","relation":"covered/partial/equivalent/not_covered/off_track","evidence":"covered/partial/equivalent时引用原答案，其余留空","assessment":"与参考思路的关系及理由","teaching":"怎样利用、补充或纠正这一处"}],'
+        '"strengths":[{"evidence":"原答案短引","why_good":"这处思考好在哪里、为什么有价值"}],"direction":"correct/partly_correct/misdirected","correction_path":"方向正确时给升级顺序；方向错误时解释错误推理并给纠正顺序","priority_fix":"最优先提升的一件事，包含动作与判断标准","personalized_revision":"300到700字、基于原答案有效观点的完整面试升级版，严格包含判断、拆解、验证、边界、例子五段",'
+        '"plain_language_coaching":{"what_the_question_wants":"不用术语说明这题到底要你回答什么","answer_steps":["三到五步，每一步说明先做什么以及为什么"],"remember":["两到五条真正需要记住的本题知识"],"memory_hook":"一句简短答题口诀"},'
+        '"next_question":"一道针对当前薄弱点的新练习","next_question_reference":["三到六条作答思路"],"next_question_ideal_answer":"300到700字的阿栗完整答案，严格包含判断、拆解、验证、边界、例子五段"}。'
+        '评分维度、参考要点和 ideal_answer 已在作答前冻结。先独立理解题意，再阅读主人答案；reference 和 ideal_answer 只用于校准，不是关键词清单或唯一解。每项先按 score_bands 选档再给分；同一根因只能归入一个主要扣分维度。合理替代论证必须给分并标 equivalent。每个正分项和 strengths 都要引用原答案。teaching 必须具体，禁止“补充具体方案和指标”“进一步完善”等套话。personalized_revision 要吸收原答案中成立的观点并实质补齐缺口，不能复制 ideal_answer，不能编造主人经历、数据或成果。plain_language_coaching 必须像当面教初学者：先翻译题意，再给可照着执行的答题步骤、真正要记住的知识和一句口诀，不能复述分数或写空泛鼓励。next_question 必须针对本次最薄弱处但不能原题重问；next_question_ideal_answer 必须真正回答这道新题，是可直接用于面试的完整示范，不得只列提纲。材料没有给出数据时不得虚构客户、准确率、提升幅度或硬阈值；需要数字只能明确写成待历史基线校准的示例。'
+        if is_blackboard_grading else
+        '若 context.intent=question_helper：回答必须直接关联当前题目和用户追问；可以使用模型通用知识补足背景，但最新归属、版本、价格和指标未联网核验时必须标注。只返回 JSON：{"reply":"80到180字解释","material":"用户问：问题；阿栗补充：答案摘要"}。不得泄露标准答案或替主人完成方案。'
+    )
     formats = {
         "orchard": '只返回合法 JSON，不要 Markdown 代码围栏：{"reply":"直接回答当前问题的完整中文回复，通常180到500字；结论优先，分段或编号清楚，问题简单时可以更短","answer_focus":"20到50字概括本轮实际回答的问题","seed_summary":"本轮关注点的简短概括","key_insight":"一句可独立复习的核心判断","next_step":"一个确实有帮助的后续动作，没有必要则留空","knowledge_topic":{"match_id":"能归入上下文现有专题时必须填该id，否则留空","title":"稳定、可继续扩展的专题名，不要把一次问题或单个产品机械建成一类","category":"优先复用现有分类，确实不同才新建","entities":["本轮涉及的产品、组织或概念"],"summary":"融合本轮正确答案与已有专题后的可复习摘要","knowledge_points":["3到7条具体事实、差异、方法或判断"],"comparison_rows":[{"item":"比较对象","traits":"主要特点","scenarios":"适用场景","considerations":"限制或注意点"}],"scenarios":["实际应用场景"],"conclusion":"专题当前结论"}}。当前用户消息是唯一主任务，必须准确回答所问对象，不得擅自换题。context.conversation 只用于理解追问指代，context.knowledge_topics 只用于答完后的归档，旧对话和记忆不得盖过当前问题。reply 必须独立完整。禁止比喻、拟人、诗意散文、田野签语、玄学隐喻、泛泛安慰和强制安排几天内实验。涉及产品能力时区分已知事实与推断，不确定或可能过时的内容要明确说明，不要编造。',
         "heart_hollow": (
@@ -1418,13 +1813,30 @@ def room_reply(room: str, message: str, context: dict) -> dict:
             '先判断此刻更需要倾听、澄清、换个角度、具体建议、轻松陪聊还是温和反驳；避开 context.recent_reply_styles 最近两种方式。回应一个具体细节后就向前推进，不复述整段话。可以表达判断，也可以有一点自然幽默；最多问一个真正有用的问题，不必每轮都问，不把每段情绪都变成安慰。'
             '只有内容具体、包含真实经历或形成了可持续成长线索时 should_grow 才为 true；短促情绪、试音和重复句必须为 false。成长信号不得复述树洞原话、人物、公司、地点或其他私密细节。'
         ),
-        "blackboard": ('若 context.intent=grade_answer，像批改政治大题一样给过程分并教会主人怎样答得更好，只返回 JSON：{"score_breakdown":[{"rubric_id":"逐字复制rubric id","criterion":"逐字复制rubric criterion","max":"逐字复制rubric max","awarded":"0到max整数","band":"excellent/solid/developing/weak/absent，与分数档一致","evidence":"正分时逐字引用原答案，0分才留空","reason":"解释这段思考为什么成立、完成到什么程度或错在哪里","teaching":"沿原答案思路怎样补成更强论证"}],"score_summary":"一句话概括当前水平和最值得提升处","requirement_map":[{"reference_point":"逐字复制reference中的一条","relation":"covered/partial/equivalent/not_covered/off_track","evidence":"covered/partial/equivalent时引用原答案，其余留空","assessment":"与参考思路的关系及理由","teaching":"怎样利用、补充或纠正这一处"}],"strengths":[{"evidence":"原答案短引","why_good":"这处思考好在哪里、为什么有价值"}],"direction":"correct/partly_correct/misdirected","correction_path":"方向正确时给升级顺序；方向错误时解释错误推理并给纠正顺序","priority_fix":"最优先提升的一件事，包含动作与判断标准","minimal_revision":"保留原答案主张、措辞和顺序的最小补强版","next_question":"可选练习","next_question_reference":["可选参考要点"]}。'
-                       '若 context.intent=question_helper：回答必须直接关联当前题目和用户追问；可以使用模型通用知识补足背景，但最新归属、版本、价格和指标未联网核验时必须标注。reply 用80到180字解释，material 必须写成“用户问：问题；阿栗补充：答案摘要”，其余评分字段返回空数组。不得泄露标准答案或替主人完成方案。'
-                       '若 context.intent=grade_answer：评分维度和参考答案已经在作答前冻结。先独立理解题意，再阅读主人答案；reference 只是高质量答案锚点，不是关键词清单或唯一解。每一项先按 rubric.score_bands 选档，再在档内定分，不得脱离档位凭感觉给整数。严格按 rubric.scoring_scope 分开计分，同一根因只能归入一个主要扣分维度：偏题、范围或核心概念错误归题意理解；完全缺失的子任务归任务覆盖；已经提出但没解释或支撑的观点归推理证据；缺少按题型应有的适用条件、例子、场景、取舍、验证、限制或反例归边界迁移。合理替代论证必须正常给分，并在最接近的参考点标 equivalent。短答案可以得高分，不按篇幅扣分。时效性事实没有 materials 或可靠来源支撑时只标待核验，不得武断判错。每个正分项和 strengths 都要引用原答案，并解释为什么好；方向正确时沿原思路具体补强，方向错误时指出错误发生在哪个推理环节并给纠正顺序。不得要求题目没要求的公司或产品信息。teaching 必须具体，禁止“补充具体方案和指标”“进一步完善”等套话。minimal_revision 必须保留原答案结论、措辞和顺序，不得另写模板答案。不得返回 standard_points、polished_answer、通用 diagnosis 或 thinking_directions。next_question_reference 必须直接回答 next_question。'),
+        "blackboard": blackboard_format,
         "travel": ('只返回 JSON：{"summary":"忠于原话、80字内的旅行描述","title":"简短名称","reply":"","response_style":"archive"}。只整理事实，不添加感悟或虚构经历。'
                    if str(context.get("intent") or "") == "summarize_trip_description" else
                    '只返回 JSON：{"summary":"忠于原话、120字内且适合归档的旅行感悟摘要","title":"简短名称","reply":"针对这段感悟的自然陪伴回应","response_style":"listen/clarify/reframe/suggest/lighten/challenge 六选一"}。summary 负责归档，只能使用当前主人原话，房间记忆不得改写摘要；reply 负责陪伴，两者内容不得相同。reply 选择此刻真正有帮助的回应方式，避开 context.recent_reply_styles 最近两种；可以分享看法、轻松接话或温和反驳，不必每次总结人生意义，也不必每次追问。'),
     }
+    if staged_blackboard_grading:
+        formats["blackboard"] = (
+            '你正在执行 grade-blackboard-answer Skill 的评分阶段。只完成评分、教学建议、大白话讲解和下一步练习题；'
+            '不要在本阶段生成个性化完整回答或下一题完整答案。只返回 JSON：'
+            '{"score_breakdown":[{"rubric_id":"逐字复制rubric id","criterion":"逐字复制rubric criterion","max":"逐字复制rubric max",'
+            '"awarded":"0到max整数","band":"excellent/solid/developing/weak/absent","evidence":"正分时逐字引用原答案短句，0分留空",'
+            '"reason":"25到80字说明为什么得分","teaching":"25到100字教主人怎样补强"}],"score_summary":"一句话概括",'
+            '"requirement_map":[{"reference_point":"逐字复制reference一条","relation":"covered/partial/equivalent/not_covered/off_track",'
+            '"evidence":"命中时逐字引用原答案，否则留空","assessment":"20到70字说明关系","teaching":"25到100字的具体补强动作"}],'
+            '"strengths":[{"evidence":"原答案短引","why_good":"为什么有价值"}],"direction":"correct/partly_correct/misdirected",'
+            '"correction_path":"升级或纠正顺序","priority_fix":"最优先提升的一件事",'
+            '"plain_language_coaching":{"what_the_question_wants":"不用术语说明题目要什么","answer_steps":["三到五步"],'
+            '"remember":["两到五条记忆点"],"memory_hook":"一句口诀"},"next_question":"针对最薄弱处的新练习",'
+            '"next_question_reference":["三到六条作答思路"]}。score_breakdown 必须与 rubric 等长且顺序一致，'
+            'requirement_map 必须与 reference 等长且顺序一致。每项先按 score_bands 选档再给分，同一缺陷只归一个主要维度；'
+            '合理替代论证标 equivalent 并正常给分。每个正分项和 strengths 必须逐字引用主人原答案。'
+            'teaching 必须给可直接采用的动作或表达，禁止套话。plain_language_coaching 要真正教会初学者；'
+            'next_question 不能复述原题。context.ideal_answer 只用于校准，不得修改。'
+        )
     prompt = f"""你在栗壳小院中处理一个房间内任务。
 {skill}
 {formats[room]}
@@ -1433,8 +1845,16 @@ def room_reply(room: str, message: str, context: dict) -> dict:
 当前主人问题（最高优先级）：{message[:6000]}
 辅助上下文（只用于指代消解和归档）：{json.dumps(context, ensure_ascii=False)[:10000]}
 房间限定记忆（最多两条，可以完全不用；不得为了展示记忆而提起过去）：{json.dumps(answer_memory, ensure_ascii=False)[:8000]}"""
-    raw, provider = call_ai(prompt)
+    blackboard_tokens = (3600 if staged_blackboard_grading else
+                         6500 if is_blackboard_grading else
+                         3200 if is_blackboard_reference else None)
+    raw, provider = call_ai(
+        prompt, max_output_tokens=blackboard_tokens,
+        thinking=False if (is_blackboard_grading or is_blackboard_reference) else None,
+        temperature=0.1 if is_blackboard_grading else 0.2 if is_blackboard_reference else 0.5)
     result = extract_json_object(raw)
+    if is_blackboard_grading:
+        result = normalize_blackboard_grade_candidate(result, message, context)
     if room == "heart_hollow":
         expected_style = "oracle" if heart_mode == "oracle" else "listen"
         if str(result.get("response_style") or "") not in COMPANION_STYLES:
@@ -1457,23 +1877,78 @@ def room_reply(room: str, message: str, context: dict) -> dict:
         result = extract_json_object(raw)
         if not orchard_answer_aligned(message, result):
             raise RuntimeError("阿栗两次回答都没有对准当前问题，请换一种问法后重试")
-    if (room == "blackboard" and str(context.get("intent") or "grade_answer") == "grade_answer"
-            and blackboard_grade_needs_retry(message, context, result)):
+    if is_blackboard_reference and (
+            not valid_blackboard_ideal_answer(result.get("ideal_answer") or "")
+            or blackboard_has_uncalibrated_numbers(result.get("ideal_answer") or "", context)):
         raw, provider = call_ai(
-            prompt + "\n\n上一版批改未通过证据或教学质量校验。请重新执行：逐项复制 rubric 的 id、criterion 和 max；"
-            "每项先按 score_bands 选档并返回匹配的 band；每个正分项都引用原答案并解释为什么有价值；参考点关系只使用 covered、partial、equivalent、not_covered、off_track，"
-            "合理替代论证必须标 equivalent 并正常给分；direction 和 correction_path 必须完整；每个 teaching 写出可直接采用的补强或纠正步骤；"
-            "minimal_revision 必须保留原答案主张和措辞。"
-            + "上一版输出：" + raw[:5000]
+            prompt + "\n\n上一版只是提纲、没有完整回答题目，或使用了资料中不存在的硬数字。请重新写一份 350 到 700 字的面试示范回答，"
+            "必须包含判断、拆解、验证、边界、例子五段，每段都直接针对当前题目；删除无依据的百分比、次数和期限，"
+            "确需举例时明确写成待历史基线校准的示例。上一版输出：" + raw[:5000],
+            max_output_tokens=3200, thinking=False, temperature=0.2
         )
         result = extract_json_object(raw)
-        if blackboard_grade_needs_retry(message, context, result):
-            raise RuntimeError("评分结果仍缺少对原答案的有效依据，请稍后重新核分")
+        result["ideal_answer"] = qualify_blackboard_illustrative_numbers(result.get("ideal_answer") or "", context)
+        if (not valid_blackboard_ideal_answer(result.get("ideal_answer") or "")
+                or blackboard_has_uncalibrated_numbers(result.get("ideal_answer") or "", context)):
+            raise RuntimeError("模型两次都没有生成合格的完整示范回答")
     if room == "blackboard" and str(context.get("intent") or "grade_answer") == "grade_answer":
+        if staged_blackboard_grading:
+            for retry_index in range(2):
+                if not blackboard_grade_needs_retry(
+                        message, context, result, ignore_revision=True, ignore_next_answer=True):
+                    break
+                raw, provider = call_ai(
+                    prompt + "\n\n上一版评分阶段未通过校验。仍只返回前述短 JSON，不要生成个性化完整回答或下一题完整答案。"
+                    "逐项复制 rubric 和 reference；每个正分项引用原答案；补齐具体 teaching、大白话步骤和下一步练习。"
+                    + f"这是第 {retry_index + 1} 次修复。上一版：" + raw[:3500],
+                    max_output_tokens=3600, thinking=False, temperature=0.1)
+                result = normalize_blackboard_grade_candidate(extract_json_object(raw), message, context)
+            if blackboard_grade_needs_retry(
+                    message, context, result, ignore_revision=True, ignore_next_answer=True):
+                raise RuntimeError("评分与教学建议连续三次未通过质量校验")
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                revision_future = executor.submit(repair_blackboard_personalized_revision, message, context, result)
+                next_answer_future = executor.submit(generate_blackboard_next_ideal_answer, result, context)
+                result, revision_provider = revision_future.result()
+                next_answer, next_provider = next_answer_future.result()
+            result["next_question_ideal_answer"] = next_answer
+            provider = revision_provider or next_provider or provider
+        else:
+            if (blackboard_revision_needs_repair(message, context, result)
+                    and not blackboard_grade_needs_retry(message, context, result, ignore_revision=True)):
+                try:
+                    result, provider = repair_blackboard_personalized_revision(message, context, result)
+                except Exception:
+                    pass
+            for retry_index in range(2):
+                if not blackboard_grade_needs_retry(message, context, result):
+                    break
+                raw, provider = call_ai(
+                    prompt + "\n\n上一版批改未通过证据或教学质量校验。请重新执行：逐项复制 rubric 的 id、criterion 和 max；"
+                    "每项先按 score_bands 选档并返回匹配的 band；每个正分项都引用原答案并解释为什么有价值；参考点关系只使用 covered、partial、equivalent、not_covered、off_track，"
+                    "合理替代论证必须标 equivalent 并正常给分；direction 和 correction_path 必须完整；每个 teaching 写出可直接采用的补强或纠正步骤；"
+                    "personalized_revision 必须基于原答案写成包含判断、拆解、验证、边界和例子的完整面试回答；"
+                    "personalized_revision 必须保留主人原答案中成立的表达和思路，禁止复制 context.ideal_answer；"
+                    "plain_language_coaching 必须完整解释题目要什么、三到五步怎么答、两到五条记什么以及一句口诀；"
+                    "next_question 必须针对薄弱点且不是原题复述，next_question_ideal_answer 必须用判断、拆解、验证、边界、例子五段完整回答新题；"
+                    "删除材料中不存在的精确客户、比例、次数、期限和效果数字，确需示例时明确写‘示例阈值，需由历史基线校准’。"
+                    + f"这是第 {retry_index + 1} 次定向修复。上一版输出：" + raw[:5000],
+                    max_output_tokens=6500, thinking=False, temperature=0.1
+                )
+                result = normalize_blackboard_grade_candidate(extract_json_object(raw), message, context)
+                if (blackboard_revision_needs_repair(message, context, result)
+                        and not blackboard_grade_needs_retry(message, context, result, ignore_revision=True)):
+                    try:
+                        result, provider = repair_blackboard_personalized_revision(message, context, result)
+                    except Exception:
+                        pass
+        if blackboard_grade_needs_retry(message, context, result):
+            raise RuntimeError("评分结果连续三次未通过证据与教学质量校验，请稍后重新核分")
+    if is_blackboard_grading:
         result = finalize_blackboard_grade(result, context)
     return {
         "reply": result.get("reply") or result.get("summary") or "", "result": result, "provider": provider,
-        "memory_usage": {"purpose": purpose, "selected_ids": [] if is_blackboard_grading else memory_profile.get("selected_memory_ids", [])},
+        "memory_usage": {"purpose": purpose, "selected_ids": [] if (is_blackboard_grading or is_blackboard_reference) else memory_profile.get("selected_memory_ids", [])},
     }
 
 
@@ -1627,7 +2102,8 @@ class CozyHandler(SimpleHTTPRequestHandler):
                 room_context = payload.get("context") or {}
                 result = room_reply(room, message, room_context)
                 memory_event = None
-                should_commit = room != "travel" or bool(room_context.get("commit"))
+                is_reference_preview = room == "blackboard" and str(room_context.get("intent") or "") == "reference_answer"
+                should_commit = (room != "travel" or bool(room_context.get("commit"))) and not is_reference_preview
                 if should_commit:
                     parsed_result = result.get("result") if isinstance(result.get("result"), dict) else {}
                     event_content = str(room_context.get("current_text") or room_context.get("latest_entry") or message)

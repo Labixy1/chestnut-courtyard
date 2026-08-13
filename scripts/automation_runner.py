@@ -50,13 +50,26 @@ class AutomationRunner:
         monday = today - timedelta(days=today.weekday())
         return "week_" + monday.isoformat()
 
-    def _has_current_report(self):
+    def _has_current_report(self, now=None):
         try:
             reports = json.loads((self.root / "core/notice_reports.json").read_text(encoding="utf-8")).get("reports", [])
         except (OSError, ValueError):
             return False
-        today = date.today().isoformat()
-        return any(str(report.get("generated_at") or "").startswith(today) for report in reports)
+        now = now or datetime.now().astimezone()
+        scheduled = self.latest_scheduled_run(now)
+        for report in reports:
+            raw = str(report.get("generated_at") or "").strip()
+            if not raw:
+                continue
+            try:
+                generated = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                if generated.tzinfo is None:
+                    generated = generated.replace(tzinfo=now.tzinfo)
+                if generated.astimezone(now.tzinfo) >= scheduled:
+                    return True
+            except ValueError:
+                continue
+        return False
 
     def _record(self, name, status, message=""):
         state = self._read()

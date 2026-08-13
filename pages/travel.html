@@ -202,7 +202,7 @@ function getAllTrips(){
 function getTripKey(t){
   return String(t.id || [t.place || '未命名地点',t.start || t.date || '',t.end || ''].join('|'));
 }
-function travelAsset(file){const value=String(file||'');return /^(?:https?:|data:|blob:|\.\.\/)/.test(value)?value:'../'+value.replace(/^\.\//,'');}
+function travelAsset(file){const value=String(file||'');return /^(?:https?:|data:|blob:|\/|\.\.\/)/.test(value)?value:'../'+value.replace(/^\.\//,'');}
 function localTrips(){return JSON.parse(localStorage.getItem('cozy_trips')||'[]');}
 function isLocalTrip(id){return localTrips().some(t=>String(t.id)===String(id));}
 function tripStatus(trip){

@@ -62,8 +62,9 @@ def main():
     gateway = FakeGateway()
     text, provider = gateway.call_text("hello", "openai")
     assert text == "online" and provider == "openai"
-    text, provider = gateway.call_text("hello", "deepseek")
+    text, provider = gateway.call_text("hello", "deepseek", thinking=False)
     assert text == "compatible" and provider == "deepseek"
+    assert gateway.calls[-1]["body"]["thinking"] == {"type": "disabled"}
 
     fallback = FallbackGateway()
     assert fallback.text_providers() == ["deepseek", "openai"]
@@ -71,23 +72,27 @@ def main():
     assert text == "online" and provider == "openai"
     assert fallback.status()["text_route"] == ["deepseek", "openai"]
 
-    seedream = gateway.generate_image("院子", "seedream", size="2K")
+    seedream = gateway.generate_image("院子", "seedream")
     assert seedream["model"] == "seedream-test"
     assert gateway.calls[-1]["path"] == "/images/generations"
+    assert gateway.calls[-1]["body"]["size"] == "1K"
     assert gateway.calls[-1]["body"]["watermark"] is False
     assert "output_format" not in gateway.calls[-1]["body"]
 
-    openai = gateway.generate_image("院子", "openai", size="1536x1024")
+    openai = gateway.generate_image("院子", "openai")
     assert openai["model"] == "gpt-image-2"
-    assert gateway.calls[-1]["body"]["quality"] == "high"
+    assert gateway.calls[-1]["body"]["size"] == "1024x1024"
+    assert gateway.calls[-1]["body"]["quality"] == "medium"
+    assert gateway.calls[-1]["body"]["output_format"] == "webp"
 
     gemini = gateway.generate_image("院子", "nano-banana")
     assert gemini["model"] == "gemini-image-test" and gemini["data"][0]["b64_json"]
     assert gateway.calls[-1]["provider"] == "gemini" and gateway.calls[-1]["path"].endswith(":generateContent")
 
-    video = gateway.create_video("风吹过树叶", duration=5, ratio="16:9")
+    video = gateway.create_video("风吹过树叶", ratio="16:9")
     assert video["remote_id"] == "remote-video-1"
     assert gateway.calls[-1]["body"]["duration"] == 5
+    assert gateway.calls[-1]["body"]["resolution"] == "480p"
 
     with tempfile.TemporaryDirectory(prefix="cozy_gateway_test_") as directory:
         root = Path(directory)

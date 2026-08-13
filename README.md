@@ -95,7 +95,7 @@ python3 scripts/service_smoke_test.py
 
 ## Cloudflare
 
-`python3 scripts/build_cloud.py --mode preview` 生成公开只读的 `dist/`；`--mode owner` 生成主人专用的 `dist-owner/`。主人版由同源 Worker 提供口令登录、KV 私人状态、阿栗对话、网页解析和非封存记忆档案，口令与模型密钥只存 Cloudflare Secret。公开构建和主人构建都只携带空白种子，树洞、密阁、运行日志和 API Key 不进入 GitHub。R2 尚未在当前 Cloudflare 账户启用，因此云端照片上传与生成媒体持久化暂时关闭；本地完整版本不受影响。
+`python3 scripts/build_cloud.py --mode preview` 生成公开只读的 `dist/`；`--mode owner` 生成主人专用的 `dist-owner/`。主人版由同源 Worker 提供口令登录、KV 私人状态、阿栗对话、网页解析和非封存记忆档案，口令与模型密钥只存 Cloudflare Secret。公开构建和主人构建都只携带空白种子，树洞、密阁、运行日志和 API Key 不进入 GitHub。主人版生成的图片、视频及手动上传到照片墙、旅行和树洞的照片均保存到私有 R2 `chestnut-courtyard-media`；默认使用省空间画质，并在 9GB 停止写入。演示版不绑定主人 R2，也不能读取或上传主人媒体。
 
 当前发布地址：主人版 `https://dcxin.neuralnode.top`；公开只读演示版 `https://demo.neuralnode.top`。公开分享只使用演示域名，不使用带 Cloudflare 账户子域名的默认地址。
 

@@ -63,7 +63,11 @@ def main():
         first = request("/api/blackboard/today")["question"]
         second = request("/api/blackboard/today")["question"]
         assert first["date"] == second["date"] and first["question"] == second["question"]
-        assert first.get("alignment_version") == 4
+        assert first.get("alignment_version") == 6
+        assert len(first.get("standard_points") or []) >= 4
+        assert first.get("ideal_answer_version") == 1
+        ideal = str(first.get("ideal_answer") or "")
+        assert len(ideal) >= 300 and all(label in ideal for label in ("判断：", "拆解：", "验证：", "边界：", "例子："))
         if first.get("source_title"):
             assert first["source_title"] in first["question"]
             assert first["source_title"] in " ".join(first.get("materials", []))

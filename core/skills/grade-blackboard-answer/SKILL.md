@@ -11,7 +11,7 @@ Grade the submitted answer, not keyword overlap with a model answer. The owner s
 
 ## Workflow
 
-1. Read the question first and independently form the expected reasoning before reading the submitted answer. Use the frozen `rubric` and `reference` as anchors, never as a keyword checklist.
+1. Read the question first. Use the frozen `rubric`, `reference`, and independently prepared `ideal_answer` as quality anchors, never as a keyword checklist or text to copy.
 2. Identify the question type before grading: explanation, comparison, decision/design, or reflection/transfer. Use its frozen `task_scoring_focus`; never force decision metrics onto an explanation question.
 3. Judge four non-overlapping dimensions. Apply one main deduction to one defect: do not subtract again in another dimension merely because it has the same root cause.
 4. For each dimension, select one supplied `score_bands` band first, then choose an integer inside that band. Do not invent an unanchored score.
@@ -19,8 +19,10 @@ Grade the submitted answer, not keyword overlap with a model answer. The owner s
 6. Compare each reference point only to diagnose coverage. Use `equivalent` when the owner gives a different but equally valid argument. A missing reference point does not automatically mean zero points.
 7. If the answer is directionally right, teach along its existing line of thought: name the missing causal link, example, method, indicator, condition, or counterexample and show where to add it.
 8. If the answer is directionally wrong, identify the exact inference that failed, explain why, then give a correction path in reasoning order. Do not merely reveal a model answer.
-9. Produce a minimal revision that preserves the owner's conclusion, wording, and order wherever they remain defensible. Add only what is necessary to demonstrate a stronger answer.
-10. Keep the frozen question, rubric, reference, score bands, and task profile unchanged. Never change the scoring standard after seeing the answer.
+9. Produce a complete interview-ready `personalized_revision`. Preserve and explicitly use the owner's defensible ideas, but reorganize and expand them when needed to form a strong answer with judgment, reasoning, validation, boundaries, and an example.
+10. Add `plain_language_coaching` that teaches the answer from zero jargon: translate what the question is actually asking, give three to five executable answer steps, identify two to five facts or principles worth remembering, and finish with one compact memory hook. This is teaching, not a second score report.
+11. Create one targeted `next_question` for the owner's weakest reasoning skill, then independently answer it in `next_question_ideal_answer`. The answer must be interview-ready and use judgment, breakdown, validation, boundaries, and an example; an outline is not an answer.
+12. Keep the frozen question, rubric, reference, score bands, and task profile unchanged. Never change the scoring standard after seeing the answer.
 
 ## Scoring
 
@@ -41,8 +43,11 @@ Retry instead of returning any of the following:
 - Demands metrics, rollout steps, product data, or company information that the detected question type did not ask for.
 - Marks a time-sensitive fact wrong without support from the supplied materials or another reliable source.
 - Uses empty praise, encouragement, or repeated diagnosis in place of explanation.
-- Rewrites the owner's conclusion or fabricates claims they did not make.
-- Returns a `minimal_revision` that has little wording overlap with the submitted answer.
+- Erases the owner's valid ideas, copies `ideal_answer`, or fabricates personal experience, project data, or results.
+- Invents exact customers, performance gains, accuracy rates, or hard thresholds when the materials provide no such facts. Illustrative thresholds must be labeled as examples that require calibration against a real baseline.
+- Returns a `personalized_revision` that is another outline, a short appended sentence, or lacks the required judgment, breakdown, validation, boundary, and example sections.
+- Returns generic `plain_language_coaching`, repeats the score report, omits a usable answer sequence, or does not say what knowledge should be remembered.
+- Repeats the original question as `next_question`, omits `next_question_ideal_answer`, or returns only bullets instead of a complete answer to the new question.
 - Gives a directionally wrong answer no correction path, or a directionally sound answer no explanation of what already works.
 
 ## Output Contract
@@ -71,10 +76,17 @@ Return JSON only:
   "direction": "correct|partly_correct|misdirected",
   "correction_path": "方向正确时给升级顺序；方向错误时说明错误推理并给纠正顺序",
   "priority_fix": "最优先提升的一件事，写清动作和判断标准",
-  "minimal_revision": "保留原答案顺序与主张的补强版",
-  "next_question": "可选的一道针对性练习",
-  "next_question_reference": ["可选的练习参考要点"]
+  "personalized_revision": "300到700字、吸收原答案有效观点的完整面试升级版，按判断、拆解、验证、边界、例子展开",
+  "plain_language_coaching": {
+    "what_the_question_wants": "不用术语说明这题到底想让人回答什么",
+    "answer_steps": ["三到五步，每一步说明先做什么以及为什么"],
+    "remember": ["两到五条本题真正值得记住的知识"],
+    "memory_hook": "一句简短、可复述的答题口诀"
+  },
+  "next_question": "一道针对本次薄弱点的新练习，不能复述原题",
+  "next_question_reference": ["三到六条针对新题的作答思路"],
+  "next_question_ideal_answer": "300到700字、真正回答新题的阿栗完整答案，按判断、拆解、验证、边界、例子展开"
 }
 ```
 
-`score_breakdown` must exactly match the supplied frozen rubric. Select each row's `band` from its frozen `score_bands` before choosing `awarded`; they must agree. `requirement_map` must exactly match the supplied reference order. Do not return `standard_points`, `polished_answer`, generic `diagnosis`, or generic `thinking_directions`.
+`score_breakdown` must exactly match the supplied frozen rubric. Select each row's `band` from its frozen `score_bands` before choosing `awarded`; they must agree. `requirement_map` must exactly match the supplied reference order. Both `personalized_revision` and `next_question_ideal_answer` must use the labels `判断：`, `拆解：`, `验证：`, `边界：`, and `例子：`. Do not return `standard_points`, a replacement `ideal_answer`, generic `diagnosis`, or generic `thinking_directions`.

@@ -136,7 +136,7 @@ class ModelGateway:
                     chunks.append(part["text"])
         return "\n".join(chunks).strip()
 
-    def call_text(self, prompt, provider="", temperature=0.5, max_output_tokens=1200):
+    def call_text(self, prompt, provider="", temperature=0.5, max_output_tokens=1200, thinking=None):
         provider = (provider or self.text_provider()).lower()
         if not provider:
             raise RuntimeError("没有配置可用的在线文本模型")
@@ -149,12 +149,15 @@ class ModelGateway:
             }, timeout=120)
             text = self._responses_text(payload)
         else:
-            payload = self._request(provider, "POST", "/chat/completions", {
+            body = {
                 "model": model,
                 "messages": [{"role": "user", "content": str(prompt)}],
                 "temperature": float(temperature),
                 "max_tokens": int(max_output_tokens),
-            }, timeout=120)
+            }
+            if provider == "deepseek" and thinking is not None:
+                body["thinking"] = {"type": "enabled" if thinking else "disabled"}
+            payload = self._request(provider, "POST", "/chat/completions", body, timeout=120)
             choices = payload.get("choices") or []
             message = choices[0].get("message", {}) if choices else {}
             text = message.get("content", "") if isinstance(message, dict) else ""
@@ -165,7 +168,7 @@ class ModelGateway:
             raise RuntimeError(f"{provider} 没有返回文字")
         return text, provider
 
-    def call_text_with_fallback(self, prompt, temperature=0.5, max_output_tokens=1200):
+    def call_text_with_fallback(self, prompt, temperature=0.5, max_output_tokens=1200, thinking=None):
         providers = self.text_providers()
         if not providers:
             raise RuntimeError("没有配置可用的在线文本模型")
@@ -173,7 +176,7 @@ class ModelGateway:
         for provider in providers:
             try:
                 return self.call_text(prompt, provider, temperature=temperature,
-                                      max_output_tokens=max_output_tokens)
+                                      max_output_tokens=max_output_tokens, thinking=thinking)
             except Exception as exc:
                 errors.append(f"{provider}: {exc}")
         raise RuntimeError("主模型和兜底模型均不可用：" + "；".join(errors))
@@ -184,7 +187,7 @@ class ModelGateway:
             body = {
                 "model": str(options.get("model") or self._model("ark", "image")),
                 "prompt": str(prompt),
-                "size": str(options.get("size") or "2K"),
+                "size": str(options.get("size") or "1K"),
                 "response_format": str(options.get("response_format") or "url"),
                 "watermark": bool(options.get("watermark", False)),
             }
@@ -205,9 +208,9 @@ class ModelGateway:
             body = {
                 "model": str(options.get("model") or self._model("openai", "image")),
                 "prompt": str(prompt),
-                "size": str(options.get("size") or "1536x1024"),
-                "quality": str(options.get("quality") or "high"),
-                "output_format": str(options.get("output_format") or "png"),
+                "size": str(options.get("size") or "1024x1024"),
+                "quality": str(options.get("quality") or "medium"),
+                "output_format": str(options.get("output_format") or "webp"),
                 "n": min(max(int(options.get("count") or 1), 1), 4),
             }
             payload = self._request("openai", "POST", "/images/generations", body, timeout=180)
@@ -251,7 +254,7 @@ class ModelGateway:
             "content": content,
             "generate_audio": bool(options.get("generate_audio", False)),
             "ratio": str(options.get("ratio") or "16:9"),
-            "resolution": str(options.get("resolution") or "720p"),
+            "resolution": str(options.get("resolution") or "480p"),
             "duration": min(max(int(options.get("duration") or 5), 3), 30),
             "watermark": bool(options.get("watermark", False)),
         }

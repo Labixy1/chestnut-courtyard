@@ -79,8 +79,8 @@
     },
     {
       "name": "generate_media",
-      "description": "调用真实图片或视频模型生成素材。图片支持 Seedream 和 GPT Image，视频支持 Seedance；可能产生 API 费用，只在主人明确要求时调用。",
-      "arguments": {"kind": "image 或 video", "provider": "seedream/openai/seedance", "prompt": "完整提示词", "size": "图片尺寸", "ratio": "视频比例", "duration": "视频秒数", "generate_audio": "是否生成声音"}
+      "description": "调用真实图片或视频模型并保存到私人 R2。默认使用省空间设置：1K 图片、480p/5 秒视频；可能产生 API 费用，只在主人明确要求时调用。",
+      "arguments": {"kind": "image 或 video", "provider": "seedream/openai/seedance", "prompt": "完整提示词", "size": "可选图片尺寸，默认 1K", "ratio": "视频比例", "duration": "可选视频秒数，默认 5", "resolution": "可选视频清晰度，默认 480p", "generate_audio": "是否生成声音，默认否"}
     },
     {
       "name": "check_media_task",
