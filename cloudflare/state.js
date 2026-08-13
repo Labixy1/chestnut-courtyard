@@ -3,6 +3,8 @@ import {DEFAULT_DATA} from "./default_data.js";
 export const DATA_KEYS = new Set(Object.keys(DEFAULT_DATA));
 const clone = value => JSON.parse(JSON.stringify(value));
 const now = () => new Date().toISOString();
+const TASK_R2_INDEX_KEY = "system/tasks/index.json";
+const TASK_R2_PREFIX = "system/tasks/";
 const MEMORY_EXPORT_KEYS = ["memory:events", "memory:sealed", "memory:profile", "memory:categories", "memory:overrides", "memory:distillation", "memory:forgotten"];
 const SEALED_MEMORY_SOURCES = new Set(["heart_hollow", "private_wing", "memory_nook"]);
 const MEMORY_POLICY = {
@@ -605,21 +607,90 @@ export async function memoryAction(env, input) {
   throw new Error("云端暂不支持这个记忆操作");
 }
 
-export async function saveTask(env, task) {
-  const value = {...task, updated_at: now()};
-  await writeState(env, `task:${value.id}`, value, {expirationTtl: 60 * 60 * 24 * 90});
-  const index = await readState(env, "tasks:index", []);
-  const next = [value, ...index.filter(item => item.id !== value.id)].slice(0, 80);
-  await writeState(env, "tasks:index", next);
+function taskKvWriteLimitExceeded(error) {
+  return /KV put\(\) limit exceeded|daily write limit|write quota/i.test(String(error?.message || error || ""));
+}
+
+const taskR2Key = id => `${TASK_R2_PREFIX}${encodeURIComponent(String(id))}.json`;
+
+async function readTaskR2Json(env, key, fallback) {
+  if (!env.COZY_MEDIA) return clone(fallback);
+  try {
+    const object = await env.COZY_MEDIA.get(key);
+    if (!object) return clone(fallback);
+    return typeof object.json === "function" ? await object.json() : JSON.parse(await object.text());
+  } catch (_error) {
+    return clone(fallback);
+  }
+}
+
+async function readTaskIndexFromR2(env) {
+  const value = await readTaskR2Json(env, TASK_R2_INDEX_KEY, {tasks: []});
+  return Array.isArray(value?.tasks) ? value.tasks : [];
+}
+
+async function readTaskFromR2(env, id) {
+  const value = await readTaskR2Json(env, taskR2Key(id), null);
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+}
+
+function mergeTaskIndexes(...indexes) {
+  const merged = new Map();
+  const statusRank = value => ({running: 0, failed: 1, completed: 2})[value] ?? 0;
+  indexes.flat().forEach(item => {
+    if (!item?.id) return;
+    const current = merged.get(item.id);
+    const currentTime = Date.parse(current?.updated_at || current?.started_at || "") || 0;
+    const incomingTime = Date.parse(item.updated_at || item.started_at || "") || 0;
+    if (!current || incomingTime > currentTime || (incomingTime === currentTime && statusRank(item.status) >= statusRank(current.status))) merged.set(item.id, item);
+  });
+  return [...merged.values()].sort((a, b) => {
+    const left = Date.parse(a.updated_at || a.started_at || "") || 0;
+    const right = Date.parse(b.updated_at || b.started_at || "") || 0;
+    return right - left;
+  }).slice(0, 80);
+}
+
+async function saveTaskToR2(env, value) {
+  const index = mergeTaskIndexes(await readTaskIndexFromR2(env), [value]);
+  const options = {httpMetadata: {contentType: "application/json; charset=utf-8"}, customMetadata: {kind: "assistant_task"}};
+  await env.COZY_MEDIA.put(taskR2Key(value.id), JSON.stringify(value), options);
+  await env.COZY_MEDIA.put(TASK_R2_INDEX_KEY, JSON.stringify({version: 1, updated_at: now(), tasks: index}), options);
   return value;
 }
 
+export async function saveTask(env, task) {
+  const value = {...task, updated_at: now()};
+  try {
+    await writeState(env, `task:${value.id}`, value, {expirationTtl: 60 * 60 * 24 * 90});
+    const index = await readState(env, "tasks:index", []);
+    const next = [value, ...index.filter(item => item.id !== value.id)].slice(0, 80);
+    await writeState(env, "tasks:index", next);
+    return value;
+  } catch (error) {
+    if (!taskKvWriteLimitExceeded(error) || !env.COZY_MEDIA) throw error;
+    await saveTaskToR2(env, value);
+    return value;
+  }
+}
+
 export async function tasks(env) {
-  return readState(env, "tasks:index", []);
+  let kvTasks = [];
+  let kvError = null;
+  try { kvTasks = await readState(env, "tasks:index", []); }
+  catch (error) { kvError = error; }
+  const r2Tasks = await readTaskIndexFromR2(env);
+  if (kvError && !env.COZY_MEDIA) throw kvError;
+  return mergeTaskIndexes(kvTasks, r2Tasks);
 }
 
 export async function updateTask(env, id, patch) {
-  const current = await readState(env, `task:${id}`, null);
+  let current = null;
+  let kvError = null;
+  try { current = await readState(env, `task:${id}`, null); }
+  catch (error) { kvError = error; }
+  if (!current) current = await readTaskFromR2(env, id);
+  if (!current && kvError) throw kvError;
   if (!current) throw new Error("没有找到这个任务");
   return saveTask(env, {...current, ...patch, id});
 }

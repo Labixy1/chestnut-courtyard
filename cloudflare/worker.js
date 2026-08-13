@@ -2420,7 +2420,11 @@ async function assistantReply(env, message, clientContext = {}) {
   });
   const courtyard = await readData(env, "butler_state");
   const completed = toolResults.filter(item => item.ok).map(item => item.summary);
-  await addMemoryEvents(env, {source: "butler", type: "owner_command", layer: "short", weight: 2, content: message, summary: `交给阿栗：${message.slice(0, 120)}`});
+  try {
+    await addMemoryEvents(env, {source: "butler", type: "owner_command", layer: "short", weight: 2, content: message, summary: `交给阿栗：${message.slice(0, 120)}`});
+  } catch (error) {
+    if (!noticeKvWriteLimitExceeded(error)) throw error;
+  }
   if (completed.length && !/[？?]|怎么|为什么|分析|解释|建议/.test(message)) {
     const failed = toolResults.filter(item => !item.ok).map(item => item.summary);
     return {reply: `已经完成：${completed.join("；")}。${failed.length ? `还有一项没有完成：${failed.join("；")}。` : ""}`, provider: "tools-only", tool_results: toolResults,found_items:foundItems,notice_lookup:noticeLookup};
@@ -2595,10 +2599,20 @@ async function runAssistantTask(env, taskId, message, context) {
       found_item_keys:foundItems.map(noticeItemKeyCloud).filter(Boolean),found_count:foundItems.length,
       found_at:foundItems.length?updatedAt:"",updatedAt
     };
-    await mergeLocalState(env,{changes:{cozy_notice_requests:{type:"array",upserts:[request],deleted:[],revive:[`id:${taskId}`]}}});
+    try {
+      await mergeLocalState(env,{changes:{cozy_notice_requests:{type:"array",upserts:[request],deleted:[],revive:[`id:${taskId}`]}}});
+    } catch (error) {
+      if (!noticeKvWriteLimitExceeded(error) || !await persistNoticeFollowupFallback(env,[request])) throw error;
+      result.storage_degraded=true;
+      result.storage_fallback="r2";
+    }
     await updateTask(env, taskId, {status: "completed", message: result.reply.slice(0, 500), result});
   } catch (error) {
-    await updateTask(env, taskId, {status: "failed", message: String(error.message || error).slice(0, 500)});
+    try {
+      await updateTask(env, taskId, {status: "failed", message: String(error.message || error).slice(0, 500)});
+    } catch (taskError) {
+      console.error("assistant-task-status-persist-failed", String(taskError?.message || taskError));
+    }
   }
 }
 

@@ -595,6 +595,36 @@ const limitedCrossDevice=(await payload(await request("/api/local-state",undefin
 assert.equal(limitedCrossDevice[0].found_items[0].link,cloudflareArticle);
 globalThis.fetch=nativeFetch;
 
+// Assistant messages must still be created, completed and polled when KV has reached its daily write limit.
+const limitedTaskKv=new WriteLimitedKV();
+const limitedTaskR2=new MemoryR2();
+const limitedTaskEnv={...aiEnv,COZY_STATE:limitedTaskKv,COZY_MEDIA:limitedTaskR2};
+limitedTaskKv.blocked=true;
+result=await payload(await request("/api/assistant/start",{message:"帮我看看今天的学习安排",context:{mode:"text"}},limitedTaskEnv));
+assert.equal(result.status,202);
+const completedLimitedTaskId=result.body.task_id;
+await Promise.all(pendingTasks.splice(0));
+const completedLimitedTasks=(await payload(await request("/api/tasks",undefined,limitedTaskEnv))).body.tasks;
+const completedLimitedTask=completedLimitedTasks.find(item=>item.id===completedLimitedTaskId);
+assert.equal(completedLimitedTask.status,"completed");
+assert.equal(completedLimitedTask.result.reply,"测试回复");
+assert.equal(completedLimitedTask.result.storage_degraded,true);
+assert.equal(completedLimitedTask.result.storage_fallback,"r2");
+assert.equal(limitedTaskR2.objects.has("system/tasks/index.json"),true);
+assert.equal(limitedTaskR2.objects.has(`system/tasks/${encodeURIComponent(completedLimitedTaskId)}.json`),true);
+const completedLimitedLocal=(await payload(await request("/api/local-state",undefined,limitedTaskEnv))).body.state.values.cozy_notice_requests;
+assert.equal(completedLimitedLocal.some(item=>item.id===completedLimitedTaskId&&item.reply==="测试回复"),true);
+
+const failedLimitedTaskEnv={...baseEnv,COZY_STATE:limitedTaskKv,COZY_MEDIA:limitedTaskR2};
+result=await payload(await request("/api/assistant/start",{message:"告诉我当前状态",context:{mode:"text"}},failedLimitedTaskEnv));
+assert.equal(result.status,202);
+const failedLimitedTaskId=result.body.task_id;
+await Promise.all(pendingTasks.splice(0));
+const failedLimitedTasks=(await payload(await request("/api/tasks",undefined,failedLimitedTaskEnv))).body.tasks;
+const failedLimitedTask=failedLimitedTasks.find(item=>item.id===failedLimitedTaskId);
+assert.equal(failedLimitedTask.status,"failed");
+assert.match(failedLimitedTask.message,/没有配置文本模型 API Key/);
+
 const todayShanghai = new Date().toLocaleDateString("en-CA", {timeZone: "Asia/Shanghai"});
 const newsVariant = [...Array(80).keys()].map(index => `related-${index}`).find(variant => {const seed=[...`${todayShanghai}|${variant}`].reduce((sum,char)=>sum+char.charCodeAt(0),0);return seed%3===0&&seed%5===0;});
 const plainVariant = [...Array(12).keys()].map(index => `plain-${index}`).find(variant => [...`${todayShanghai}|${variant}`].reduce((sum, char) => sum + char.charCodeAt(0), 0) % 3 !== 0);
