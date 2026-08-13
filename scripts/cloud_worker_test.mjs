@@ -12,6 +12,14 @@ class MemoryKV {
   async put(key, value) { this.values.set(key, String(value)); }
 }
 
+class WriteLimitedKV extends MemoryKV {
+  constructor(){super();this.blocked=false;}
+  async put(key,value){
+    if(this.blocked)throw new Error("KV put() limit exceeded for the day");
+    return super.put(key,value);
+  }
+}
+
 class MemoryR2 {
   constructor() { this.objects = new Map(); }
   async list() {
@@ -413,7 +421,7 @@ assert.equal(alignmentAttempts, 2);
 assert.match(result.body.reply, /Cursor/);
 
 const nativeFetch = globalThis.fetch;
-const isDirectNewsFeed = value => ["ithome.com/rss/", "geekpark.net/rss", "github.com/modelscope/ms-swift/releases.atom", "openai.com/news/rss.xml", "blog.google/technology/ai/rss/", "deepmind.google/blog/rss.xml", "theverge.com/rss/ai-artificial-intelligence", "techcrunch.com/category/artificial-intelligence/feed", "technologyreview.com/topic/artificial-intelligence/feed", "github.blog/ai-and-ml/feed", "aws.amazon.com/blogs/machine-learning/feed", "export.arxiv.org/api/query", "qbitai.com/feed/", "gateway.36kr.com/api/mis/nav/newsflash/flow", "api.rss2json.com/v1/api.json"].some(part => String(value).includes(part));
+const isDirectNewsFeed = value => ["ithome.com/rss/", "geekpark.net/rss", "github.com/modelscope/ms-swift/releases.atom", "openai.com/news/rss.xml", "blog.cloudflare.com/rss/", "blog.google/technology/ai/rss/", "deepmind.google/blog/rss.xml", "theverge.com/rss/ai-artificial-intelligence", "techcrunch.com/category/artificial-intelligence/feed", "technologyreview.com/topic/artificial-intelligence/feed", "github.blog/ai-and-ml/feed", "aws.amazon.com/blogs/machine-learning/feed", "export.arxiv.org/api/query", "qbitai.com/feed/", "gateway.36kr.com/api/mis/nav/newsflash/flow", "api.rss2json.com/v1/api.json"].some(part => String(value).includes(part));
 const newsXml = (title = "OpenAI 发布重要模型更新", link = "https://news.example/model", summary = "模型能力与价格更新") => `<?xml version="1.0"?><rss><channel><item><title>${title}</title><link>${link}</link><pubDate>Fri, 08 Aug 2026 00:00:00 GMT</pubDate><description>${summary}</description><source url="https://news.example">测试媒体</source></item></channel></rss>`;
 const fallbackEnv = {
   ...baseEnv,
@@ -528,6 +536,55 @@ await Promise.all(pendingTasks.splice(0));
 const rssProxyReport=(await payload(await request("/api/data?key=notice_reports",undefined,rssProxyEnv))).body.reports[0];
 assert.equal(rssProxyReport.hot_items[0].media,"量子位");
 assert.match(rssProxyReport.hot_items[0].link,/qbitai\.com/);
+globalThis.fetch=nativeFetch;
+
+const cloudflareFollowupEnv={...aiEnv,COZY_STATE:new MemoryKV()};
+const cloudflareArticle="https://blog.cloudflare.com/agents-week-review-august-2026/";
+globalThis.fetch=async url=>{
+  if(String(url).includes("blog.cloudflare.com/rss/"))return new Response(newsXml("Everything we launched during Agents Week",cloudflareArticle,"From Wallets to Radar, Cloudflare launched new agent capabilities and account credits."),{status:200});
+  if(isDirectNewsFeed(url))return new Response("upstream unavailable",{status:503});
+  return nativeFetch(url);
+};
+result=await payload(await request("/api/assistant/start",{message:"你后面关注一下cloudflare他的新增加的钱包功能",context:{mode:"text"}},cloudflareFollowupEnv));
+assert.equal(result.status,202);
+await Promise.all(pendingTasks.splice(0));
+const cloudflareTasks=(await payload(await request("/api/tasks",undefined,cloudflareFollowupEnv))).body.tasks;
+const cloudflareTask=cloudflareTasks.find(item=>item.id===result.body.task_id);
+assert.equal(cloudflareTask.status,"completed");
+assert.equal(cloudflareTask.result.found_items[0].link,cloudflareArticle);
+const cloudflareLocal=(await payload(await request("/api/local-state",undefined,cloudflareFollowupEnv))).body.state.values.cozy_notice_requests;
+assert.equal(cloudflareLocal.length,1);
+assert.equal(cloudflareLocal[0].id,result.body.task_id);
+assert.equal(cloudflareLocal[0].found_items[0].link,cloudflareArticle);
+
+const cloudflareBackfillEnv={...aiEnv,COZY_STATE:new MemoryKV()};
+await request("/api/local-state",{values:{cozy_notice_requests:[{date:"2026-08-12",text:"你后面关注一下cloudflare他的新增加的钱包功能",kind:"media_source",found_count:0}]}},cloudflareBackfillEnv);
+result=await payload(await request("/api/weekly/run",{force:true},cloudflareBackfillEnv));
+assert.equal(result.status,200);
+const backfilledRequests=(await payload(await request("/api/local-state",undefined,cloudflareBackfillEnv))).body.state.values.cozy_notice_requests;
+assert.equal(backfilledRequests.length,1);
+assert.equal(backfilledRequests[0].found_items[0].link,cloudflareArticle);
+assert.match(backfilledRequests[0].id,/^notice_request_/);
+assert.equal(result.body.report.notice_followups.matched_requests,1);
+
+const ordinaryTaskEnv={...aiEnv,COZY_STATE:new MemoryKV()};
+await request("/api/local-state",{values:{cozy_notice_requests:[{date:"2026-08-12",text:"现在马上更新一份报纸",kind:"task",found_count:0}]}},ordinaryTaskEnv);
+result=await payload(await request("/api/weekly/run",{force:true},ordinaryTaskEnv));
+assert.equal(result.status,200);
+assert.equal(result.body.report.notice_followups.matched_requests,0);
+
+const limitedKv=new WriteLimitedKV();
+const cloudflareLimitedEnv={...aiEnv,COZY_STATE:limitedKv};
+await request("/api/data",{key:"notice_reports",value:{version:1,reports:[{id:"saved-report",generated_at:"2026-08-12T00:00:00.000Z",hot_items:[],sections:[]}]}},cloudflareLimitedEnv);
+await request("/api/local-state",{values:{cozy_notice_requests:[{date:"2026-08-12",text:"你后面关注一下cloudflare他的新增加的钱包功能",kind:"media_source",found_count:0}]}},cloudflareLimitedEnv);
+limitedKv.blocked=true;
+result=await payload(await request("/api/weekly/run",{force:true},cloudflareLimitedEnv));
+assert.equal(result.status,200);
+assert.equal(result.body.report.storage_degraded,true);
+assert.equal(result.body.report.notice_followups.persisted,false);
+assert.equal(result.body.report.notice_followups.matches[0].request_text,"你后面关注一下cloudflare他的新增加的钱包功能");
+assert.equal(result.body.report.notice_followups.matches[0].items[0].link,cloudflareArticle);
+assert.equal((await limitedKv.get("data:notice_reports","json")).reports.length,1);
 globalThis.fetch=nativeFetch;
 
 const todayShanghai = new Date().toLocaleDateString("en-CA", {timeZone: "Asia/Shanghai"});

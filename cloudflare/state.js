@@ -49,7 +49,6 @@ async function archiveDataVersion(env, key, value, revision) {
   } else {
     await env.COZY_BACKUP.put(objectKey, archived);
   }
-  await writeState(env, "backup:status", {ok: true, storage: env.COZY_PRIVATE ? "r2" : "backup-kv", last_backup_at: stamp, last_key: key, last_revision: revision});
   return true;
 }
 
@@ -64,7 +63,8 @@ export async function writeData(env, key, value) {
   if (env.COZY_PRIVATE || env.COZY_BACKUP) {
     try { await archiveDataVersion(env, key, value, revision); }
     catch (error) {
-      await writeState(env, "backup:status", {ok: false, storage: "r2", last_error_at: now(), error: String(error.message || error).slice(0, 300)});
+      try { await writeState(env, "backup:status", {ok: false, storage: "r2", last_error_at: now(), error: String(error.message || error).slice(0, 300)}); }
+      catch (_statusError) {}
     }
   }
   return value;

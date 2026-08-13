@@ -1137,6 +1137,7 @@ const DIRECT_NEWS_FEEDS = [
   {id: "geekpark", name: "极客公园", url: "https://www.geekpark.net/rss"},
   {id: "modelscope-swift", name: "ModelScope ms-swift", url: "https://github.com/modelscope/ms-swift/releases.atom"},
   {id: "openai", name: "OpenAI News", url: "https://openai.com/news/rss.xml"},
+  {id: "cloudflare", name: "Cloudflare Blog", url: "https://blog.cloudflare.com/rss/", aliases: ["cloudflare", "cloudflare blog"]},
   {id: "google-ai", name: "Google AI Blog", url: "https://blog.google/technology/ai/rss/"},
   {id: "deepmind", name: "Google DeepMind", url: "https://deepmind.google/blog/rss.xml"},
   {id: "verge-ai", name: "The Verge AI", url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"},
@@ -1181,6 +1182,225 @@ const CHINESE_TECH_MEDIA_QUERIES = [
   'site:infoq.cn (AI OR 大模型 OR 智能体) when:14d'
 ];
 
+const NOTICE_TOPIC_GROUPS = [
+  {id:"cloudflare",role:"brand",request:/cloudflare|云盾/i,aliases:["cloudflare","cloudflare blog"]},
+  {id:"openai",role:"brand",request:/openai|chatgpt/i,aliases:["openai","chatgpt"]},
+  {id:"anthropic",role:"brand",request:/anthropic|claude/i,aliases:["anthropic","claude"]},
+  {id:"google",role:"brand",request:/google|谷歌|gemini/i,aliases:["google","谷歌","gemini","deepmind"]},
+  {id:"deepseek",role:"brand",request:/deepseek|深度求索/i,aliases:["deepseek","深度求索"]},
+  {id:"doubao",role:"brand",request:/豆包|字节|seedream|seedance/i,aliases:["豆包","字节","seedream","seedance","volcengine"]},
+  {id:"qwen",role:"brand",request:/通义|千问|qwen/i,aliases:["通义","千问","qwen"]},
+  {id:"kimi",role:"brand",request:/kimi|月之暗面/i,aliases:["kimi","月之暗面","moonshot"]},
+  {id:"wallet",role:"topic",request:/钱包|wallet|余额|充值|计费|预付费|credits?|billing|prepaid|payment/i,aliases:["钱包","wallet","wallets","余额","充值","计费","credits","credit","billing","prepaid","payment","payments"]},
+  {id:"agent",role:"topic",request:/智能体|agent|mcp|工作流/i,aliases:["智能体","agent","agents","mcp","工作流","workflow"]},
+  {id:"evaluation",role:"topic",request:/评测|评估|evaluation|benchmark|evals?/i,aliases:["评测","评估","evaluation","benchmark","eval","evals"]},
+  {id:"memory",role:"topic",request:/记忆|memory|上下文/i,aliases:["记忆","memory","上下文","context"]},
+  {id:"multimodal",role:"topic",request:/多模态|图像|视频|语音|multimodal|image|video|voice/i,aliases:["多模态","图像","视频","语音","multimodal","image","video","voice"]},
+  {id:"product",role:"topic",request:/产品|用户|商业化|product|pricing/i,aliases:["产品","用户","商业化","product","pricing"]}
+];
+
+const NOTICE_REQUEST_GENERIC_WORDS = new Set([
+  "about","after","again","feature","follow","following","later","latest","look","new","news","please","the","this","update","updates"
+]);
+const NOTICE_REQUEST_GENERIC_CJK = new Set([
+  "帮我","后面","关注","一下","以后","最近","最新","新增","增加","功能","方面","相关","内容","资讯","动态","消息","更新","看看","查找","找到","一下子","这个","那个"
+]);
+
+function noticeItemKeyCloud(item){
+  const raw=String(item?.link||item?.url||'').trim();
+  try{
+    const parsed=new URL(raw);
+    [...parsed.searchParams.keys()].forEach(key=>{if(key.toLowerCase().startsWith('utm_')||['from','source','ref','spm'].includes(key.toLowerCase()))parsed.searchParams.delete(key);});
+    parsed.hash='';parsed.pathname=parsed.pathname.replace(/\/$/,'');
+    if(/^https?:$/.test(parsed.protocol))return `url:${parsed.toString().toLowerCase()}`;
+  }catch(_error){}
+  const title=String(item?.title||'').toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g,'');
+  return title?`title:${title}`:'';
+}
+
+function noticeRequestGroups(text){
+  const value=String(text||'');
+  const groups=NOTICE_TOPIC_GROUPS.filter(group=>group.request.test(value)).map(group=>({...group}));
+  const covered=new Set(groups.flatMap(group=>group.aliases.map(alias=>alias.toLowerCase())));
+  const latin=[...value.toLowerCase().matchAll(/[a-z][a-z0-9._-]{2,}/g)].map(match=>match[0]);
+  for(const token of latin){
+    if(NOTICE_REQUEST_GENERIC_WORDS.has(token)||covered.has(token)||groups.some(group=>group.aliases.some(alias=>alias.includes(token)||token.includes(alias))))continue;
+    groups.push({id:`term:${token}`,role:"topic",aliases:[token]});
+  }
+  if(typeof Intl?.Segmenter==='function'){
+    const segments=new Intl.Segmenter('zh-CN',{granularity:'word'}).segment(value);
+    for(const segment of segments){
+      const token=String(segment.segment||'').trim();
+      if(!segment.isWordLike||!/^[\u4e00-\u9fff]{2,8}$/.test(token)||NOTICE_REQUEST_GENERIC_CJK.has(token)||covered.has(token)||groups.some(group=>group.aliases.includes(token)))continue;
+      groups.push({id:`term:${token}`,role:"topic",aliases:[token]});
+    }
+  }
+  return groups.slice(0,8);
+}
+
+function noticeRequestMatchScore(text,item){
+  const groups=noticeRequestGroups(text);
+  if(!groups.length)return 0;
+  const haystack=[item?.title,item?.summary,item?.source_summary,item?.original_summary,item?.translation_zh,item?.ai_summary,item?.media,item?.source_url,item?.link,item?.url]
+    .map(value=>String(value||'').toLowerCase()).join(' ');
+  const matched=groups.filter(group=>group.aliases.some(alias=>haystack.includes(alias.toLowerCase())));
+  const brands=groups.filter(group=>group.role==='brand');
+  const topics=groups.filter(group=>group.role!=='brand');
+  if(brands.length&&!brands.every(group=>matched.some(item=>item.id===group.id)))return 0;
+  const matchedTopics=topics.filter(group=>matched.some(item=>item.id===group.id));
+  if(topics.length&&matchedTopics.length<(brands.length?1:Math.min(2,topics.length)))return 0;
+  if(!matched.length)return 0;
+  let score=matched.reduce((sum,group)=>sum+(group.role==='brand'?30:18),0);
+  const title=String(item?.title||'').toLowerCase();
+  score+=matched.reduce((sum,group)=>sum+(group.aliases.some(alias=>title.includes(alias.toLowerCase()))?8:0),0);
+  const published=Date.parse(item?.published_at||item?.published||item?.date||'');
+  if(Number.isFinite(published))score+=Math.max(0,Math.min(8,8-Math.floor((Date.now()-published)/(7*24*60*60*1000))));
+  return score;
+}
+
+function noticeFoundItem(item){
+  return {
+    id:String(item?.id||`notice_${crypto.randomUUID().slice(0,8)}`),
+    title:String(item?.title||'').slice(0,300),
+    summary:String(item?.summary||item?.source_summary||'').slice(0,1600),
+    source_summary:String(item?.source_summary||item?.summary||'').slice(0,1600),
+    translation_zh:String(item?.translation_zh||'').slice(0,1200),
+    ai_summary:String(item?.ai_summary||item?.main_takeaway||'').slice(0,1600),
+    ai_summary_version:Number(item?.ai_summary_version||0),
+    product_tip:String(item?.product_tip||'').slice(0,700),
+    media:String(item?.media||item?.publisher_name||'').slice(0,120),
+    published_at:String(item?.published_at||item?.published||item?.date||'').slice(0,80),
+    category:String(item?.category||item?.notice_tag||categoryForArticle(item?.title||'')).slice(0,80),
+    link:String(item?.link||item?.url||'').slice(0,1200),
+    source_url:String(item?.source_url||'').slice(0,1200)
+  };
+}
+
+function matchNoticeRequestItems(text,pool,limit=3,excludedKeys=new Set()){
+  const seen=new Set(excludedKeys),scored=[];
+  for(const item of pool||[]){
+    if(!item?.title||!exactArticleLink(item))continue;
+    const key=noticeItemKeyCloud(item);
+    if(!key||seen.has(key))continue;
+    const score=noticeRequestMatchScore(text,item);
+    if(score>0){seen.add(key);scored.push({score,item});}
+  }
+  return scored.sort((left,right)=>right.score-left.score).slice(0,limit).map(value=>noticeFoundItem(value.item));
+}
+
+function cloudNoticeRequestIdentity(request,index=0){
+  if(request?.id||request?.task_id)return String(request.id||request.task_id);
+  const value=[request?.date||'',request?.text||'',index].join('|');
+  let hash=2166136261;
+  for(const char of value){hash^=char.charCodeAt(0);hash=Math.imul(hash,16777619);}
+  return `notice_request_${(hash>>>0).toString(36)}`;
+}
+
+function cloudNoticeRequestSyncId(request){
+  if(request?.id)return `id:${request.id}`;
+  if(request?.key)return `key:${request.key}`;
+  if(request?.url)return `url:${request.url}`;
+  if(request?.link)return `link:${request.link}`;
+  if(request?.source_url)return `source_url:${request.source_url}`;
+  if(request?.date||request?.title)return `dated:${String(request.date||'')}|${String(request.title||'')}`;
+  return '';
+}
+
+async function enrichNoticeFoundItems(env,items){
+  if(!items.length)return items;
+  try{
+    const repaired=await repairReportLanguages(env,{hot_items:items,sections:[]});
+    return repaired.report.hot_items||items;
+  }catch(_error){return items;}
+}
+
+async function resolveCloudNoticeRequests(env,pool){
+  const local=await readData(env,"local_state");
+  const requests=Array.isArray(local?.values?.cozy_notice_requests)?local.values.cozy_notice_requests:[];
+  const pending=[];
+  requests.forEach((request,index)=>{
+    const kind=String(request?.kind||'');
+    if(!['watch_topic','media_source'].includes(kind))return;
+    const text=String(request?.text||'').trim();
+    if(!text||!noticeRequestGroups(text).length)return;
+    const delivered=new Set([...(request.found_item_keys||[]),...(request.found_items||[]).map(noticeItemKeyCloud)].filter(Boolean));
+    const found=matchNoticeRequestItems(text,pool,3,delivered);
+    if(found.length)pending.push({request,index,found,delivered});
+  });
+  if(!pending.length)return {matched_requests:0,found_items:0,matches:[],persisted:true};
+  const uniqueFound=[];const uniqueKeys=new Set();
+  pending.flatMap(item=>item.found).forEach(item=>{const key=noticeItemKeyCloud(item);if(key&&!uniqueKeys.has(key)){uniqueKeys.add(key);uniqueFound.push(item);}});
+  const enriched=await enrichNoticeFoundItems(env,uniqueFound.slice(0,9));
+  const enrichedByKey=new Map(enriched.map(item=>[noticeItemKeyCloud(item),item]));
+  const upserts=[];const deleted=[];const matches=[];
+  for(const value of pending){
+    const original=value.request;
+    const id=cloudNoticeRequestIdentity(original,value.index);
+    const existingPending=original.found_items_seen_at?[]:(Array.isArray(original.found_items)?original.found_items:[]);
+    const matchedFound=value.found.map(item=>enrichedByKey.get(noticeItemKeyCloud(item))||item);
+    const nextFound=[...existingPending,...matchedFound].slice(0,6);
+    const foundKeys=Array.from(new Set([...(original.found_item_keys||[]),...nextFound.map(noticeItemKeyCloud)].filter(Boolean))).slice(-80);
+    const updatedAt=now();
+    const next={...original,id,found_items:nextFound,found_item_keys:foundKeys,found_count:Number(original.found_count||0)+value.found.length,found_at:updatedAt,updatedAt};
+    delete next.found_items_seen_at;
+    upserts.push(next);
+    matches.push({request_id:id,request_text:String(original.text||'未命名留言').slice(0,500),items:matchedFound});
+    const oldId=cloudNoticeRequestSyncId(original),newId=`id:${id}`;
+    if(oldId&&oldId!==newId)deleted.push(oldId);
+  }
+  const result={matched_requests:upserts.length,found_items:pending.reduce((sum,item)=>sum+item.found.length,0),matches};
+  try{
+    await mergeLocalState(env,{changes:{cozy_notice_requests:{type:"array",upserts,deleted,revive:upserts.map(item=>`id:${item.id}`)}}});
+    return {...result,persisted:true};
+  }catch(error){
+    if(!noticeKvWriteLimitExceeded(error))throw error;
+    return {...result,persisted:false,storage_error:"KV_DAILY_WRITE_LIMIT"};
+  }
+}
+
+function buildCloudNewsSourceJobs(butlerState={}){
+  const customFeeds=(butlerState.sources||[])
+    .filter(item=>item&&item.enabled!==false&&item.feed)
+    .map((item,index)=>({id:`custom-${index}`,name:String(item.name||item.title||'自定义信源'),url:String(item.feed),aliases:[item.name,item.title].filter(Boolean)}))
+    .slice(0,12);
+  return [
+    ...DIRECT_NEWS_FEEDS.map(source=>({...source,load:()=>fetchNewsFeed(source)})),
+    ...customFeeds.map(source=>({...source,load:()=>fetchNewsFeed(source)})),
+    ...PROXIED_NEWS_FEEDS.map(source=>({...source,load:()=>fetchNewsFeedJson(source)})),
+    {id:"36kr",name:"36氪",url:"https://36kr.com/",aliases:["36kr","36氪"],load:()=>fetch36KrNewsflashes()}
+  ];
+}
+
+function noticeRequestMentionsSource(text,source){
+  const value=String(text||'').toLowerCase();
+  const sourceWords=[source?.id,source?.name,source?.url,...(source?.aliases||[])].filter(Boolean).map(item=>String(item).toLowerCase());
+  let host='';
+  try{host=new URL(String(source?.url||'')).hostname.replace(/^www\./,'').split('.')[0];}catch(_error){}
+  if(host)sourceWords.push(host);
+  return sourceWords.some(word=>word.length>=3&&value.includes(word));
+}
+
+async function findNoticeItemsForRequest(env,text){
+  const [reports,butlerState,sourceCache]=await Promise.all([
+    readData(env,"notice_reports"),readData(env,"butler_state"),readState(env,"notice:source-cache",{groups:[]})
+  ]);
+  const basePool=[
+    ...(reports.reports||[]).slice(0,8).flatMap(report=>reportItems(report)),
+    ...(sourceCache.groups||[]).filter(Array.isArray).flat()
+  ];
+  const jobs=buildCloudNewsSourceJobs(butlerState);
+  const targeted=jobs.filter(source=>noticeRequestMentionsSource(text,source));
+  const cachedMatches=matchNoticeRequestItems(text,basePool,3);
+  const selected=targeted.length?targeted:(cachedMatches.length<3?jobs.slice(0,18):[]);
+  let livePool=[];
+  if(selected.length){
+    const settled=await Promise.allSettled(selected.map(source=>source.load()));
+    livePool=settled.filter(result=>result.status==='fulfilled').flatMap(result=>result.value);
+  }
+  const matches=matchNoticeRequestItems(text,[...livePool,...basePool],3);
+  return enrichNoticeFoundItems(env,matches);
+}
+
 function interleaveNewsGroups(groups,limit=80){
   const output=[];
   const maxLength=Math.max(0,...groups.map(group=>group.length));
@@ -1196,7 +1416,7 @@ function interleaveNewsGroups(groups,limit=80){
 function newsRegion(item){
   const value=`${item?.media||''} ${item?.source_url||''} ${item?.link||item?.url||''} ${item?.title||''}`.toLowerCase();
   if(/36氪|量子位|机器之心|infoq 中文|it之家|极客公园|modelscope|deepseek|kimi|月之暗面|通义|千问|qwen|豆包|字节|seedream|seedance|火山引擎|阿里云|百度|腾讯|华为|智谱|百川|零一万物|阶跃星辰|minimax|qbitai\.com|36kr\.com|jiqizhixin\.com|infoq\.cn|ithome\.com|geekpark\.net|modelscope\.cn|aliyun\.com|volcengine\.com|moonshot\.cn/.test(value))return "domestic";
-  if(/openai|anthropic|claude|google|deepmind|gemini|the verge|techcrunch|mit technology|github|aws|arxiv|microsoft|meta ai|hugging face|openai\.com|anthropic\.com|google\.com|deepmind\.google|theverge\.com|techcrunch\.com|technologyreview\.com|github\.blog|aws\.amazon\.com|arxiv\.org/.test(value))return "international";
+  if(/openai|anthropic|claude|google|deepmind|gemini|cloudflare|the verge|techcrunch|mit technology|github|aws|arxiv|microsoft|meta ai|hugging face|openai\.com|anthropic\.com|google\.com|deepmind\.google|cloudflare\.com|theverge\.com|techcrunch\.com|technologyreview\.com|github\.blog|aws\.amazon\.com|arxiv\.org/.test(value))return "international";
   return "other";
 }
 
@@ -1402,26 +1622,31 @@ async function enrichReportProductTips(env,report){
   return {...report,hot_items:(report.hot_items||[]).map(replace),sections:(report.sections||[]).map(section=>({...section,items:(section.items||[]).map(replace)})),product_tips_generated_at:now()};
 }
 
+function noticeKvWriteLimitExceeded(error){
+  return /KV put\(\) limit exceeded|daily write limit|write quota/i.test(String(error?.message||error||''));
+}
+
+async function writeNoticeStatus(env,value){
+  try{await writeState(env,"automation:status",value);return true;}
+  catch(_error){return false;}
+}
+
 async function updateNoticeProgress(env,message,extra={}){
-  await writeState(env,"automation:status",{last_check:now(),jobs:{notice_report:{status:"running",message,...extra}}});
+  return writeNoticeStatus(env,{last_check:now(),jobs:{notice_report:{status:"running",message,...extra}}});
 }
 
 async function runCloudReport(env, force = false) {
   const reportsData = await readData(env, "notice_reports");
   const butlerState = await readData(env, "butler_state");
   const watchTopics = (butlerState.watch_topics || []).map(item => String(item.text || item.title || "").trim()).filter(Boolean).slice(0, 8);
-  const customFeeds=(butlerState.sources||[]).filter(item=>item&&item.enabled!==false&&item.feed).map((item,index)=>({id:`custom-${index}`,name:String(item.name||item.title||'自定义信源'),url:String(item.feed)})).slice(0,12);
   const latest = (reportsData.reports || [])[0];
   if (!force && latest?.generated_at && Date.now() - Date.parse(latest.generated_at) < 46 * 60 * 60 * 1000) {
-    return {...latest, unchanged: true, report_count: (reportsData.reports || []).length};
+    let noticeFollowups={matched_requests:0,found_items:0};
+    try{noticeFollowups=await resolveCloudNoticeRequests(env,reportItems(latest));}catch(_error){}
+    return {...latest, unchanged: true, report_count: (reportsData.reports || []).length, notice_followups:noticeFollowups};
   }
-  const sourceJobs=[
-    ...DIRECT_NEWS_FEEDS.map(source=>({id:source.id,name:source.name,task:fetchNewsFeed(source)})),
-    ...customFeeds.map(source=>({id:source.id,name:source.name,task:fetchNewsFeed(source)})),
-    ...PROXIED_NEWS_FEEDS.map(source=>({id:source.id,name:source.name,task:fetchNewsFeedJson(source)})),
-    {id:"36kr",name:"36氪",task:fetch36KrNewsflashes()}
-  ];
-  const settled = await Promise.allSettled(sourceJobs.map(source=>source.task));
+  const sourceJobs=buildCloudNewsSourceJobs(butlerState);
+  const settled = await Promise.allSettled(sourceJobs.map(source=>source.load()));
   const sourceResults=settled.map((result,index)=>({...sourceJobs[index],result}));
   const fulfilled = sourceResults.filter(item => item.result.status === "fulfilled");
   const failedSources=sourceResults.filter(item=>item.result.status==='rejected').map(item=>({id:item.id,name:item.name,error:String(item.result.reason?.message||item.result.reason||'连接失败').slice(0,120)}));
@@ -1430,7 +1655,10 @@ async function runCloudReport(env, force = false) {
   const sourceCache=await readState(env,"notice:source-cache",{groups:[]});
   const exactLinkItem=exactArticleLink;
   const cachedGroups=(sourceCache.groups||[]).filter(Array.isArray).map(group=>group.filter(exactLinkItem)).filter(group=>group.length);
-  if(liveGroups.length)await writeState(env,"notice:source-cache",{updated_at:now(),groups:liveGroups.slice(0,24).map(group=>group.slice(0,12))},{expirationTtl:7*24*60*60});
+  if(liveGroups.length){
+    try{await writeState(env,"notice:source-cache",{updated_at:now(),groups:liveGroups.slice(0,24).map(group=>group.slice(0,12))},{expirationTtl:7*24*60*60});}
+    catch(_error){}
+  }
   const latestGroup=latest?reportItems(latest).filter(exactLinkItem):[];
   const usingSourceFallback=!liveGroups.length;
   const sourceGroups=liveGroups.length?[...liveGroups,...cachedGroups]:cachedGroups.length?cachedGroups:latestGroup.length?[latestGroup]:[];
@@ -1441,13 +1669,14 @@ async function runCloudReport(env, force = false) {
         const next={...reportsData,updated_at:now(),reports:[repaired.report,...(reportsData.reports||[]).slice(1)]};
         await writeData(env,"notice_reports",next);
         const message=`已补全本期中文翻译与 AI 总结；保留 ${next.reports.length} 版巡报`;
-        await writeState(env,"automation:status",{last_check:now(),jobs:{notice_report:{status:"completed",last_success:now(),repaired:true,message}}});
+        await writeNoticeStatus(env,{last_check:now(),jobs:{notice_report:{status:"completed",last_success:now(),repaired:true,message}}});
         return {...repaired.report,unchanged:true,repaired:true,report_count:next.reports.length};
       }
     }
     const reasons = failedSources.map(item=>`${item.name}：${item.error}`);
     throw new Error(`资讯源全部连接失败：${[...new Set(reasons)].join("；").slice(0, 260)}`);
   }
+  const followupPool=interleaveNewsGroups(sourceGroups,240);
   const articleKeys = item => {
     const keys = new Set();
     const title = String(item?.title || "").toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g, "");
@@ -1473,20 +1702,22 @@ async function runCloudReport(env, force = false) {
   const poolCoverage={domestic:pool.filter(item=>newsRegion(item)==='domestic').length,international:pool.filter(item=>newsRegion(item)==='international').length,other:pool.filter(item=>newsRegion(item)==='other').length};
   await updateNoticeProgress(env,`已筛出 ${pool.length} 条候选，正在整理国内外重点`,{source_status:{succeeded:fulfilled.length,failed:failedSources.length},candidate_coverage:poolCoverage});
   if (!pool.length) {
+    let noticeFollowups={matched_requests:0,found_items:0};
+    try{noticeFollowups=await resolveCloudNoticeRequests(env,followupPool);}catch(_error){}
     if(force&&latest&&reportItems(latest).some(reportItemNeedsLanguageRepair)){
       const repaired=await repairReportLanguages(env,latest);
       if(repaired.repaired){
         const next={...reportsData,updated_at:now(),reports:[repaired.report,...(reportsData.reports||[]).slice(1)]};
         await writeData(env,"notice_reports",next);
         const message=`已补全本期中文翻译与 AI 总结；保留 ${next.reports.length} 版巡报`;
-        await writeState(env,"automation:status",{last_check:now(),jobs:{notice_report:{status:"completed",last_success:now(),repaired:true,message}}});
-        return {...repaired.report,unchanged:true,repaired:true,report_count:next.reports.length};
+        await writeNoticeStatus(env,{last_check:now(),jobs:{notice_report:{status:"completed",last_success:now(),repaired:true,message}}});
+        return {...repaired.report,unchanged:true,repaired:true,report_count:next.reports.length,notice_followups:noticeFollowups};
       }
     }
     const reportCount=(reportsData.reports || []).length;
     const message=usingSourceFallback?`资讯源暂时不可用，已保留 ${reportCount} 版巡报，稍后自动重试`:`已检查，暂无新资讯；保留 ${reportCount} 版巡报`;
-    await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "completed", last_success: now(), unchanged: true, degraded:usingSourceFallback, message}}});
-    return {...(latest || {focus_title: "暂无新资讯"}), unchanged: true, degraded:usingSourceFallback, report_count: reportCount};
+    await writeNoticeStatus(env,{last_check:now(),jobs:{notice_report:{status:"completed",last_success:now(),unchanged:true,degraded:usingSourceFallback,message}}});
+    return {...(latest || {focus_title: "暂无新资讯"}), unchanged: true, degraded:usingSourceFallback, report_count: reportCount,notice_followups:noticeFollowups};
   }
   const prompt = `你是阿栗，负责为 AI 产品经理整理一次“资讯巡报”。从候选中只挑真正重要、具体、多样的 7 到 11 条，不要为了凑数收录普通软文。
 只返回 JSON：{"focus_title":"本期最重要变化","hot_items":[{"source_id":"候选id","category":"模型与技术","translation_zh":"原摘要非中文时给忠实中文翻译，原摘要是中文时留空","ai_summary":"120到200字中文总结，说明具体变化、关键数字或能力、值得关注的结论","product_tip":"仅在该资讯能形成明确产品实践启发时，写60到120字中文产品经理关注点，否则留空"}],"sections":[{"name":"国内外动态","items":[同结构]},{"name":"产品相关动态","items":[同结构]},{"name":"主人关注","items":[同结构]}],"insights":["跨文章案例总结"],"advice":["给正在做AI产品的主人一个有深度且可执行的建议"]}。
@@ -1580,12 +1811,21 @@ async function runCloudReport(env, force = false) {
     }
   }
   try{report=await enrichReportProductTips(env,report);}catch(_error){}
+  let noticeFollowups={matched_requests:0,found_items:0};
+  try{noticeFollowups=await resolveCloudNoticeRequests(env,[...reportItems(report),...followupPool]);}catch(_error){}
+  report={...report,notice_followups:noticeFollowups};
   const next = {version: 1, updated_at: now(), reports: [report, ...(reportsData.reports || []).filter(item => item.id !== report.id)].slice(0, 30)};
-  await writeData(env, "notice_reports", next);
+  try{
+    await writeData(env,"notice_reports",next);
+  }catch(error){
+    if(!noticeKvWriteLimitExceeded(error)||!latest)throw error;
+    return {...latest,unchanged:true,storage_degraded:true,storage_error:"KV_DAILY_WRITE_LIMIT",report_count:(reportsData.reports||[]).length,
+      coverage:report.coverage,source_status:report.source_status,notice_followups:noticeFollowups};
+  }
   const completionMessage=usingSourceFallback
     ? `实时信源暂时不可用，已用缓存资料生成巡报；国内 ${coverage.domestic} 条、海外 ${coverage.international} 条`
     : `新的资讯巡报已生成：国内 ${coverage.domestic} 条、海外 ${coverage.international} 条；${failedSources.length} 个失败信源已跳过`;
-  await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "completed", last_success: now(), degraded:usingSourceFallback, message: completionMessage}}});
+  await writeNoticeStatus(env,{last_check:now(),jobs:{notice_report:{status:"completed",last_success:now(),degraded:usingSourceFallback,message:completionMessage}}});
   return report;
 }
 
@@ -2114,6 +2354,15 @@ async function executeCloudTools(env, message) {
 
 async function assistantReply(env, message, clientContext = {}) {
   const toolResults = await executeCloudTools(env, message);
+  let foundItems=[];
+  let noticeLookup={checked:false,found:0};
+  if(toolResults.some(item=>item.ok&&item.tool==="add_watch_topic")||/(?:查|找|看看|关注).{0,12}(?:资讯|动态|消息|更新)/.test(message)){
+    try{
+      foundItems=await findNoticeItemsForRequest(env,message);
+      noticeLookup={checked:true,found:foundItems.length};
+      if(foundItems.length)toolResults.push({ok:true,tool:"find_notice_updates",summary:`已找到 ${foundItems.length} 条与留言直接相关的新内容`,data:foundItems});
+    }catch(error){noticeLookup={checked:true,found:0,error:String(error.message||error).slice(0,200)};}
+  }
   const memory = await memoryContext(env, "butler", {
     query: message,
     recentIds: Array.isArray(clientContext?.recent_memory_ids) ? clientContext.recent_memory_ids : []
@@ -2123,18 +2372,18 @@ async function assistantReply(env, message, clientContext = {}) {
   await addMemoryEvents(env, {source: "butler", type: "owner_command", layer: "short", weight: 2, content: message, summary: `交给阿栗：${message.slice(0, 120)}`});
   if (completed.length && !/[？?]|怎么|为什么|分析|解释|建议/.test(message)) {
     const failed = toolResults.filter(item => !item.ok).map(item => item.summary);
-    return {reply: `已经完成：${completed.join("；")}。${failed.length ? `还有一项没有完成：${failed.join("；")}。` : ""}`, provider: "tools-only", tool_results: toolResults};
+    return {reply: `已经完成：${completed.join("；")}。${failed.length ? `还有一项没有完成：${failed.join("；")}。` : ""}`, provider: "tools-only", tool_results: toolResults,found_items:foundItems,notice_lookup:noticeLookup};
   }
   if (!textProvider(env)) {
-    if (completed.length) return {reply: `已经完成：${completed.join("；")}。`, provider: "tools-only", tool_results: toolResults};
+    if (completed.length) return {reply: `已经完成：${completed.join("；")}。`, provider: "tools-only", tool_results: toolResults,found_items:foundItems,notice_lookup:noticeLookup};
     throw new Error("阿栗的云端运行已就绪，但还没有配置文本模型 API Key");
   }
   const prompt = `你是栗壳小院的管家阿栗，一只守护私人小院的棕色小狗管家。你温和、清醒、行动优先，回复简洁但不敷衍。\n规则：\n1. 只把工具结果中 ok=true 的动作说成已经完成；失败要明确说明。\n2. 不得假装访问网页、知识库、文件或执行工具。\n3. 当前指令优先于历史偏好。管家默认只使用学习、工作方式和通用沟通偏好，不读取树洞内容，也不主动提起旅行。\n4. 回答主人问题时给出具体判断和下一步，不写空泛套话。\n5. 记忆最多使用两条，也可以完全不用；不要反复告诉主人“你一直怎样”。\n\n主人当前消息：${message.slice(0, 6000)}\n页面上下文：${JSON.stringify(clientContext).slice(0, 5000)}\n本轮相关记忆：${JSON.stringify(memory).slice(0, 7000)}\n小院资料状态：${JSON.stringify({watch_topics: courtyard.watch_topics, sources: courtyard.sources, categories: courtyard.custom_categories}).slice(0, 3000)}\n已执行工具结果：${JSON.stringify(toolResults).slice(0, 6000)}\n请直接回复主人。`;
   try {
     const result = await callText(env, prompt);
-    return {reply: result.text, provider: result.provider, tool_results: toolResults};
+    return {reply: result.text, provider: result.provider, tool_results: toolResults,found_items:foundItems,notice_lookup:noticeLookup};
   } catch (error) {
-    if (completed.length) return {reply: `已经完成：${completed.join("；")}。模型总结暂时没有返回，但执行结果已经保存。`, provider: "tools-only", tool_results: toolResults, model_error: String(error.message || error).slice(0, 200)};
+    if (completed.length) return {reply: `已经完成：${completed.join("；")}。模型总结暂时没有返回，但执行结果已经保存。`, provider: "tools-only", tool_results: toolResults,found_items:foundItems,notice_lookup:noticeLookup, model_error: String(error.message || error).slice(0, 200)};
     throw error;
   }
 }
@@ -2286,6 +2535,16 @@ ${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最�
 async function runAssistantTask(env, taskId, message, context) {
   try {
     const result = await assistantReply(env, message, context);
+    const foundItems=Array.isArray(result.found_items)?result.found_items:[];
+    const kind=extractUrls(message).length?(/工具箱|加入工具|学术|Claude Science/i.test(message)?"toolbox":"link"):(/资讯|关注|明天|下周|总结|方向|动态|消息|更新/.test(message)?"watch_topic":"task");
+    const updatedAt=now();
+    const request={
+      id:taskId,task_id:taskId,text:message,mode:String(context?.mode||"text"),kind,date:dateInShanghai(),
+      reply:String(result.reply||'').slice(0,2000),found_items:foundItems,
+      found_item_keys:foundItems.map(noticeItemKeyCloud).filter(Boolean),found_count:foundItems.length,
+      found_at:foundItems.length?updatedAt:"",updatedAt
+    };
+    await mergeLocalState(env,{changes:{cozy_notice_requests:{type:"array",upserts:[request],deleted:[],revive:[`id:${taskId}`]}}});
     await updateTask(env, taskId, {status: "completed", message: result.reply.slice(0, 500), result});
   } catch (error) {
     await updateTask(env, taskId, {status: "failed", message: String(error.message || error).slice(0, 500)});
@@ -2602,12 +2861,12 @@ export async function handleRequest(request, env, ctx = {}) {
       return json({ok: true, item: tool, state});
     }
     if (url.pathname === "/api/weekly/run") {
-      await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "running", message: "阿栗正在巡逻近期资讯"}}});
+      await writeNoticeStatus(env,{last_check:now(),jobs:{notice_report:{status:"running",message:"阿栗正在巡逻近期资讯"}}});
       try {
         const report=await runCloudReport(env,Boolean(input.force));
         return json({ok:true,accepted:false,status:"completed",report});
       } catch(error) {
-        await writeState(env, "automation:status", {last_check: now(), jobs: {notice_report: {status: "failed", last_error: now(), message: String(error.message || error).slice(0, 300)}}});
+        await writeNoticeStatus(env,{last_check:now(),jobs:{notice_report:{status:"failed",last_error:now(),message:String(error.message||error).slice(0,300)}}});
         throw error;
       }
     }
@@ -2626,7 +2885,7 @@ export async function handleRequest(request, env, ctx = {}) {
 export async function scheduled(_event, env, ctx) {
   const job = (async () => {
     const status = {last_check: now(), jobs: {weather: {status: "cached_for_two_hours"}, memory: {status: "available"}, notice_report: {status: "running", message: "阿栗正在巡逻近期资讯"}}};
-    await writeState(env, "automation:status", status);
+    await writeNoticeStatus(env,status);
     try {
       const report = await runCloudReport(env, false);
       status.jobs.notice_report = report.unchanged
@@ -2639,7 +2898,7 @@ export async function scheduled(_event, env, ctx) {
       try { await createFullBackup(env, "scheduled"); }
       catch (_error) {}
     }
-    await writeState(env, "automation:status", status);
+    await writeNoticeStatus(env,status);
   })();
   if (ctx?.waitUntil) ctx.waitUntil(job); else await job;
 }

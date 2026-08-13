@@ -16,6 +16,7 @@ export const DEFAULT_DATA = Object.freeze({
   butler_sources: {
     sources: [
       {id: "openai", name: "OpenAI News", url: "https://openai.com/news/", feed: "", category: "模型与技术", priority: 5, enabled: true},
+      {id: "cloudflare", name: "Cloudflare Blog", url: "https://blog.cloudflare.com/", feed: "https://blog.cloudflare.com/rss/", category: "产品与实践", priority: 5, enabled: true},
       {id: "anthropic", name: "Anthropic News", url: "https://www.anthropic.com/news", feed: "", category: "模型与技术", priority: 5, enabled: true},
       {id: "google-ai", name: "Google AI", url: "https://blog.google/technology/ai/", feed: "", category: "模型与技术", priority: 4, enabled: true}
     ],

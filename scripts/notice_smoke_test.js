@@ -159,6 +159,9 @@ for(const expected of ['得分与学习建议','大白话学会这题','真正�
 if(reviewHtml.includes('阿栗帮答')||reviewHtml.includes('AI 修改建议'))throw new Error('legacy generic grading blocks must be removed');
 if(!context.buildBbReview(commercialAnswer,commercialQuestion,'模型失败').reviewUnavailable)throw new Error('model failure must remain explicit instead of fabricating local feedback');
 
+if(context.detectButlerTaskKind('你后面关注一下cloudflare他的新增加的钱包功能')!=='watch_topic')throw new Error('product feature updates must not be mistaken for a new media source');
+if(context.detectButlerTaskKind('新增 36氪 来源')!=='media_source')throw new Error('explicit media source requests must remain media_source tasks');
+
 storage.set('cozy_notice_requests', JSON.stringify([{
   date:'2026-08-01',
   text:'查找留言独有资料',
@@ -175,16 +178,25 @@ context.showNoticeView('current');
 const currentRendered = node('notice-content').innerHTML;
 if (!currentRendered.includes('留言独有资料')) throw new Error('unique found item was removed');
 if (!currentRendered.includes('来自留言：“查找留言独有资料”')) throw new Error('found item must identify its source request');
+if (currentRendered.indexOf('留言找到的内容') > currentRendered.indexOf('热点速览')) throw new Error('message-matched news must appear before the general report');
 if ((currentRendered.match(/<h4>留言独有资料<\/h4>/g) || []).length !== 1) throw new Error('found items were not deduplicated internally');
 if ((currentRendered.match(/<h4>主栏目同链接<\/h4>/g) || []).length !== 1) throw new Error('same-url found item duplicated a primary section');
 if ((currentRendered.match(/<h4>主栏目同标题<\/h4>/g) || []).length !== 1) throw new Error('same-title found item duplicated a primary section');
 const seenRequests=JSON.parse(storage.get('cozy_notice_requests'));
 if (!seenRequests[0].found_items_seen_at) throw new Error('displayed found items must be marked as seen');
 if (!seenRequests[0].id || !seenRequests[0].updatedAt) throw new Error('seen request state must have stable sync identity and update time');
+context.prepareNoticeFoundResults();
+context.showNoticeView('current');
+if (!node('notice-content').innerHTML.includes('留言独有资料')) throw new Error('in-memory found items must survive same-page status refreshes');
 vm.runInContext('NOTICE_FOUND_RESULTS=[]',context);
 context.prepareNoticeFoundResults();
 context.showNoticeView('current');
 if (node('notice-content').innerHTML.includes('留言独有资料')) throw new Error('seen found items must not remain after a refresh');
+
+const responseFound=context.acceptNoticeFollowupResponse({matches:[{request_id:'request-kv-limit',request_text:'关注 Cloudflare 钱包',items:[{title:'Cloudflare Wallets 更新',url:'https://example.com/cloudflare-wallets',summary:'钱包功能更新'}]}]});
+if(responseFound.length!==1)throw new Error('weekly response fallback must preserve message-matched news when KV writes are exhausted');
+context.showNoticeView('current');
+if(!node('notice-content').innerHTML.includes('Cloudflare Wallets 更新')||!node('notice-content').innerHTML.includes('来自留言：“关注 Cloudflare 钱包”'))throw new Error('response fallback must render the matched item with its source request');
 
 vm.runInContext("CORE={notice_reports:{reports:[{id:'week_test',week_start:'2026-08-03',week_end:'2026-08-09',focus_title:'本周重点标题',hot_items:[{title:'完整热点',summary:'热点摘要',category:'模型与技术'}],sections:[{name:'国内外动态',items:[{title:'完整周报正文',summary:'正文摘要',category:'行业动态'}]}],insights:['具体总结']}]}}", context);
 context.showNoticeView('weeks');

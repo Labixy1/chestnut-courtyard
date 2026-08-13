@@ -44,10 +44,10 @@ if (!home.includes('function blackboardQuestionIsDuplicate') || !home.includes('
 if (!home.includes('openBlackboardRelatedNotice()') || !home.includes("q.related_notice&&q.related_notice.title")) throw new Error('blackboard related-news action must be conditional');
 if (!home.includes('function noticePublishedLabel(item)') || !home.includes('item.published_at')) throw new Error('notice cards must use concrete publication dates with a weekly fallback');
 if (!home.includes('function noticeItemDisplayable(item)') || !home.includes("cozyApi('/api/status', undefined, 15000)")) throw new Error('noticeboard must hide known bad cards and tolerate cloud cold starts');
-if (!home.includes('prepareNoticeFoundResults()') || !home.includes('found_items_seen_at') || !home.includes('来自留言：“') || !home.includes('noticeManualRefreshPending')) throw new Error('found notice items must identify their request and disappear after first display or manual refresh');
+if (!home.includes('prepareNoticeFoundResults()') || !home.includes('acceptNoticeFollowupResponse') || !home.includes('found_items_seen_at') || !home.includes('来自留言：“') || !home.includes('noticeManualRefreshPending')) throw new Error('found notice items must identify their request, survive a KV-limit response, and disappear after first display or manual refresh');
 if (!home.includes("cache:'no-store',credentials:'same-origin'")) throw new Error('API GET requests must bypass stale mobile caches');
 if (!serviceWorker.includes("url.pathname.includes('/assets/')")) throw new Error('static assets must use the cache-first path');
-if (!serviceWorker.includes("cozy-shell-v21") || !fs.readFileSync('core/pwa.js','utf8').includes("sw.js?v=21") || !fs.readFileSync('core/pwa.js','utf8').includes("updateViaCache:'none'")) throw new Error('PWA shell updates must bypass stale service worker cache');
+if (!serviceWorker.includes("cozy-shell-v22") || !fs.readFileSync('core/pwa.js','utf8').includes("sw.js?v=22") || !fs.readFileSync('core/pwa.js','utf8').includes("updateViaCache:'none'")) throw new Error('PWA shell updates must bypass stale service worker cache');
 if (!home.includes("return remote?[]:[NOTICE_REPORT_FALLBACK()]") || !home.includes('页面不会再显示旧版占位巡报')) throw new Error('remote noticeboard must not show bundled fallback reports');
 if (!home.includes('async function openNotice(){') || !home.includes('await CORE_READY;')) throw new Error('noticeboard must wait for cloud core data before rendering');
 if (!home.includes('refreshNoticeReportsFromCloud()') || !home.includes("cache:'no-store',credentials:'same-origin'")) throw new Error('noticeboard must revalidate cloud reports when opened');
@@ -55,6 +55,7 @@ if (!home.includes('产品经理关注点') || !home.includes('data-product-tip=
 if (!home.includes("'本次更新未完成：'+error.message") || !home.includes("'国内 '+coverage.domestic+' 条、海外 '+coverage.international")) throw new Error('manual notice refresh must report precise failures and domestic/international coverage');
 if (!home.includes('Promise.all(Object.entries(files).map')) throw new Error('core cloud data must load in parallel');
 if (!home.includes('async function openToolbox(){') || !home.includes("cozyApi('/api/state',undefined,6000)")) throw new Error('toolbox must refresh cloud state when opened');
+if (!home.includes('comparableButlerState(localButlerState())') || home.includes('applyButlerServerState(data.state,true);\n  await pushButlerState();')) throw new Error('opening the noticeboard must not rewrite unchanged butler state');
 if (!home.includes('>加入工具箱</button>') || !home.includes('source,instruction:')) throw new Error('notice tool import must send the existing report context');
 if (home.includes('removeCourtyardScene(') || home.includes('从小院照片合集中移除')) throw new Error('courtyard background collection must not expose deletion controls');
 if (!home.includes('.photo-album-cover img{position:static;width:100%;height:100%;object-fit:contain')) throw new Error('photo album covers must preserve source aspect ratios');

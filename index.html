@@ -1845,14 +1845,39 @@ function prepareNoticeFoundResults(){
     request.updatedAt=request.found_items_seen_at;
     changed=true;
   });
-  NOTICE_FOUND_RESULTS=pending;
+  if(pending.length)NOTICE_FOUND_RESULTS=pending;
   if(changed)writeNoticeList('cozy_notice_requests',requests,40);
   return pending;
 }
 
+async function syncNoticeFoundResultsFromCloud(){
+  if(window.CozyRuntime?.dataSource==='remote'&&window.CozyButler?.syncLocalState){
+    await window.CozyButler.syncLocalState(['cozy_notice_requests']).catch(()=>{});
+  }
+  return prepareNoticeFoundResults();
+}
+
+function acceptNoticeFollowupResponse(followups){
+  const matches=Array.isArray(followups?.matches)?followups.matches:[];
+  const incoming=[];
+  matches.forEach(match=>{
+    const requestText=String(match?.request_text||'未命名留言');
+    const requestId=String(match?.request_id||'');
+    (Array.isArray(match?.items)?match.items:[]).forEach(item=>incoming.push({...item,_request_text:requestText,_request_id:requestId}));
+  });
+  if(!incoming.length)return [];
+  const seen=new Set();
+  NOTICE_FOUND_RESULTS=[...incoming,...NOTICE_FOUND_RESULTS].filter(item=>{
+    const key=(item._request_id||'')+'|'+noticeItemKey(item);
+    if(!noticeItemKey(item)||seen.has(key))return false;
+    seen.add(key);return true;
+  });
+  return incoming;
+}
+
 async function openNotice(){
   await CORE_READY;
-  prepareNoticeFoundResults();
+  await syncNoticeFoundResultsFromCloud();
   openOverlay('<div class="notice-board-large">'+
     '<div class="notice-sticky"><div class="notice-board-heading"><h2>公告板 · 阿栗资讯巡报<span class="notice-cadence" id="notice-cadence"></span></h2><div class="notice-heading-actions"><button class="notice-refresh" id="notice-refresh" onclick="runWeeklyNow()" aria-label="获取最新资讯" title="获取最新资讯">获取最新资讯</button><span class="butler-connection" id="butler-connection">正在连接阿栗</span></div></div><div class="week-title" id="notice-week-title"></div>'+
     '<div class="notice-tabs">'+
@@ -1923,11 +1948,16 @@ async function runWeeklyNow(){
     if(data.accepted){setNoticeRefreshState('running','巡报正在后台更新，可以先离开公告板。');resumeNoticeRefresh();}
     else{
       await refreshNoticeReportsFromCloud();
-      NOTICE_FOUND_RESULTS=[];noticeManualRefreshPending=false;
+      const cloudFound=await syncNoticeFoundResultsFromCloud();
+      const responseFound=acceptNoticeFollowupResponse(data.report?.notice_followups);
+      const foundCount=new Set([...cloudFound,...responseFound].map(item=>(item._request_id||'')+'|'+noticeItemKey(item))).size;
+      noticeManualRefreshPending=false;
       const coverage=data.report?.coverage||{},sources=data.report?.source_status||{};
-      const detail=Number.isFinite(coverage.domestic)&&Number.isFinite(coverage.international)
-        ?'国内 '+coverage.domestic+' 条、海外 '+coverage.international+' 条；'+(sources.failed||0)+' 个失败信源已自动跳过。'
-        :'巡报已经更新完成。';
+      const detail=data.report?.storage_degraded
+        ?'云端 KV 今日写入额度已用完；现有 '+((CORE.notice_reports?.reports||[]).filter(report=>report?.id!=='fallback').length)+' 版巡报未受影响。'+(foundCount?' 已在当前页面找到 '+foundCount+' 条留言相关内容，额度恢复后再写回云端。':'')
+        :Number.isFinite(coverage.domestic)&&Number.isFinite(coverage.international)
+          ?'国内 '+coverage.domestic+' 条、海外 '+coverage.international+' 条；'+(sources.failed||0)+' 个失败信源已自动跳过。'+(foundCount?' 另找到 '+foundCount+' 条留言相关内容。':'')
+          :'巡报已经更新完成。';
       setNoticeRefreshState('completed',detail);updateNoticeCadence();showNoticeView('current',document.querySelector('.notice-tabs button'));
     }
   }catch(error){
@@ -1954,7 +1984,7 @@ async function resumeNoticeRefresh(){
   const cached=readNoticeRefreshState();if(cached)setNoticeRefreshState(cached.status,cached.message);
   try{
     const data=await cozyApi('/api/automation',undefined,15000),jobs=data.automation?.jobs||{},job=jobs.weekly_report||jobs.notice_report;
-    if(job){const status=job.status==='ready'?'completed':job.status;setNoticeRefreshState(status,job.message||(status==='running'?'阿栗正在更新巡报。':status==='failed'?'巡报更新失败。':'巡报已经更新完成。'));if(status==='failed')noticeManualRefreshPending=false;if(status==='completed'){let reports=await cozyApi('/api/data?key=notice_reports',undefined,18000).catch(()=>null);if(!reports?.reports){reports=await fetch('core/notice_reports.json',{cache:'no-store'}).then(response=>response.ok?response.json():null).catch(()=>null);}if(reports?.reports){CORE.notice_reports=reports;if(noticeManualRefreshPending){NOTICE_FOUND_RESULTS=[];noticeManualRefreshPending=false;}updateNoticeCadence();const active=document.querySelector('.notice-tabs button.active');if(active?.textContent.includes('最新'))showNoticeView('current',active);}}}
+    if(job){const status=job.status==='ready'?'completed':job.status;setNoticeRefreshState(status,job.message||(status==='running'?'阿栗正在更新巡报。':status==='failed'?'巡报更新失败。':'巡报已经更新完成。'));if(status==='failed')noticeManualRefreshPending=false;if(status==='completed'){let reports=await cozyApi('/api/data?key=notice_reports',undefined,18000).catch(()=>null);if(!reports?.reports){reports=await fetch('core/notice_reports.json',{cache:'no-store'}).then(response=>response.ok?response.json():null).catch(()=>null);}if(reports?.reports){CORE.notice_reports=reports;await syncNoticeFoundResultsFromCloud();noticeManualRefreshPending=false;updateNoticeCadence();const active=document.querySelector('.notice-tabs button.active');if(active?.textContent.includes('最新'))showNoticeView('current',active);}}}
   }catch(error){
     const existing=(CORE.notice_reports?.reports||[]).filter(report=>report?.id!=='fallback');
     if(existing.length)setNoticeRefreshState('completed','云端状态暂时未连上，现有 '+existing.length+' 版巡报仍可正常阅读。');
@@ -2428,35 +2458,44 @@ function showNoticeView(view, btn){
   setNoticeComposerVisible(view === 'current');
   if(view === 'current'){
     if(!report){box.innerHTML='<section class="report-section"><div class="notice-empty-line">没有读取到真实巡报内容。可以点击上方“获取最新资讯”重试，页面不会再显示旧版占位巡报。</div></section>';return;}
-    const dynamicItems = curatedNoticeItems(sectionItemsBy(report, isDynamicItem), 4);
-    const productItems = curatedNoticeItems(sectionItemsBy(report, isProductItem), 4);
-    const ownerItems = (report.sections||[]).filter(section=>section.name==='主人关注').flatMap(section=>section.items||[]).filter(noticeItemDisplayable).slice(0,4);
-    const ownerBlock = ownerItems.length?'<section class="report-section owner-focus-section"><h3>主人关注</h3>'+ownerItems.map(item=>reportCardHtml(item,item.category)).join('')+'</section>':'';
-    const hotItems = Array.isArray(report.hot_items) && report.hot_items.length ? report.hot_items.filter(noticeItemDisplayable) : [];
-    const visibleKeys = new Set([...hotItems,...dynamicItems,...productItems,...ownerItems].map(noticeItemKey));
+    let dynamicItems = curatedNoticeItems(sectionItemsBy(report, isDynamicItem), 4);
+    let productItems = curatedNoticeItems(sectionItemsBy(report, isProductItem), 4);
+    let ownerItems = (report.sections||[]).filter(section=>section.name==='主人关注').flatMap(section=>section.items||[]).filter(noticeItemDisplayable).slice(0,4);
+    let hotItems = Array.isArray(report.hot_items) && report.hot_items.length ? report.hot_items.filter(noticeItemDisplayable) : [];
     const titleKey = item=>String(item?.title||'').toLowerCase().replace(/[\s，。！？、：；,.!?;:'"“”‘’（）()《》<>\-—_]/g,'');
-    const visibleTitles = new Set([...hotItems,...dynamicItems,...productItems,...ownerItems].map(titleKey).filter(Boolean));
+    const primaryItems=[...hotItems,...dynamicItems,...productItems,...ownerItems];
+    const primaryByKey=new Map(primaryItems.map(item=>[noticeItemKey(item),item]));
+    const primaryByTitle=new Map(primaryItems.map(item=>[titleKey(item),item]));
     const foundKeys = new Set();
     const foundTitles = new Set();
-    const foundItems = NOTICE_FOUND_RESULTS.filter(item=>noticeItemDisplayable(item)).filter(item=>{
+    const foundItems = NOTICE_FOUND_RESULTS.filter(item=>noticeItemDisplayable(item)).map(item=>{
+      const primary=primaryByKey.get(noticeItemKey(item))||primaryByTitle.get(titleKey(item));
+      return primary?{...primary,_request_text:item._request_text,_request_id:item._request_id}:item;
+    }).filter(item=>{
       if(!item||!item.title)return false;
       const key=noticeItemKey(item),title=titleKey(item);
-      if(visibleKeys.has(key)||visibleTitles.has(title)||foundKeys.has(key)||foundTitles.has(title))return false;
+      if(foundKeys.has(key)||foundTitles.has(title))return false;
       foundKeys.add(key);
       foundTitles.add(title);
       return true;
     });
+    const belongsToFound=item=>foundKeys.has(noticeItemKey(item))||foundTitles.has(titleKey(item));
+    hotItems=hotItems.filter(item=>!belongsToFound(item));
+    dynamicItems=dynamicItems.filter(item=>!belongsToFound(item));
+    productItems=productItems.filter(item=>!belongsToFound(item));
+    ownerItems=ownerItems.filter(item=>!belongsToFound(item));
+    const ownerBlock = ownerItems.length?'<section class="report-section owner-focus-section"><h3>主人关注</h3>'+ownerItems.map(item=>reportCardHtml(item,item.category)).join('')+'</section>':'';
     const foundBlock = foundItems.length ? '<section class="report-section"><h3>留言找到的内容</h3><p class="notice-empty-line">这些是阿栗根据留言找到的新内容，仅在本次查看时提示。</p>'+
       foundItems.slice(0,6).map(item=>reportCardHtml(item, '留言找到的内容')).join('')+
       '</section>' : '';
-    box.innerHTML = '<section class="report-section hot-report-section"><h3>热点速览</h3><div class="brief-list">'+
+    box.innerHTML = foundBlock+'<section class="report-section hot-report-section"><h3>热点速览</h3><div class="brief-list">'+
       (hotItems.length ? hotItems.map(item=>reportCardHtml(item, '热点速览')).join('') : ((report.quick || []).map((x,i)=>quickCardHtml(x,i)).join('') || emptyReportCard('本周还没有速览','阿栗会在周报生成时补上本周最重要的真实热点。')))+'</div></section>'+
       '<section class="report-section dynamic-report-section"><h3>国内外动态</h3>'+
         (dynamicItems.length ? dynamicItems.map(item=>reportCardHtml(item, item.category)).join('') : emptyNoticeLine('阿栗没有抓到足够重要的国内外 AI 动态。'))+
       '</section>'+
       '<section class="report-section"><h3>产品相关动态</h3>'+
         (productItems.length ? productItems.map(item=>reportCardHtml(item, item.category)).join('') : emptyNoticeLine('阿栗本周没有抓到足够明确的产品相关动态。'))+
-      '</section>'+ownerBlock+foundBlock+
+      '</section>'+ownerBlock+
       noticeInsightBlock(report)+noticeAdviceBlock(report);
   }else if(view === 'weeks'){
     const reports = getNoticeReports();
@@ -2833,6 +2872,11 @@ async function pushButlerState(){
   catch(error){ /* 下一次连接时重新同步 */ }
 }
 
+function comparableButlerState(state){
+  const keys=['chest','read_later','watch_topics','sources','toolbox','custom_categories'];
+  return Object.fromEntries(keys.map(key=>[key,Array.isArray(state?.[key])?state[key]:[]]));
+}
+
 function queueButlerStateSync(){
   if(applyingButlerState || !butlerServiceOnline) return;
   clearTimeout(butlerStateSyncTimer);
@@ -2842,7 +2886,7 @@ function queueButlerStateSync(){
 async function syncButlerState(){
   const data = await cozyApi('/api/state',undefined,6000);
   applyButlerServerState(data.state,true);
-  await pushButlerState();
+  if(JSON.stringify(comparableButlerState(localButlerState()))!==JSON.stringify(comparableButlerState(data.state)))await pushButlerState();
 }
 
 function setNoticeBusy(kind, busy){
@@ -3060,15 +3104,27 @@ function renderNoticeJobs(){
 
 function recordCompletedNoticeJob(job){
   const requests=readNoticeList('cozy_notice_requests');
-  if(!requests.some(item=>item.task_id===job.task_id)){
-    requests.unshift({task_id:job.task_id,text:job.text,mode:job.mode||'text',kind:job.kind||detectButlerTaskKind(job.text),date:job.date||noticeToday(),reply:job.reply});
-    writeNoticeList('cozy_notice_requests',requests,40);
+  const index=requests.findIndex(item=>item.task_id===job.task_id||item.id===job.task_id);
+  const foundItems=Array.isArray(job.found_items)?job.found_items:[];
+  const previous=index>=0?requests[index]:{};
+  const record={...previous,id:job.task_id,task_id:job.task_id,text:job.text,mode:job.mode||previous.mode||'text',kind:job.kind||previous.kind||detectButlerTaskKind(job.text),date:job.date||previous.date||noticeToday(),reply:job.reply,updatedAt:new Date().toISOString()};
+  if(foundItems.length){
+    record.found_items=foundItems;
+    record.found_item_keys=Array.from(new Set([...(previous.found_item_keys||[]),...foundItems.map(noticeItemKey).filter(Boolean)])).slice(-80);
+    record.found_count=Math.max(Number(previous.found_count||0),foundItems.length);
+    record.found_at=job.found_at||record.updatedAt;
+    delete record.found_items_seen_at;
+  }
+  if(index>=0)requests[index]=record;else requests.unshift(record);
+  writeNoticeList('cozy_notice_requests',requests,40);
+  if(index<0){
     if(window.CozyMemory)CozyMemory.add({
       source:'noticeboard',type:job.mode==='voice'?'voice_notice_request':'notice_request',layer:job.mode==='voice'?'long':'short',
       weight:job.mode==='voice'?2:1,content:job.text,
       summary:(job.mode==='voice'?'语音留言：':'公告板留言：')+buildButlerMemorySummary(job.text)
     });
   }
+  return foundItems.length;
 }
 
 async function syncNoticeTasks(){
@@ -3081,12 +3137,20 @@ async function syncNoticeTasks(){
     const jobs=serverJobs.map(task=>{
       const local=localById.get(task.id)||{};
       const reply=task.result&&task.result.reply?task.result.reply:(task.status==='completed'?task.message:'');
-      const job={...local,task_id:task.id,text:local.text||task.instruction||task.title,title:task.title,status:task.status,message:task.message||'',reply,started_at:task.started_at,updated_at:task.updated_at};
-      if(task.status==='completed'&&!job.recorded){recordCompletedNoticeJob(job);job.recorded=true;justCompleted=job;}
+      const foundItems=Array.isArray(task.result?.found_items)?task.result.found_items:(local.found_items||[]);
+      const job={...local,task_id:task.id,text:local.text||task.instruction||task.title,title:task.title,status:task.status,message:task.message||'',reply,found_items:foundItems,found_at:task.result?.found_at||'',started_at:task.started_at,updated_at:task.updated_at};
+      if(task.status==='completed'&&!job.recorded){job.found_count=recordCompletedNoticeJob(job);job.recorded=true;justCompleted=job;}
       return job;
     });
     writeNoticeJobs(jobs);renderNoticeJobs();
-    if(justCompleted){showButlerReply(justCompleted.text,justCompleted.reply);syncButlerState().catch(()=>{});}
+    if(justCompleted){
+      showButlerReply(justCompleted.text,justCompleted.reply);syncButlerState().catch(()=>{});
+      if(justCompleted.found_count){
+        prepareNoticeFoundResults();
+        const active=document.querySelector('.notice-tabs button.active');
+        if(active?.textContent.includes('最新'))showNoticeView('current',active);
+      }
+    }
     if(jobs.some(job=>job.status==='running'))noticeTaskPollTimer=setTimeout(syncNoticeTasks,1200);
   }catch(error){
     if(readNoticeJobs().some(job=>job.status==='running'))noticeTaskPollTimer=setTimeout(syncNoticeTasks,2500);
@@ -3229,7 +3293,7 @@ function extractMediaSourceFromRequest(text){
   const patterns = [
     /(?:把|将)?\s*([^，。；\s]{2,28}?)(?:这个媒体|这个网站|这个来源|加入|纳入|也看|也找|作为)/,
     /以后(?:也)?(?:看看|看|找|关注)\s*([^，。；\s]{2,28})/,
-    /(?:新增|添加|加入)\s*([^，。；\s]{2,28}?)(?:媒体|来源|网站|信息源)?/
+    /(?:新增(?!加)|添加|加入)\s*([^，。；\s]{2,28}?)(?:媒体|来源|网站|信息源)?/
   ];
   for(const pattern of patterns){
     const hit = raw.match(pattern);
