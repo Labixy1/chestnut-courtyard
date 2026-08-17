@@ -8,6 +8,6 @@
     location.reload();
   });
   window.addEventListener('load',()=>{
-    navigator.serviceWorker.register(prefix+'sw.js?v=23',{scope:prefix,updateViaCache:'none'}).then(registration=>registration.update()).catch(()=>{});
+    navigator.serviceWorker.register(prefix+'sw.js?v=24',{scope:prefix,updateViaCache:'none'}).then(registration=>registration.update()).catch(()=>{});
   });
 })();

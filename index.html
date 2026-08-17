@@ -1086,6 +1086,9 @@ async function importToolboxLink(){
 
 async function openBlackboard(){
   await CORE_READY;
+  if(window.CozyRuntime?.dataSource==='remote'&&window.CozyButler?.syncLocalState){
+    await window.CozyButler.syncLocalState(['cozy_blackboard_answers']).catch(()=>{});
+  }
   const bb = ((CORE.manifest && CORE.manifest.items)||[]).filter(i=>i.type==='blackboard');
   const generatedHistory = ((CORE.daily_questions && CORE.daily_questions.items)||[]);
   const today = generatedHistory.find(item=>item.date===localCalendarDate()) || generatedHistory[0] || bb[0] || {title:'每日产品题', tags:['产品判断']};
@@ -1441,7 +1444,7 @@ async function submitBbAnswer(){
     window.BB_STATE.nextQuestionIdealAnswer=practice.idealAnswer;
   }catch(error){window.BB_STATE.review=buildBbReview(value,q,error.message);}
   const saved = JSON.parse(localStorage.getItem('cozy_blackboard_answers') || '[]');
-  const record={title:q.title,question:q.question,types:q.types||[],archiveCategory:blackboardArchiveTopic(q),materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],related_notice:q.related_notice||null,answer:value,review:window.BB_STATE.review,standard:q.standard,idealAnswer:String(q.idealAnswer||''),idealAnswerVersion:Number(q.idealAnswerVersion||0),rubric:q.rubric||defaultBlackboardRubric(q.standard,q.question),rubricVersion:Number(q.rubricVersion||3),taskType:q.taskType||blackboardTaskProfile(q.question).type,taskScoringFocus:q.taskScoringFocus||blackboardTaskProfile(q.question).focus,referenceFrozenAt:q.referenceFrozenAt||'',questionFingerprint:q.questionFingerprint||blackboardQuestionFingerprint(q),answerIndependent:q.answerIndependent!==false,next_question:window.BB_STATE.nextQuestion||'',next_question_reference:window.BB_STATE.nextQuestionReference||[],next_question_ideal_answer:window.BB_STATE.nextQuestionIdealAnswer||'',date:q.date||localCalendarDate(),attemptId:'attempt_'+Date.now().toString(36),archiveSourceDate:q.archiveSourceDate||''};
+  const record={title:q.title,question:q.question,types:q.types||[],archiveCategory:blackboardArchiveTopic(q),materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],related_notice:q.related_notice||null,answer:value,review:window.BB_STATE.review,standard:q.standard,idealAnswer:String(q.idealAnswer||''),idealAnswerVersion:Number(q.idealAnswerVersion||0),rubric:q.rubric||defaultBlackboardRubric(q.standard,q.question),rubricVersion:Number(q.rubricVersion||3),taskType:q.taskType||blackboardTaskProfile(q.question).type,taskScoringFocus:q.taskScoringFocus||blackboardTaskProfile(q.question).focus,referenceFrozenAt:q.referenceFrozenAt||'',questionFingerprint:q.questionFingerprint||blackboardQuestionFingerprint(q),answerIndependent:q.answerIndependent!==false,next_question:window.BB_STATE.nextQuestion||'',next_question_reference:window.BB_STATE.nextQuestionReference||[],next_question_ideal_answer:window.BB_STATE.nextQuestionIdealAnswer||'',date:q.date||localCalendarDate(),attemptId:'attempt_'+Date.now().toString(36),archiveSourceDate:q.archiveSourceDate||'',updatedAt:new Date().toISOString()};
   const duplicateIndex=saved.findIndex(item=>blackboardQuestionKey(item)===blackboardQuestionKey(record));
   if(!window.BB_STATE.redoMode&&duplicateIndex>=0)saved.splice(duplicateIndex,1);
   saved.unshift(record);
@@ -1517,17 +1520,18 @@ function renderPolishedAnswer(value){
 
 async function regradeBlackboardAnswer(){
   const state=window.BB_STATE,q=state?.questionData,answer=state?.answer;if(!answer||!q||state.regrading)return;
+  const previousReview=state.review;
   state.regrading=true;state.regradeStartedAt=new Date().toISOString();
   showBlackboardMode(state.mode||'result');
   try{
     await ensureBlackboardIdealAnswer(q);
     const data=await CozyButler.api('/api/room',{room:'blackboard',message:answer,context:blackboardGradeContext(q)}),result=data?.result||{};
-    state.review=normalizeBlackboardReview(result,answer,q);
+    state.review=normalizeBlackboardReview(result,answer,q);state.regradeError='';
     const practice=normalizeNextBlackboardPractice(result);
     state.nextQuestion=practice.question;state.nextQuestionReference=practice.reference;state.nextQuestionIdealAnswer=practice.idealAnswer;
     const saved=JSON.parse(localStorage.getItem('cozy_blackboard_answers')||'[]'),index=saved.findIndex(item=>blackboardQuestionKey(item)===blackboardQuestionKey(q));
-    if(index>=0){saved[index]={...saved[index],review:state.review,standard:q.standard,idealAnswer:String(q.idealAnswer||''),idealAnswerVersion:Number(q.idealAnswerVersion||0),rubric:q.rubric||defaultBlackboardRubric(q.standard,q.question),rubricVersion:Number(q.rubricVersion||3),taskType:q.taskType||blackboardTaskProfile(q.question).type,taskScoringFocus:q.taskScoringFocus||blackboardTaskProfile(q.question).focus,referenceFrozenAt:q.referenceFrozenAt||'',questionFingerprint:q.questionFingerprint||blackboardQuestionFingerprint(q),answerIndependent:q.answerIndependent!==false,materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],next_question:state.nextQuestion,next_question_reference:state.nextQuestionReference,next_question_ideal_answer:state.nextQuestionIdealAnswer};localStorage.setItem('cozy_blackboard_answers',JSON.stringify(saved));window.CozyButler?.persistLocal(['cozy_blackboard_answers']);}
-  }catch(error){state.review=buildBbReview(answer,q,error.message);}
+    if(index>=0){saved[index]={...saved[index],review:state.review,standard:q.standard,idealAnswer:String(q.idealAnswer||''),idealAnswerVersion:Number(q.idealAnswerVersion||0),rubric:q.rubric||defaultBlackboardRubric(q.standard,q.question),rubricVersion:Number(q.rubricVersion||3),taskType:q.taskType||blackboardTaskProfile(q.question).type,taskScoringFocus:q.taskScoringFocus||blackboardTaskProfile(q.question).focus,referenceFrozenAt:q.referenceFrozenAt||'',questionFingerprint:q.questionFingerprint||blackboardQuestionFingerprint(q),answerIndependent:q.answerIndependent!==false,materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],next_question:state.nextQuestion,next_question_reference:state.nextQuestionReference,next_question_ideal_answer:state.nextQuestionIdealAnswer,updatedAt:new Date().toISOString()};localStorage.setItem('cozy_blackboard_answers',JSON.stringify(saved));await window.CozyButler?.persistLocal(['cozy_blackboard_answers']).catch(()=>null);}
+  }catch(error){state.regradeError=String(error&&error.message||'重新核分失败');state.review=blackboardReviewComplete(previousReview)?previousReview:buildBbReview(answer,q,error.message);}
   finally{
     state.regrading=false;state.regradeStartedAt='';
     showBlackboardMode(state.mode||'result');
@@ -1660,11 +1664,18 @@ function renderBlackboardQuestion(q, answer){
   const refreshing=!!(window.BB_STATE&&window.BB_STATE.refreshing);
   const starred=isBlackboardStarred(q);
   const related=q.related_notice&&q.related_notice.title?'<button type="button" class="bb-related-notice" onclick="openBlackboardRelatedNotice()">查看相关资讯</button>':'';
+  const locked=Boolean(window.BB_STATE&&window.BB_STATE.locked),gradingComplete=blackboardReviewComplete(window.BB_STATE&&window.BB_STATE.review);
+  const submitLabel=window.BB_STATE&&window.BB_STATE.submitting?'批改中…':locked?(gradingComplete?'本题已批改':'答案已提交'):'提交并批改';
+  const answerNote=window.BB_STATE&&window.BB_STATE.submitting?'阿栗正在批改，结果返回前会一直保持等待状态。':refreshing?'阿栗正在准备一道不同的新题…':locked?(gradingComplete?'答案与批改结果均已保存，可在“批改结果”和“历史题目”中查看。':'答案已保存，但批改尚未成功；请到“批改结果”重新核分。'):'提交后会说明你哪里想对了、为什么成立，以及下一步怎样答得更好。';
   return '<section class="bb-question"><div class="bb-question-head"><div class="eyebrow">今日题目 · '+escapeNotice(q.date||localCalendarDate())+'</div><div class="bb-question-tools"><button type="button" class="bb-star '+(starred?'active':'')+'" onclick="toggleCurrentBlackboardStar()" aria-label="'+(starred?'取消星标':'星标题目')+'" aria-pressed="'+starred+'" title="'+(starred?'取消星标':'星标题目')+'">★</button><button class="bb-refresh-question" onclick="refreshBlackboardQuestion()" '+(refreshing?'disabled':'')+' title="换一道新题" aria-label="换一道新题">'+(refreshing?'…':'↻')+'</button></div></div>'+
     '<h3>'+escapeNotice(q.question)+'</h3>'+renderBlackboardCategoryMeta(q)+'<div class="bb-pills">'+pills+related+'</div>'+
     (q.seedHint ? '<p>'+escapeNotice(q.seedHint)+'</p>' : '')+materials+renderBlackboardHelper()+
     '<textarea id="bb-answer-input" class="bb-answer-box" placeholder="写你的答案。可以按 1、2、3 列，也可以先用几句话说清楚。"'+(window.BB_STATE&&(window.BB_STATE.locked||window.BB_STATE.submitting)?' disabled':'')+'>'+escapeNotice(answer)+'</textarea>'+
-    '<br><button id="bb-submit-button" class="bb-submit" onclick="submitBbAnswer()"'+(window.BB_STATE&&(window.BB_STATE.locked||window.BB_STATE.submitting)?' disabled':'')+(window.BB_STATE&&window.BB_STATE.submitting?' aria-busy="true"':'')+'>'+(window.BB_STATE&&window.BB_STATE.submitting?'批改中…':window.BB_STATE&&window.BB_STATE.locked?'本题已完成':'提交并批改')+'</button><div class="bb-note" id="bb-answer-note">'+(window.BB_STATE&&window.BB_STATE.submitting?'阿栗正在批改，结果返回前会一直保持等待状态。':refreshing?'阿栗正在准备一道不同的新题……':(window.BB_STATE&&window.BB_STATE.locked?'答案已锁定，可在“批改结果”和“历史题目”中查看。':'提交后会说明你哪里想对了、为什么成立，以及下一步怎样答得更好。'))+'</div></section>';
+    '<br><button id="bb-submit-button" class="bb-submit" onclick="submitBbAnswer()"'+(window.BB_STATE&&(window.BB_STATE.locked||window.BB_STATE.submitting)?' disabled':'')+(window.BB_STATE&&window.BB_STATE.submitting?' aria-busy="true"':'')+'>'+submitLabel+'</button><div class="bb-note" id="bb-answer-note">'+answerNote+'</div></section>';
+}
+
+function blackboardReviewComplete(review){
+  return Boolean(review&&!review.reviewUnavailable&&Array.isArray(review.scoreBreakdown)&&review.scoreBreakdown.length&&String(review.score||'').trim());
 }
 
 function renderBlackboardCategoryMeta(q){
@@ -1921,7 +1932,7 @@ async function openNotice(){
   openOverlay('<div class="notice-board-large">'+
     '<div class="notice-sticky"><div class="notice-board-heading"><h2>公告板 · 阿栗资讯巡报<span class="notice-cadence" id="notice-cadence"></span></h2><div class="notice-heading-actions"><button class="notice-refresh" id="notice-refresh" onclick="runWeeklyNow()" aria-label="获取最新资讯" title="获取最新资讯">获取最新资讯</button><span class="butler-connection" id="butler-connection">正在连接阿栗</span></div></div><div class="week-title" id="notice-week-title"></div>'+
     '<div class="notice-tabs">'+
-      '<button class="active" onclick="showNoticeView(\'current\',this)">最新巡报</button>'+
+      '<button class="active" data-notice-view="current" onclick="showNoticeView(\'current\',this)">最新巡报</button>'+
       '<button onclick="showNoticeView(\'weeks\',this)">往期巡报</button>'+
       '<button onclick="showNoticeView(\'categories\',this)">按分类查看</button>'+
       '<button onclick="showNoticeView(\'inbox\',this)">稍后看</button>'+
@@ -1935,7 +1946,7 @@ async function openNotice(){
     '<div class="archive-line" id="notice-status">阿栗可以：放入稍后看、收入栗夹、解析链接、调整下次关注方向、补工具箱。</div>'+
     '</div>',
     'notice-panel');
-  showNoticeView('current');
+  showNoticeView('current',document.querySelector('[data-notice-view="current"]'));
   updateNoticeCadence();
   refreshButlerConnection();
   resumeNoticeTasks();
