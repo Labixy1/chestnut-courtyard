@@ -2777,10 +2777,11 @@ function weatherLabel(code) {
   return code === 1 ? "晴间多云" : "晴天";
 }
 
-async function reverseWeatherLocation(latitude, longitude) {
-  const coordinateLabel = `${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`;
+async function reverseWeatherLocation(latitude, longitude, fallbackLocation = {}) {
+  const fallbackParts = [fallbackLocation.region, fallbackLocation.city].map(value => String(value || "").trim()).filter((value, index, list) => value && list.indexOf(value) === index);
+  const fallbackAddress = fallbackParts.join(" · ") || "定位地址暂不可用";
   try {
-    const query = new URLSearchParams({format: "jsonv2", lat: String(latitude), lon: String(longitude), zoom: "18", addressdetails: "1", "accept-language": "zh-CN"});
+    const query = new URLSearchParams({format: "jsonv2", lat: String(latitude), lon: String(longitude), zoom: "10", addressdetails: "1", "accept-language": "zh-CN"});
     const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${query}`, {
       headers: {"user-agent": "ChestnutCourtyard/1.0", accept: "application/json"},
       signal: AbortSignal.timeout(6000)
@@ -2789,17 +2790,12 @@ async function reverseWeatherLocation(latitude, longitude) {
     const payload = await response.json();
     const value = payload?.address || {};
     const city = String(value.city || value.municipality || value.town || value.county || value.state || "").trim();
-    const parts = [
-      city,
-      value.city_district || value.district || value.county,
-      value.suburb || value.town || value.village,
-      value.road || value.pedestrian || value.residential,
-      value.house_number
-    ].map(item => String(item || "").trim()).filter((item, index, list) => item && list.indexOf(item) === index);
-    const address = parts.join(" · ") || String(payload?.display_name || "").split(",").slice(0, 5).join(" · ").trim();
-    return {city: city || address || coordinateLabel, address: address || city || coordinateLabel, geocoded: Boolean(address || city)};
+    const province = String(value.state || value.province || "").trim();
+    const parts = [province, city].filter((item, index, list) => item && list.indexOf(item) === index);
+    const address = parts.join(" · ") || fallbackAddress;
+    return {city: city || fallbackLocation.city || address, address, geocoded: Boolean(parts.length), location_level: "province_city"};
   } catch (_error) {
-    return {city: coordinateLabel, address: coordinateLabel, geocoded: false};
+    return {city: fallbackLocation.city || fallbackAddress, address: fallbackAddress, geocoded: false, location_level: "province_city"};
   }
 }
 
@@ -2817,10 +2813,12 @@ async function currentWeather(request, env, searchParams) {
   const cacheKey = `weather:current:${latitude.toFixed(2)}:${longitude.toFixed(2)}`;
   const cached = await readState(env, cacheKey, null);
   const cachedAddressParts = String(cached?.location?.address || "").split("·").map(value => value.trim()).filter(Boolean);
-  const cachedAddressValid = cachedAddressParts.length > 0 && new Set(cachedAddressParts).size === cachedAddressParts.length && !cachedAddressParts.includes("当前位置");
+  const cachedAddressValid = cached?.location?.location_level === "province_city" && cachedAddressParts.length > 0 && cachedAddressParts.length <= 2 && new Set(cachedAddressParts).size === cachedAddressParts.length && !cachedAddressParts.includes("当前位置");
   if (!force && cached && cachedAddressValid && Date.now() - Date.parse(cached.updated_at || 0) < 2 * 60 * 60 * 1000) return {...cached, ok: true, cached: true};
   const cloudLocationParts = [cf.region, fallbackCity].map(value => String(value || "").trim()).filter((value, index, list) => value && list.indexOf(value) === index);
-  const resolvedLocation = hasBrowserLocation ? await reverseWeatherLocation(latitude, longitude) : {city: fallbackCity, address: cloudLocationParts.join(" · ") || fallbackCity, geocoded: false};
+  const resolvedLocation = hasBrowserLocation
+    ? await reverseWeatherLocation(latitude, longitude, {region: cf.region, city: fallbackCity})
+    : {city: fallbackCity, address: cloudLocationParts.join(" · ") || fallbackCity, geocoded: false, location_level: "province_city"};
   try {
     const query = new URLSearchParams({latitude: String(latitude), longitude: String(longitude), current: "weather_code,temperature_2m,is_day", timezone: "auto"});
     const response = await fetch(`https://api.open-meteo.com/v1/forecast?${query}`);

@@ -467,19 +467,20 @@ globalThis.fetch = async url => {
   if (parsed.hostname === "nominatim.openstreetmap.org") {
     const hangzhou = Number(parsed.searchParams.get("lat")) > 30;
     return new Response(JSON.stringify({address: hangzhou
-      ? {city: "杭州市", city_district: "西湖区", suburb: "北山街道", road: "北山街"}
-      : {city: "广州市", city_district: "越秀区", suburb: "北京街道", road: "中山五路"}}), {status: 200, headers: {"content-type": "application/json"}});
+      ? {state: "浙江省", city: "杭州市", city_district: "西湖区", suburb: "北山街道", road: "北山街"}
+      : {state: "广东省", city: "广州市", city_district: "越秀区", suburb: "北京街道", road: "中山五路"}}), {status: 200, headers: {"content-type": "application/json"}});
   }
   return nativeFetch(url);
 };
 result = await payload(await request("/api/weather?latitude=30.27410&longitude=120.15510", undefined, weatherEnv));
 assert.equal(result.body.location.city, "杭州市");
-assert.equal(result.body.location.address, "杭州市 · 西湖区 · 北山街道 · 北山街");
+assert.equal(result.body.location.address, "浙江省 · 杭州市");
+assert.equal(result.body.location.location_level, "province_city");
 assert.equal(result.body.location.source, "browser");
 assert.equal(result.body.location.latitude, 30.2741);
 result = await payload(await request("/api/weather?latitude=23.12910&longitude=113.26440", undefined, weatherEnv));
 assert.equal(result.body.location.latitude, 23.1291);
-assert.equal(result.body.location.address, "广州市 · 越秀区 · 北京街道 · 中山五路");
+assert.equal(result.body.location.address, "广东省 · 广州市");
 assert.equal(weatherKv.values.has("weather:current:30.27:120.16"), true);
 assert.equal(weatherKv.values.has("weather:current:23.13:113.26"), true);
 globalThis.fetch = nativeFetch;
