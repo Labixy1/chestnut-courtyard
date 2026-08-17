@@ -21,6 +21,8 @@ if (travel.includes('id="trip-place" placeholder=') || travel.includes('id="trip
 if (!travel.includes('← 返回旅行') || !travel.includes('.trip-editor-card,.trip-detail-card{width:100%;height:100%')) throw new Error('travel detail and editor must use full-screen page views');
 if (!travel.includes('function removeNewTripPhoto(index)') || !travel.includes('class="new-trip-photo-remove"')) throw new Error('new trip photo previews must support removing individual selections');
 if (!travel.includes('reflectionSaveBusy') || !travel.includes('id="reflection-save-button"') || !travel.includes("saveButton.textContent='保存中…'")) throw new Error('travel reflection save must expose and guard its pending state');
+if (!travel.includes('function deleteReflection()') || !travel.includes('id="reflection-delete-button"') || !travel.includes('deleted:[tripKey]') || !travel.includes('旅程和照片会保留')) throw new Error('saved travel reflections must support exact-trip deletion without deleting the trip or photos');
+if (!travel.includes('function updateReflectionDeleteButton()') || !travel.includes('button.hidden=!exists') || !travel.includes("action:'forget',id")) throw new Error('travel reflection deletion must expose the action only for saved data and forget its memory events');
 const heart = fs.readFileSync('pages/heart_hollow.html', 'utf8');
 if (!heart.includes('heartReplyBusy') || !heart.includes('id="heart-send"') || !heart.includes("sendButton.textContent='等待回复中…'")) throw new Error('tree hollow reply must expose and guard its pending state');
 const home = fs.readFileSync('index.html', 'utf8');

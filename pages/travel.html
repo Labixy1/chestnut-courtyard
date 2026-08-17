@@ -81,8 +81,11 @@
   .reflection-head{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px;margin-bottom:12px}
   .reflection-head h2{font-size:16px;color:#345767;font-weight:700}
   .reflection-head span{display:block;margin-top:4px;font-size:11px;color:#78909a}
+  .reflection-head-actions{display:flex;align-items:center;gap:6px}
   .reflection-clear{height:30px;border:1px solid rgba(107,154,179,.24);border-radius:8px;background:rgba(255,255,255,.58);color:#5b7c8b;padding:0 10px;font-family:inherit;font-size:11px;cursor:pointer}
   .reflection-clear:hover{background:rgba(255,255,255,.86);color:#365d70}
+  .reflection-delete{height:30px;border:1px solid rgba(164,102,93,.25);border-radius:8px;background:rgba(255,250,249,.78);color:#9a5d54;padding:0 10px;font-family:inherit;font-size:11px;cursor:pointer;white-space:nowrap}
+  .reflection-delete:hover{background:#fff4f2;color:#7f433b}.reflection-delete:disabled{cursor:wait;opacity:.65}
   .reflection-grid{display:grid;grid-template-columns:1fr;gap:9px;align-items:start}
   .reflection-panel select,.reflection-panel textarea{border:1px solid rgba(107,154,179,.22);border-radius:16px;
      padding:10px 12px;background:rgba(255,255,255,.78);font:inherit;color:#3d4c55;outline:none}
@@ -135,7 +138,7 @@
 <div class="travel-layout"><section class="reflection-panel" data-travel-panel="reflection">
   <div class="reflection-head">
     <div><h2>旅行感悟</h2></div>
-    <button class="reflection-clear" type="button" onclick="clearReflectionDraft()">清空</button>
+    <div class="reflection-head-actions"><button id="reflection-delete-button" class="reflection-delete" type="button" onclick="deleteReflection()" hidden>删除感悟</button><button class="reflection-clear" type="button" onclick="clearReflectionDraft()">清空</button></div>
   </div>
   <div class="reflection-grid">
     <select id="reflection-trip" onchange="loadTripReflection()"></select>
@@ -250,6 +253,7 @@ function renderReflectionOptions(trips){
   if(!trips.length){
     select.innerHTML = '<option value="">还没有旅行</option>';
     select.disabled = true;
+    updateReflectionDeleteButton();
     return;
   }
   const current = select.value;
@@ -260,6 +264,15 @@ function renderReflectionOptions(trips){
   }).join('');
   select.value = current && trips.some(t=>t._key === current) ? current : '';
   loadTripReflection();
+  updateReflectionDeleteButton();
+}
+function updateReflectionDeleteButton(){
+  const select=document.getElementById('reflection-trip');
+  const button=document.getElementById('reflection-delete-button');
+  if(!button)return;
+  const exists=Boolean(select?.value&&getReflections()[select.value]);
+  button.hidden=!exists;
+  button.disabled=!exists||reflectionDeleteBusy;
 }
 function loadTripReflection(){
   const select = document.getElementById('reflection-trip');
@@ -267,6 +280,7 @@ function loadTripReflection(){
   const ai = document.getElementById('reflection-ai');
   if(!select || !textarea || !ai) return;
   if(reflectionSummaryBusy)return;
+  updateReflectionDeleteButton();
   if(select.value===loadedReflectionTripKey)return;
   loadedReflectionTripKey=select.value;
   if(!select.value){
@@ -274,6 +288,7 @@ function loadTripReflection(){
     ai.dataset.summary = '';
     ai.dataset.reply = '';
     ai.textContent = '';
+    updateReflectionDeleteButton();
     return;
   }
   const data = getReflections()[select.value];
@@ -281,6 +296,7 @@ function loadTripReflection(){
   ai.dataset.summary = data&&data.summary ? data.summary : '';
   ai.dataset.reply = data&&data.companionReply ? data.companionReply : '';
   ai.textContent = data ? reflectionResultText(data.companionReply||'',data.summary || data.text || '',true) : '';
+  updateReflectionDeleteButton();
 }
 function resetReflectionInput(){
   clearTimeout(reflectionTimer);
@@ -299,6 +315,7 @@ function clearReflectionDraft(){
   loadedReflectionTripKey='';
   if(textarea)textarea.value='';
   if(ai){ai.dataset.summary='';ai.dataset.reply='';ai.textContent='';}
+  updateReflectionDeleteButton();
   textarea?.focus();
 }
 function setReflectionVoiceState(state,message){
@@ -318,6 +335,7 @@ function startReflectionVoice(){
 }
 let reflectionSummaryBusy=false;
 let reflectionSaveBusy=false;
+let reflectionDeleteBusy=false;
 async function summarizeReflection(options={}){
   const select = document.getElementById('reflection-trip');
   const textarea = document.getElementById('reflection-text');
@@ -395,9 +413,46 @@ async function saveReflection(){
   ai.dataset.summary=summary;
   ai.dataset.reply=companionReply;
   ai.textContent = reflectionResultText(companionReply,summary,true);
+  updateReflectionDeleteButton();
   render();
   if(matchMedia('(max-width:760px)').matches)showMobileTravelView('records');
   }finally{reflectionSaveBusy=false;if(saveButton){saveButton.disabled=false;saveButton.textContent='保存感悟';saveButton.removeAttribute('aria-busy');}}
+}
+async function deleteReflection(){
+  const select=document.getElementById('reflection-trip');
+  const textarea=document.getElementById('reflection-text');
+  const ai=document.getElementById('reflection-ai');
+  const button=document.getElementById('reflection-delete-button');
+  const tripKey=String(select?.value||'');
+  const all=getReflections(),saved=all[tripKey];
+  if(!tripKey||!saved||reflectionDeleteBusy)return;
+  if(!confirm('确定删除这段旅行感悟吗？旅程和照片会保留。'))return;
+  reflectionDeleteBusy=true;
+  if(button){button.disabled=true;button.textContent='删除中…';button.setAttribute('aria-busy','true');}
+  if(ai)ai.textContent='正在删除这段感悟…';
+  try{
+    const synced=await CozyButler.api('/api/local-state',{changes:{cozy_trip_reflections:{type:'object',upserts:{},deleted:[tripKey],revive:[]}}},20000);
+    delete all[tripKey];
+    const cloudReflections=synced.state&&synced.state.values&&synced.state.values.cozy_trip_reflections;
+    localStorage.setItem('cozy_trip_reflections',JSON.stringify(cloudReflections||all));
+    const memoryIds=(saved.entries||[]).map(item=>String(item.id||'')).filter(Boolean);
+    if(memoryIds.length){
+      await Promise.allSettled(memoryIds.map(id=>CozyButler.api('/api/memory/action',{action:'forget',id},12000)));
+      const forgotten=new Set(memoryIds);
+      const localEvents=JSON.parse(localStorage.getItem('cozy_memory_events')||'[]').filter(item=>!forgotten.has(String(item.id)));
+      localStorage.setItem('cozy_memory_events',JSON.stringify(localEvents));
+      localStorage.setItem('cozy_travel_recent_memory_ids',JSON.stringify(travelRecentMemoryIds().filter(id=>!forgotten.has(String(id)))));
+    }
+    loadedReflectionTripKey=tripKey;
+    if(textarea)textarea.value='';
+    if(ai){ai.dataset.summary='';ai.dataset.reply='';ai.textContent='感悟已删除，旅程和照片仍然保留。';}
+    render();
+  }catch(error){if(ai)ai.textContent='感悟删除失败：'+error.message;}
+  finally{
+    reflectionDeleteBusy=false;
+    if(button){button.textContent='删除感悟';button.removeAttribute('aria-busy');}
+    updateReflectionDeleteButton();
+  }
 }
 function getSelectedTrip(){
   const select = document.getElementById('reflection-trip');
