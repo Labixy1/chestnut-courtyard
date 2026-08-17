@@ -37,7 +37,7 @@ node scripts/cloud_worker_test.mjs
 
 复制 `.env.example` 为被 Git 忽略的 `.env` 并填入至少一个文本模型密钥；本地服务启动时会自动读取，不要把真实密钥写进其他项目文件。支持：
 
-- 文本：OpenAI、DeepSeek、GLM、Qwen。可通过 `COZY_TEXT_PROVIDER` 与 `COZY_TEXT_FALLBACK_PROVIDER` 设置主模型和自动兜底模型；当前默认示例为 DeepSeek V4 Flash，失败时切换 GPT-5.6 Luna。
+- 文本：Cloudflare Workers AI、DeepSeek、OpenAI、GLM、Qwen。普通问答、翻译和摘要默认优先使用 Cloudflare 套餐内的 Workers AI 额度，失败时自动切换 DeepSeek；黑板参考答案和正式批改单独优先 DeepSeek，以保留评分与教学质量。可通过 `COZY_TEXT_PROVIDER` 与 `COZY_TEXT_FALLBACK_PROVIDER` 调整全局顺序。
 - 图片：Seedream、GPT Image 和 Gemini Nano Banana，默认模型名分别为 `doubao-seedream-4-0-250828`、`gpt-image-2` 与 `gemini-2.5-flash-image`。
 - 视频：Seedance 2.0 mini，默认模型名为 `doubao-seedance-2-0-mini-260615`，使用持久化异步任务，离开页面后仍可继续查询。
 

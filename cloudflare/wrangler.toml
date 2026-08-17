@@ -8,8 +8,8 @@ routes = [
 ]
 
 [vars]
-COZY_TEXT_PROVIDER = "deepseek"
-COZY_TEXT_FALLBACK_PROVIDER = "openai"
+COZY_TEXT_PROVIDER = "workers-ai"
+COZY_TEXT_FALLBACK_PROVIDER = "deepseek"
 COZY_OPENAI_MODEL = "gpt-5.6-luna"
 COZY_OPENAI_IMAGE_MODEL = "gpt-image-2"
 COZY_GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image"

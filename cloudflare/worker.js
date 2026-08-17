@@ -232,7 +232,8 @@ function textProvider(env) {
 }
 
 async function callText(env, prompt, maxTokens = 1600, options = {}) {
-  const providers = textProviders(env);
+  const available=textProviders(env),preferred=Array.isArray(options.preferredProviders)?options.preferredProviders.map(name=>String(name||'').toLowerCase()):[];
+  const providers=[...new Set([...preferred,...available])].filter(name=>available.includes(name));
   if (!providers.length) throw new Error("还没有配置在线文本模型 API Key");
   const failures = [];
   for (const provider of providers) {
@@ -726,7 +727,7 @@ async function repairBlackboardPersonalizedRevision(env,message,context,parsed){
   let previous="",lastProvider="";
   for(let attempt=0;attempt<2;attempt+=1){
     const retryNote=previous?`\n上一版未通过质量校验。请保留主人原答案里成立的具体判断，并补齐五段，不要复制标准答案或虚构数字。上一版：${previous.slice(0,3500)}`:"";
-    const generated=await callText(env,prompt+retryNote,1800,{temperature:.2,thinking:false,providerTimeouts:{deepseek:50000,openai:15000,"workers-ai":35000}});
+    const generated=await callText(env,prompt+retryNote,1800,{temperature:.2,thinking:false,preferredProviders:["deepseek","openai","workers-ai"],providerTimeouts:{deepseek:50000,openai:15000,"workers-ai":35000}});
     previous=generated.text;lastProvider=generated.provider;
     const repaired=extractJson(generated.text);
     const revision=qualifyBlackboardIllustrativeNumbers(repaired?.personalized_revision||"",context);
@@ -752,7 +753,7 @@ async function generateBlackboardNextIdealAnswer(env,parsed,context){
   let previous="",lastProvider="";
   for(let attempt=0;attempt<2;attempt+=1){
     const retryNote=previous?`\n上一版没有形成可直接作答的五段完整答案。请逐段回答当前练习题，删除无依据数字。上一版：${previous.slice(0,3500)}`:"";
-    const generated=await callText(env,prompt+retryNote,1800,{temperature:.2,thinking:false,providerTimeouts:{deepseek:50000,openai:15000,"workers-ai":35000}});
+    const generated=await callText(env,prompt+retryNote,1800,{temperature:.2,thinking:false,preferredProviders:["deepseek","openai","workers-ai"],providerTimeouts:{deepseek:50000,openai:15000,"workers-ai":35000}});
     previous=generated.text;lastProvider=generated.provider;
     const value=extractJson(generated.text)?.next_question_ideal_answer||"";
     const answer=sanitizeBlackboardUnsupportedSpecifics(qualifyBlackboardIllustrativeNumbers(value,answerContext),answerContext);
@@ -2583,7 +2584,9 @@ const travelSummaryHasEnoughDetail = (value, message) => {
 async function roomReply(env, room, message, context) {
   const decisionAudit = room === "orchard" && (String(context?.intent || "") === "decision_audit" || /我(?:现在)?(?:倾向|决定|打算)|要不要|是否应该|值不值得/.test(message));
   const blackboardIntent=room==="blackboard"?String(context?.intent||"grade_answer"):"";
-  const stagedBlackboardGrade=blackboardIntent==="grade_answer"&&textProvider(env)==="deepseek";
+  // Keep staged grading whenever the blackboard's preferred quality provider
+  // is configured, even if Workers AI is the global default.
+  const stagedBlackboardGrade=blackboardIntent==="grade_answer"&&textProviders(env).includes("deepseek");
   const roomPrompts = {
     heart_hollow: `这里是树洞。若 mode 是 oracle，请在主人完整倾诉后给一句像塔罗牌但不故弄玄虚的回应；若 mode 是 dialogue，就自然来回对话。不要强行围绕树，不急着安慰。\n${COMPANION_DIALOGUE_GUIDE}`,
     orchard: `这里是成长田的“问问阿栗”，这是一个认真解惑和学习的多轮对话，不是树洞、签语或成长鸡汤。
@@ -2622,8 +2625,8 @@ ${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最�
   const roomPrompt = `${guide}\n${formats[room] || "请直接回应。"}\n不得编造主人没有说过的经历。\n房间：${room}\n当前主人问题（最高优先级）：${message.slice(0, 8000)}\n辅助上下文（只用于指代消解和归档）：${JSON.stringify(context).slice(0, 7000)}\n房间限定记忆（最多两条，可以完全不用；不得为了展示记忆而提起过去）：${JSON.stringify(answerMemory).slice(0, 5000)}`;
   const roomTokens=room === "orchard" ? 3200 : blackboardIntent==="grade_answer" ? stagedBlackboardGrade?3600:6500 : blackboardIntent==="reference_answer" ? 3200 : 1800;
   const generationOptions = blackboardIntent === "grade_answer"
-    ? {temperature:0.1,thinking:false,providerTimeouts:{deepseek:70000,openai:20000,"workers-ai":45000}}
-    : blackboardIntent === "reference_answer" ? {temperature:0.2,thinking:false} : {temperature: 0.35};
+    ? {temperature:0.1,thinking:false,preferredProviders:["deepseek","openai","workers-ai"],providerTimeouts:{deepseek:70000,openai:20000,"workers-ai":45000}}
+    : blackboardIntent === "reference_answer" ? {temperature:0.2,thinking:false,preferredProviders:["deepseek","openai","workers-ai"]} : {temperature: 0.35};
   let result = await callText(env, roomPrompt, roomTokens, generationOptions);
   let parsed;
   try { parsed = extractJson(result.text); } catch (_error) { parsed = {reply: result.text}; }

@@ -266,6 +266,8 @@ const aiEnv = {
       materials: ["关注任务成功率与副作用"], standard_points: ["按风险分层定义真实任务", "覆盖超时和越权等失败路径", "记录每次工具调用产生的副作用", "建立固定回归集并设置通过阈值"], ideal_answer:interviewAnswer("我会先按风险分层建立真实任务样本","工具型 Agent 评测").replace("验证：记录任务完成率", "验证：人工抽检5%，并记录任务完成率")
     })};
     if(prompt.includes("独立准备一道黑板题"))return{response:JSON.stringify({ideal_answer:interviewAnswer("我会先冻结评测任务和风险边界","工具型 Agent 评测")})};
+    if(prompt.includes("只重写一份基于主人原答案"))return{response:JSON.stringify({personalized_revision:interviewAnswer("我会先看任务成功率，并按风险分层抽取真实任务","工具型 Agent 评测")})};
+    if(prompt.includes("只为下一步练习写一份阿栗示范答案"))return{response:JSON.stringify({next_question_ideal_answer:interviewAnswer("我会先选取工具型 Agent 评测集中的失败案例，并冻结预期阻断结果","工具型 Agent 评测集的失败案例验证")})};
     if (prompt.includes("grade-blackboard-answer Skill")) return {response: JSON.stringify({
       score_breakdown: [
         {rubric_id:"comprehension",criterion:"题意理解与核心判断",max:20,awarded:16,evidence:"任务成功率",reason:"抓住了评测需要判断任务结果这一核心方向。",teaching:"把立场补成先定义真实任务，再判断成功率是否提升。"},
@@ -531,6 +533,18 @@ assert.match(result.body.reply, /云端兜底成功/);
 result = await payload(await request("/api/providers", undefined, fallbackEnv));
 assert.deepEqual(result.body.providers.text_route, ["deepseek", "openai"]);
 
+let budgetDeepSeekCalls=0;
+const budgetRouteEnv={...baseEnv,COZY_TEXT_PROVIDER:"workers-ai",COZY_TEXT_FALLBACK_PROVIDER:"deepseek",DEEPSEEK_API_KEY:"test-deepseek",AI:{run:async()=>({response:JSON.stringify({reply:"普通学习问答由 Workers AI 完成。",answer_focus:"验证普通任务省钱路由",seed_summary:"省钱路由",key_insight:"普通任务优先使用套餐内模型额度",next_step:"",knowledge_topic:{match_id:"",title:"模型调用成本",category:"AI 技术与产品",entities:["Workers AI"],summary:"普通任务优先 Workers AI。",knowledge_points:["重要任务再使用高质量模型"]}})})}};
+globalThis.fetch=async(url,options)=>{
+  if(String(url).includes("api.deepseek.com")){budgetDeepSeekCalls+=1;return new Response("unexpected",{status:500});}
+  return nativeFetch(url,options);
+};
+result=await payload(await request("/api/room",{room:"orchard",message:"验证普通任务省钱路由",context:{}},budgetRouteEnv));
+assert.equal(result.status,200);
+assert.equal(result.body.provider,"workers-ai");
+assert.equal(budgetDeepSeekCalls,0);
+globalThis.fetch=nativeFetch;
+
 const stagedCore = {
   score_breakdown: [
     {rubric_id:"comprehension",criterion:"题意理解与核心判断",max:20,awarded:16,evidence:"任务成功率",reason:"抓住了评测需要判断任务结果这一核心方向。",teaching:"把立场补成先定义真实任务，再判断成功率是否提升。"},
@@ -550,7 +564,8 @@ const stagedCore = {
 };
 delete stagedCore.next_question_ideal_answer;
 const stagedCalls=[];
-const stagedEnv={...baseEnv,COZY_TEXT_PROVIDER:"deepseek",DEEPSEEK_API_KEY:"test-deepseek",COZY_DEEPSEEK_MODEL:"deepseek-v4-flash"};
+let stagedWorkersCalls=0;
+const stagedEnv={...baseEnv,COZY_TEXT_PROVIDER:"workers-ai",COZY_TEXT_FALLBACK_PROVIDER:"deepseek",DEEPSEEK_API_KEY:"test-deepseek",COZY_DEEPSEEK_MODEL:"deepseek-v4-flash",AI:{run:async()=>{stagedWorkersCalls+=1;throw new Error("blackboard should prefer DeepSeek");}}};
 globalThis.fetch=async(url,options)=>{
   if(!String(url).includes("api.deepseek.com"))return nativeFetch(url,options);
   const body=JSON.parse(options.body),prompt=String(body.messages?.[0]?.content||"");
@@ -565,6 +580,7 @@ result=await payload(await request("/api/room",{room:"blackboard",message:"我�
 assert.equal(result.status,200);
 assert.equal(result.body.provider,"deepseek");
 assert.equal(stagedCalls.length,3);
+assert.equal(stagedWorkersCalls,0);
 assert.deepEqual(stagedCalls.map(item=>item.maxTokens).sort((a,b)=>a-b),[1800,1800,3600]);
 assert.equal(stagedCalls.every(item=>item.thinking?.type==="disabled"),true);
 assert.match(result.body.result.personalized_revision,/判断：[\s\S]*例子：/);
