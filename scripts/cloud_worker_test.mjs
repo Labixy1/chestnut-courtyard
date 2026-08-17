@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {handleRequest, noticeScheduleSlotAt, providerTimeoutMs, reportNoticeScheduleSlot, runCloudReport} from "../cloudflare/worker.js";
-import {memoryContext} from "../cloudflare/state.js";
+import {memoryContext, memoryState} from "../cloudflare/state.js";
 
 class MemoryKV {
   constructor() { this.values = new Map(); }
@@ -202,6 +202,33 @@ assert.equal(result.body.result.response_style, "reframe");
 assert.equal(result.body.memory_event.sensitivity, "sealed");
 assert.equal((await kv.get("memory:events", "json")).some(item => item.id === "heart-committed"), false);
 assert.equal((await kv.get("memory:sealed", "json")).some(item => item.id === "heart-committed"), true);
+
+// A completed room reply must still return and remain readable when memory KV writes are exhausted.
+const limitedRoomKv=new WriteLimitedKV();
+const limitedRoomR2=new MemoryR2();
+const limitedRoomEnv={...companionEnv,COZY_STATE:limitedRoomKv,COZY_MEDIA:limitedRoomR2};
+limitedRoomKv.blocked=true;
+result=await payload(await request("/api/room",{room:"heart_hollow",message:"今天的误会让我很委屈",context:{mode:"dialogue",current_text:"今天的误会让我很委屈",memory_event_id:"heart-r2-fallback"}},limitedRoomEnv));
+assert.equal(result.status,200);
+assert.equal(result.body.result.response_style,"reframe");
+assert.equal(result.body.storage_degraded,true);
+assert.equal(result.body.storage_fallback,"r2");
+assert.equal(limitedRoomR2.objects.has("system/state-fallback/memory-events.json"),true);
+assert.equal((await memoryState(limitedRoomEnv,true)).sealed.some(item=>item.id==="heart-r2-fallback"),true);
+limitedRoomKv.blocked=false;
+await request("/api/memory/event",{event:{id:"memory-after-quota",source:"orchard",content:"额度恢复后合并兜底记忆",summary:"额度恢复后合并兜底记忆"}},limitedRoomEnv);
+assert.equal(limitedRoomR2.objects.has("system/state-fallback/memory-events.json"),false);
+assert.equal((await limitedRoomKv.get("memory:sealed","json")).some(item=>item.id==="heart-r2-fallback"),true);
+
+// Tool and parsed-link records use the same R2 safety net instead of losing an AI result after generation.
+const limitedButlerKv=new WriteLimitedKV();
+const limitedButlerR2=new MemoryR2();
+const limitedButlerEnv={...baseEnv,COZY_STATE:limitedButlerKv,COZY_MEDIA:limitedButlerR2};
+limitedButlerKv.blocked=true;
+result=await payload(await request("/api/data",{key:"butler_state",value:{version:2,updated_at:"2026-08-17T10:00:00.000Z",chest:[],read_later:[],watch_topics:[],sources:[],toolbox:[{id:"tool-r2",title:"R2 兜底工具"}],task_log:[],custom_categories:[]}},limitedButlerEnv));
+assert.equal(result.status,200);
+assert.equal(limitedButlerR2.objects.has("system/state-fallback/butler-state.json"),true);
+assert.equal((await payload(await request("/api/data?key=butler_state",undefined,limitedButlerEnv))).body.toolbox[0].id,"tool-r2");
 
 result = await payload(await request("/api/assistant", {message: "新增一个分类：AI评测"}));
 assert.equal(result.status, 200);

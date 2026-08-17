@@ -6,7 +6,14 @@ const now = () => new Date().toISOString();
 const TASK_R2_INDEX_KEY = "system/tasks/index.json";
 const TASK_R2_PREFIX = "system/tasks/";
 const LOCAL_STATE_R2_KEY = "system/state-fallback/local-state.json";
-const DATA_R2_FALLBACK_KEYS = {local_state: LOCAL_STATE_R2_KEY, notice_reports: "system/state-fallback/notice-reports.json"};
+const MEMORY_EVENTS_R2_KEY = "system/state-fallback/memory-events.json";
+const DATA_R2_FALLBACK_KEYS = {
+  local_state: LOCAL_STATE_R2_KEY,
+  notice_reports: "system/state-fallback/notice-reports.json",
+  butler_state: "system/state-fallback/butler-state.json",
+  estate_state: "system/state-fallback/estate-state.json",
+  daily_questions: "system/state-fallback/daily-questions.json"
+};
 const MEMORY_EXPORT_KEYS = ["memory:events", "memory:sealed", "memory:profile", "memory:categories", "memory:overrides", "memory:distillation", "memory:forgotten"];
 const SEALED_MEMORY_SOURCES = new Set(["heart_hollow", "private_wing", "memory_nook"]);
 const MEMORY_POLICY = {
@@ -37,6 +44,35 @@ export async function writeState(env, key, value, options) {
 
 function kvWriteLimitExceeded(error) {
   return /KV put\(\) limit exceeded|daily write limit|write quota/i.test(String(error?.message || error || ""));
+}
+
+function mergeMemoryRecords(...groups) {
+  const records = new Map();
+  groups.flat().filter(Boolean).forEach(item => {
+    const id = String(item?.id || "");
+    if (!id) return;
+    const existing = records.get(id);
+    const itemTime = Date.parse(item.updated_at || item.created_at || "") || 0;
+    const existingTime = Date.parse(existing?.updated_at || existing?.created_at || "") || 0;
+    if (!existing || itemTime >= existingTime) records.set(id, item);
+  });
+  return [...records.values()];
+}
+
+async function readMemoryR2Fallback(env) {
+  if (!env.COZY_MEDIA) return {events: [], sealed: []};
+  try {
+    const object = await env.COZY_MEDIA.get(MEMORY_EVENTS_R2_KEY);
+    if (!object) return {events: [], sealed: []};
+    const value = typeof object.json === "function" ? await object.json() : JSON.parse(await object.text());
+    return {events: Array.isArray(value?.events) ? value.events : [], sealed: Array.isArray(value?.sealed) ? value.sealed : []};
+  } catch (_error) { return {events: [], sealed: []}; }
+}
+
+async function saveMemoryR2Fallback(env, events, sealed) {
+  await env.COZY_MEDIA.put(MEMORY_EVENTS_R2_KEY, JSON.stringify({version: 1, updated_at: now(), events, sealed}), {
+    httpMetadata: {contentType: "application/json; charset=utf-8"}, customMetadata: {kind: "memory_events_kv_fallback"}
+  });
 }
 
 async function readDataR2Fallback(env, key) {
@@ -376,8 +412,9 @@ function memoryKind(event) {
 export async function addMemoryEvents(env, input) {
   const rawItems = (Array.isArray(input) ? input : [input]).filter(Boolean).slice(0, 100);
   const forgotten = new Set((await readState(env, "memory:forgotten", [])).map(item => String(item?.id || item)));
-  const personal = await readState(env, "memory:events", []);
-  const sealed = await readState(env, "memory:sealed", []);
+  const fallback = await readMemoryR2Fallback(env);
+  const personal = mergeMemoryRecords(await readState(env, "memory:events", []), fallback.events);
+  const sealed = mergeMemoryRecords(await readState(env, "memory:sealed", []), fallback.sealed);
   const personalMap = new Map(personal.filter(item => item.sensitivity !== "sealed" && !SEALED_MEMORY_SOURCES.has(item.source)).map(item => [item.id, item]));
   const sealedMap = new Map(sealed.map(item => [item.id, item]));
   personal.filter(item => item.sensitivity === "sealed" || SEALED_MEMORY_SOURCES.has(item.source)).forEach(item => {
@@ -388,10 +425,16 @@ export async function addMemoryEvents(env, input) {
     if (item.sensitivity === "sealed" || SEALED_MEMORY_SOURCES.has(item.source)) sealedMap.set(item.id, {...item, sensitivity: "sealed", scope: item.scope === "record_only" ? "heart_only" : item.scope});
     else personalMap.set(item.id, item);
   }
-  await Promise.all([
-    writeState(env, "memory:events", Array.from(personalMap.values()).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 500)),
-    writeState(env, "memory:sealed", Array.from(sealedMap.values()).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 300))
-  ]);
+  const nextEvents = Array.from(personalMap.values()).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 500);
+  const nextSealed = Array.from(sealedMap.values()).sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 300);
+  try {
+    await Promise.all([writeState(env, "memory:events", nextEvents), writeState(env, "memory:sealed", nextSealed)]);
+    if (env.COZY_MEDIA) await env.COZY_MEDIA.delete(MEMORY_EVENTS_R2_KEY).catch(() => {});
+  } catch (error) {
+    if (!kvWriteLimitExceeded(error) || !env.COZY_MEDIA) throw error;
+    await saveMemoryR2Fallback(env, nextEvents, nextSealed);
+    Object.defineProperty(saved, "__storageFallback", {value: "r2", enumerable: false, configurable: true});
+  }
   return saved;
 }
 
@@ -474,11 +517,13 @@ function buildMemoryCards(events, overrides) {
 }
 
 export async function memoryState(env, includeSealed = false) {
-  const [storedEvents, storedSealed, storedProfile, customCategories, overrides] = await Promise.all([
+  const [kvEvents, kvSealed, storedProfile, customCategories, overrides, fallback] = await Promise.all([
     readState(env, "memory:events", []), readState(env, "memory:sealed", []),
     readState(env, "memory:profile", null), readState(env, "memory:categories", []),
-    readState(env, "memory:overrides", {})
+    readState(env, "memory:overrides", {}), readMemoryR2Fallback(env)
   ]);
+  const storedEvents = mergeMemoryRecords(kvEvents, fallback.events);
+  const storedSealed = mergeMemoryRecords(kvSealed, fallback.sealed);
   const recovered = storedEvents.filter(item => item.sensitivity === "sealed" || SEALED_MEMORY_SOURCES.has(item.source));
   const events = storedEvents.filter(item => item.sensitivity !== "sealed" && !SEALED_MEMORY_SOURCES.has(item.source));
   const sealedMap = new Map(storedSealed.map(item => [item.id, item]));

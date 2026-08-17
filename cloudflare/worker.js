@@ -1040,7 +1040,8 @@ async function cloudBlackboardQuestion(env, variant = "") {
   if (dueReview && !variant) {
     const question = orchardReviewQuestion(date, variant, dueReview);
     if (!blackboardQuestionIsDuplicate(question, history)) {
-      await writeState(env, cacheKey, question, {expirationTtl: 60 * 60 * 24 * 45});
+      try { await writeState(env, cacheKey, question, {expirationTtl: 60 * 60 * 24 * 45}); }
+      catch (error) { if (!noticeKvWriteLimitExceeded(error)) throw error; }
       return question;
     }
   }
@@ -1087,7 +1088,8 @@ standard_points 只能是本题特有的判断点，禁止复用“明确用户�
     } catch (_error) {}
   }
   if (!question) question = fallbackCloudBlackboardQuestion(date, variant, reports, history, targetCategory);
-  await writeState(env, cacheKey, question, {expirationTtl: 60 * 60 * 24 * 45});
+  try { await writeState(env, cacheKey, question, {expirationTtl: 60 * 60 * 24 * 45}); }
+  catch (error) { if (!noticeKvWriteLimitExceeded(error)) throw error; }
   return question;
 }
 
@@ -2687,13 +2689,14 @@ ${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最�
   if (blackboardIntent === "grade_answer") parsed = finalizeBlackboardGrade(parsed, context);
   const reply = String(parsed.reply || parsed.summary || result.text);
   let memoryEvent = null;
+  let storageFallback = "";
   const shouldCommit = (room !== "travel" || Boolean(context?.commit)) && !(room === "blackboard" && ["grade_answer","reference_answer"].includes(blackboardIntent));
   if (shouldCommit) {
     const eventContent = String(context?.current_text || context?.latest_entry || message);
     const eventSummary = room === "heart_hollow" ? "树洞对话已封存"
       : room === "travel" ? `旅行感悟：${String(parsed.summary || eventContent).slice(0, 260)}`
       : reply.slice(0, 300);
-    [memoryEvent] = await addMemoryEvents(env, {
+    const savedMemoryEvents = await addMemoryEvents(env, {
       id: String(context?.memory_event_id || `mem_${crypto.randomUUID()}`),
       source: room, type: room === "travel" ? "travel_reflection" : "room_conversation",
       content: eventContent, summary: eventSummary,
@@ -2702,10 +2705,13 @@ ${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最�
       room_id: String(context?.trip_id || ""),
       sensitivity: room === "heart_hollow" ? "sealed" : "personal"
     });
+    memoryEvent = savedMemoryEvents[0] || null;
+    storageFallback = savedMemoryEvents.__storageFallback || "";
   }
   return {
     reply, result: parsed, provider: result.provider, memory_event: memoryEvent,
-    memory_usage: {purpose: memoryPurpose, selected_ids: memory.selected_memory_ids || []}
+    memory_usage: {purpose: memoryPurpose, selected_ids: memory.selected_memory_ids || []},
+    storage_degraded: Boolean(storageFallback), storage_fallback: storageFallback
   };
 }
 
