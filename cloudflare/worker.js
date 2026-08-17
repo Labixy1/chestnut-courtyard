@@ -2058,6 +2058,74 @@ async function uploadMediaToR2(env, input) {
   return {item, estate_state: estate, local_state: localState, storage: await mediaStorageUsage(env)};
 }
 
+function travelPhotoFiles(trip) {
+  if (!trip || typeof trip !== "object") return [];
+  return (Array.isArray(trip.photos) && trip.photos.length ? trip.photos : [trip.file]).map(String).filter(Boolean);
+}
+
+function travelR2Key(file) {
+  try {
+    const key = new URL(String(file || ""), "https://cozy.invalid").searchParams.get("id") || "";
+    return key.startsWith("uploads/travel/") ? key : "";
+  } catch (_error) {
+    return "";
+  }
+}
+
+async function deleteTravelPhoto(env, input) {
+  const tripId = String(input.trip_id || "").trim(), file = String(input.file || "").trim();
+  if (!tripId || !file) throw mediaUploadError("缺少旅程或照片信息");
+  const [estate, local] = await Promise.all([readData(env, "estate_state"), readData(env, "local_state")]);
+  const localTrips = Array.isArray(local?.values?.cozy_trips) ? local.values.cozy_trips : [];
+  const estateTrips = Array.isArray(estate?.travel?.history) ? estate.travel.history : [];
+  const localTrip = localTrips.find(item => String(item?.id || "") === tripId);
+  const estateTrip = estateTrips.find(item => String(item?.id || "") === tripId);
+  const targets = [localTrip, estateTrip].filter(Boolean);
+  if (!targets.length) throw mediaUploadError("没有找到这段旅程", 404);
+  if (!targets.some(trip => travelPhotoFiles(trip).includes(file))) throw mediaUploadError("这张照片不属于该旅程", 404);
+
+  const updateTrip = trip => {
+    const photos = travelPhotoFiles(trip).filter(value => value !== file);
+    return {...trip, photos, file: photos[0] || "", updatedAt: now()};
+  };
+  let nextEstate = estate;
+  if (estateTrip) {
+    nextEstate = {...estate, travel: {...(estate.travel || {}), history: estateTrips.map(item => item === estateTrip ? updateTrip(item) : item)}};
+    await writeData(env, "estate_state", nextEstate);
+  }
+  const nextLocal = localTrip
+    ? await mergeLocalState(env, {changes: {cozy_trips: {type: "array", upserts: [updateTrip(localTrip)], deleted: []}}})
+    : local;
+  const key = travelR2Key(file);
+  if (key && env.COZY_MEDIA) await env.COZY_MEDIA.delete(key);
+  return {estate_state: nextEstate, local_state: nextLocal, deleted_file_count: key ? 1 : 0};
+}
+
+async function deleteTravelTrip(env, input) {
+  const tripId = String(input.trip_id || "").trim();
+  if (!tripId) throw mediaUploadError("缺少旅程信息");
+  const [estate, local] = await Promise.all([readData(env, "estate_state"), readData(env, "local_state")]);
+  const values = local?.values || {};
+  const localTrips = Array.isArray(values.cozy_trips) ? values.cozy_trips : [];
+  const estateTrips = Array.isArray(estate?.travel?.history) ? estate.travel.history : [];
+  const removedTrips = [...localTrips, ...estateTrips].filter(item => String(item?.id || "") === tripId);
+  if (!removedTrips.length) throw mediaUploadError("没有找到这段旅程", 404);
+
+  const keys = [...new Set(removedTrips.flatMap(travelPhotoFiles).map(travelR2Key).filter(Boolean))];
+  const remainingTrips = [...localTrips, ...estateTrips].filter(item => String(item?.id || "") !== tripId);
+  const retainedKeys = new Set(remainingTrips.flatMap(travelPhotoFiles).map(travelR2Key).filter(Boolean));
+  const deletableKeys = keys.filter(key => !retainedKeys.has(key));
+  const nextEstate = {...estate, travel: {...(estate.travel || {}), history: estateTrips.filter(item => String(item?.id || "") !== tripId)}};
+  if (estateTrips.length !== nextEstate.travel.history.length) await writeData(env, "estate_state", nextEstate);
+  const nextLocal = await mergeLocalState(env, {changes: {
+    cozy_trips: {type: "array", upserts: [], deleted: [`id:${tripId}`]},
+    cozy_trip_reflections: {type: "object", upserts: {}, deleted: [tripId]},
+    cozy_photo_albums: {type: "array", upserts: [], deleted: [`id:travel_${tripId}`]}
+  }});
+  if (env.COZY_MEDIA) for (const key of deletableKeys) await env.COZY_MEDIA.delete(key);
+  return {estate_state: nextEstate, local_state: nextLocal, deleted_file_count: deletableKeys.length};
+}
+
 async function storeRemoteMedia(env, task, url, extension) {
   if (!env.COZY_MEDIA) return [{url, temporary: true}];
   const response = await fetch(url);
@@ -2456,6 +2524,10 @@ const travelCompanionIsDistinct = value => {
   const reply = normalizedCompanionText(value?.reply);
   return summary.length >= 4 && reply.length >= 4 && summary !== reply && !summary.includes(reply) && !reply.includes(summary);
 };
+const travelSummaryHasEnoughDetail = (value, message) => {
+  const summary = normalizedCompanionText(value?.summary), source = normalizedCompanionText(message);
+  return summary.length >= 8 && !(source.length >= 55 && summary.length < 45);
+};
 
 async function roomReply(env, room, message, context) {
   const decisionAudit = room === "orchard" && (String(context?.intent || "") === "decision_audit" || /我(?:现在)?(?:倾向|决定|打算)|要不要|是否应该|值不值得/.test(message));
@@ -2474,7 +2546,7 @@ async function roomReply(env, room, message, context) {
 7. 学习偏好只允许调整解释结构、例子密度和表达方式，不能改变事实结论，不能隐藏相反观点，也不能把过去偏好强加给当前问题。
 8. 禁止田野隐喻、诗意散文、玄学签语和强制安排“几天内实验”。下一步没有实际帮助时留空。
 ${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最强反方立场，寻找遗漏事实、乐观假设、不可逆成本、机会成本、最坏结果和认知偏差；第二阶段给出最强支持理由；第三阶段只比较最有分量的证据，明确哪方更强、最大未知变量和结论反转条件。禁止为了显得平衡而包装成五五开。` : ""}`,
-    travel: `这里是旅行记录。帮助主人提炼具体旅行感悟，保留地点、事件和变化，不写旅游宣传语。归档摘要与陪伴回应必须分开。\n${COMPANION_DIALOGUE_GUIDE}`,
+    travel: `这里是旅行记录。帮助主人提炼具体旅行感悟，不写旅游宣传语。先识别主人原话里的地点、发生的具体事情、当时的真实感受，以及由此产生的认识或变化；只写主人确实说过的内容，缺失部分留空，绝不脑补。归档摘要必须能脱离聊天单独显示在旅行卡片上，陪伴回应则补充一个不同的新角度，两者不得复述。\n${COMPANION_DIALOGUE_GUIDE}`,
     blackboard: "这里是产品黑板。围绕题目逐点评改，区分主人答案、标准答案和具体改进建议。"
   };
   const guide = roomPrompts[room] || "根据当前房间和上下文直接回应。";
@@ -2488,7 +2560,7 @@ ${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最�
       : '只返回 JSON：{"reply":"18到45字、回应具体内容的一句签语","mode":"oracle","response_style":"oracle","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。',
     travel: String(context?.intent || "") === "summarize_trip_description"
       ? '只返回 JSON：{"summary":"忠于原话、80字内的旅行描述","title":"简短名称","reply":"","response_style":"archive"}。只整理事实，不添加感悟或虚构经历。'
-      : '只返回 JSON：{"summary":"忠于原话、120字内且适合归档的旅行感悟摘要","title":"简短名称","reply":"针对这段感悟的自然陪伴回应","response_style":"listen/clarify/reframe/suggest/lighten/challenge 六选一"}。summary 负责归档，只能使用当前主人原话，房间记忆不得改写摘要；reply 负责陪伴，两者不得相同。reply 可以分享看法、轻松接话或温和反驳，不必每次总结人生意义，也不必每次追问。'
+      : '只返回 JSON：{"summary":"忠于原话、60到120字且可独立显示在旅行卡片上的感悟摘要","title":"简短名称","reply":"针对这段感悟的自然陪伴回应","response_style":"listen/clarify/reframe/suggest/lighten/challenge 六选一"}。summary 按“地点或场景、发生的事、具体感受、认识或变化”的顺序组织，但只使用当前主人原话中实际出现的信息，缺什么就省略什么；不得写万能感悟、鸡汤或旅游宣传语，房间记忆不得改写摘要。reply 负责陪伴，必须接住原话中的一个具体细节，再补充一个有内容的新角度；主人谈方法时就指出该方法真正解决了什么或补一条可执行判断标准，禁止只说“需要考虑各种情况”“很有意义”“继续保持”等泛话。reply 不得复述 summary，不必每次追问。'
   };
   const recentIds = Array.isArray(context?.recent_memory_ids) ? context.recent_memory_ids : [];
   const memoryPurpose = room === "orchard" ? "learning_support" : room === "heart_hollow" ? "heart_companion" : room === "travel" ? "travel_companion" : room === "blackboard" ? "blackboard_question" : "general";
@@ -2510,9 +2582,10 @@ ${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最�
   if (room === "heart_hollow" && !COMPANION_STYLES.has(String(parsed.response_style || ""))) {
     parsed.response_style = String(context?.mode || "oracle") === "oracle" ? "oracle" : "listen";
   }
-  if (room === "travel" && String(context?.intent || "") !== "summarize_trip_description" && !travelCompanionIsDistinct(parsed)) {
-    result = await callText(env, `${roomPrompt}\n\n上一版把归档摘要和陪伴回应写成了同一件事。请重写：summary 只忠实整理主人说过的经历与感受；reply 必须向前推进，可以给看法、换角度、轻松接话或温和反驳，不能复述 summary。上一版：${String(result.text).slice(0, 3000)}`, roomTokens, generationOptions);
+  if (room === "travel" && String(context?.intent || "") !== "summarize_trip_description" && (!travelCompanionIsDistinct(parsed) || !travelSummaryHasEnoughDetail(parsed, message))) {
+    result = await callText(env, `${roomPrompt}\n\n上一版的归档摘要过短、遗漏了主人说的具体事情，或者把摘要和陪伴回应写成了同一件事。请重写：summary 先交代发生的具体事情，再保留感受和认识，信息足够时写满60字左右；reply 必须接住一个具体细节并向前推进，不能复述 summary。上一版：${String(result.text).slice(0, 3000)}`, roomTokens, generationOptions);
     parsed = extractJson(result.text);
+    if (!travelSummaryHasEnoughDetail(parsed, message)) parsed.summary = String(message).replace(/\s+/g, " ").trim().slice(0, 120);
     if (!travelCompanionIsDistinct(parsed)) {
       parsed.reply = "这段感受我先照原样替你收好，不急着把它包装成某种人生结论。";
       parsed.response_style = "listen";
@@ -2870,6 +2943,14 @@ export async function handleRequest(request, env, ctx = {}) {
     if (url.pathname === "/api/media/upload") {
       if (identity.email === "preview" || env.DEMO_MODE === "true") return json({ok: false, error: "只有主人版可以永久保存照片"}, 403);
       return json({ok: true, ...await uploadMediaToR2(env, input)});
+    }
+    if (url.pathname === "/api/travel/photo/delete") {
+      if (identity.email === "preview" || env.DEMO_MODE === "true") return json({ok: false, error: "只有主人版可以删除旅行照片"}, 403);
+      return json({ok: true, ...await deleteTravelPhoto(env, input)});
+    }
+    if (url.pathname === "/api/travel/delete") {
+      if (identity.email === "preview" || env.DEMO_MODE === "true") return json({ok: false, error: "只有主人版可以删除旅程"}, 403);
+      return json({ok: true, ...await deleteTravelTrip(env, input)});
     }
     if (DEMO_AI_PATHS.has(url.pathname)) await requireDemoAi(env);
     if (url.pathname === "/api/data") return json({ok: true, value: await writeData(env, String(input.key || ""), input.value)});

@@ -171,7 +171,7 @@ const companionEnv = {
     })};
     if (prompt.includes("房间：travel")) {
       companionTravelCalls += 1;
-      if (!prompt.includes("上一版把归档摘要和陪伴回应")) return {response: JSON.stringify({summary: "西湖边散步让我慢下来", reply: "西湖边散步让我慢下来", response_style: "listen", title: "杭州"})};
+      if (!prompt.includes("上一版的归档摘要")) return {response: JSON.stringify({summary: "西湖边散步让我慢下来", reply: "西湖边散步让我慢下来", response_style: "listen", title: "杭州"})};
       return {response: JSON.stringify({summary: "西湖边散步让我慢下来", reply: "这份轻松不必马上变成道理，先让它多停一会儿。", response_style: "lighten", title: "杭州"})};
     }
     return {response: JSON.stringify({reply: "ok"})};
@@ -949,6 +949,30 @@ result = await payload(await uploadRequest("/api/media/upload", {kind: "travel",
 assert.equal(result.status, 200);
 assert.match(result.body.item.storage_key, /^uploads\/travel\//);
 assert.equal(result.body.local_state.values.cozy_trips[0].photos[0], result.body.item.file);
+const firstTravelFile = result.body.item.file;
+const firstTravelKey = result.body.item.storage_key;
+assert.equal(uploadR2.objects.has(firstTravelKey), true);
+result = await payload(await uploadRequest("/api/travel/photo/delete", {trip_id: "trip-upload", file: firstTravelFile}));
+assert.equal(result.status, 200);
+assert.equal(result.body.deleted_file_count, 1);
+assert.deepEqual(result.body.local_state.values.cozy_trips[0].photos, []);
+assert.equal(uploadR2.objects.has(firstTravelKey), false);
+
+result = await payload(await uploadRequest("/api/media/upload", {kind: "travel", trip_id: "trip-upload", name: "苏州留影.png", data_url: pngDataUrl}));
+assert.equal(result.status, 200);
+const finalTravelKey = result.body.item.storage_key;
+result = await payload(await uploadRequest("/api/local-state", {values: {
+  cozy_trip_reflections: {"trip-upload": {summary: "苏州旅行感悟", updatedAt: "2026-08-17T08:00:00+08:00"}},
+  cozy_photo_albums: [{id: "travel_trip-upload", title: "苏州", photos: [{src: result.body.item.file}], updatedAt: "2026-08-17T08:00:00+08:00"}]
+}}));
+assert.equal(result.status, 200);
+result = await payload(await uploadRequest("/api/travel/delete", {trip_id: "trip-upload"}));
+assert.equal(result.status, 200);
+assert.equal(result.body.deleted_file_count, 1);
+assert.equal(result.body.local_state.values.cozy_trips.some(item => item.id === "trip-upload"), false);
+assert.equal(Object.hasOwn(result.body.local_state.values.cozy_trip_reflections, "trip-upload"), false);
+assert.equal(result.body.local_state.values.cozy_photo_albums.some(item => item.id === "travel_trip-upload"), false);
+assert.equal(uploadR2.objects.has(finalTravelKey), false);
 
 result = await payload(await uploadRequest("/api/media/upload", {kind: "tree_hollow", replace_id: "buried-pending", title: "今晚的记忆", note: "一段值得留下的记忆", data_url: pngDataUrl}));
 assert.equal(result.status, 200);
