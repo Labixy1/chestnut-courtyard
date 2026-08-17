@@ -37,10 +37,10 @@ flowchart LR
 
 <table>
   <tr>
-    <td align="center"><img src="docs/images/readme-home-mobile.png" width="220" alt="阿栗小院手机首页"><br><b>空间化首页</b><br><sub>用房间组织不同任务与心境</sub></td>
-    <td align="center"><img src="docs/images/readme-notice-mobile.png" width="220" alt="公告板资讯巡报"><br><b>公告板</b><br><sub>资讯、AI 总结与产品判断</sub></td>
-    <td align="center"><img src="docs/images/readme-blackboard-mobile.png" width="220" alt="黑板每日一题"><br><b>黑板</b><br><sub>每日训练、批改与示范回答</sub></td>
-    <td align="center"><img src="docs/images/readme-orchard-mobile.png" width="220" alt="成长田学习对话"><br><b>成长田</b><br><sub>多轮解惑并沉淀知识专题</sub></td>
+    <td align="center"><img src="docs/images/readme-home-mobile.jpg" width="220" alt="阿栗小院手机首页"><br><b>空间化首页</b><br><sub>用房间组织不同任务与心境</sub></td>
+    <td align="center"><img src="docs/images/readme-notice-mobile.jpg" width="220" alt="公告板资讯巡报"><br><b>公告板</b><br><sub>资讯、AI 总结与产品判断</sub></td>
+    <td align="center"><img src="docs/images/readme-blackboard-mobile.jpg" width="220" alt="黑板每日一题"><br><b>黑板</b><br><sub>每日训练、批改与示范回答</sub></td>
+    <td align="center"><img src="docs/images/readme-orchard-mobile.jpg" width="220" alt="成长田学习对话"><br><b>成长田</b><br><sub>多轮解惑并沉淀知识专题</sub></td>
   </tr>
 </table>
 
