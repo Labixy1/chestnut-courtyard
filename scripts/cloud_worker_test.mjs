@@ -320,6 +320,25 @@ assert.equal(result.body.result.plain_language_coaching.answer_steps.length,3);
 assert.match(result.body.result.plain_language_coaching.memory_hook,/判断/);
 assert.match(result.body.result.next_question_ideal_answer,/判断：[\s\S]*拆解：[\s\S]*验证：[\s\S]*边界：[\s\S]*例子：/);
 
+// Blackboard grading returns immediately when KV writes are exhausted; the answer then syncs through R2.
+const limitedBlackboardKv=new WriteLimitedKV();
+const limitedBlackboardR2=new MemoryR2();
+const limitedBlackboardEnv={...aiEnv,COZY_STATE:limitedBlackboardKv,COZY_MEDIA:limitedBlackboardR2};
+limitedBlackboardKv.blocked=true;
+result=await payload(await request("/api/room",{room:"blackboard",message:"我会先看任务成功率",context:{intent:"grade_answer",question:"如何构建评测集？",reference:evaluationReference,rubric:gradingRubric}},limitedBlackboardEnv));
+assert.equal(result.status,200);
+assert.equal(result.body.result.score_breakdown.length,4);
+result=await payload(await request("/api/local-state",{values:{cozy_blackboard_answers:[{attemptId:"quota-answer",title:"评测边界",answer:"我会先看任务成功率",date:"2026-08-17"}]}},limitedBlackboardEnv));
+assert.equal(result.status,200);
+assert.equal(result.body.state.values.cozy_blackboard_answers[0].attemptId,"quota-answer");
+assert.equal(limitedBlackboardR2.objects.has("system/state-fallback/local-state.json"),true);
+const limitedStateOnAnotherDevice=(await payload(await request("/api/local-state",undefined,limitedBlackboardEnv))).body.state;
+assert.equal(limitedStateOnAnotherDevice.values.cozy_blackboard_answers[0].attemptId,"quota-answer");
+limitedBlackboardKv.blocked=false;
+await request("/api/local-state",{changes:{cozy_blackboard_starred:{type:"array",upserts:["quota-question"],deleted:[]}}},limitedBlackboardEnv);
+assert.equal(limitedBlackboardR2.objects.has("system/state-fallback/local-state.json"),false);
+assert.equal((await limitedBlackboardKv.get("data:local_state","json")).values.cozy_blackboard_answers[0].attemptId,"quota-answer");
+
 let blackboardRetryAttempts = 0;
 const redTeamReference=["定义外部攻击范围","覆盖关键风险","建立漏洞处置闭环"];
 const blackboardRetryEnv = {...baseEnv, AI: {run: async () => {

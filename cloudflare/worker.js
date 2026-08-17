@@ -1399,7 +1399,11 @@ async function resolveCloudNoticeRequests(env,pool){
   }
   const result={matched_requests:upserts.length,found_items:pending.reduce((sum,item)=>sum+item.found.length,0),matches};
   try{
-    await mergeLocalState(env,{changes:{cozy_notice_requests:{type:"array",upserts,deleted,revive:upserts.map(item=>`id:${item.id}`)}}});
+    const persistedState=await mergeLocalState(env,{changes:{cozy_notice_requests:{type:"array",upserts,deleted,revive:upserts.map(item=>`id:${item.id}`)}}});
+    if(persistedState?.__storageFallback){
+      try{await persistNoticeFollowupFallback(env,upserts);}catch(_fallbackError){}
+      return {...result,persisted:true,persisted_to:"r2",kv_persisted:false,storage_error:"KV_DAILY_WRITE_LIMIT"};
+    }
     return {...result,persisted:true};
   }catch(error){
     if(!noticeKvWriteLimitExceeded(error))throw error;
@@ -2638,7 +2642,7 @@ ${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最�
   if (blackboardIntent === "grade_answer") parsed = finalizeBlackboardGrade(parsed, context);
   const reply = String(parsed.reply || parsed.summary || result.text);
   let memoryEvent = null;
-  const shouldCommit = (room !== "travel" || Boolean(context?.commit)) && blackboardIntent!=="reference_answer";
+  const shouldCommit = (room !== "travel" || Boolean(context?.commit)) && !(room === "blackboard" && ["grade_answer","reference_answer"].includes(blackboardIntent));
   if (shouldCommit) {
     const eventContent = String(context?.current_text || context?.latest_entry || message);
     const eventSummary = room === "heart_hollow" ? "树洞对话已封存"
@@ -2673,7 +2677,8 @@ async function runAssistantTask(env, taskId, message, context) {
       found_at:foundItems.length?updatedAt:"",updatedAt
     };
     try {
-      await mergeLocalState(env,{changes:{cozy_notice_requests:{type:"array",upserts:[request],deleted:[],revive:[`id:${taskId}`]}}});
+      const persistedState=await mergeLocalState(env,{changes:{cozy_notice_requests:{type:"array",upserts:[request],deleted:[],revive:[`id:${taskId}`]}}});
+      if(persistedState?.__storageFallback){result.storage_degraded=true;result.storage_fallback=persistedState.__storageFallback;}
     } catch (error) {
       if (!noticeKvWriteLimitExceeded(error) || !await persistNoticeFollowupFallback(env,[request])) throw error;
       result.storage_degraded=true;

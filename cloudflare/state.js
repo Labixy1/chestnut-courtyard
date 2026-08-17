@@ -5,6 +5,7 @@ const clone = value => JSON.parse(JSON.stringify(value));
 const now = () => new Date().toISOString();
 const TASK_R2_INDEX_KEY = "system/tasks/index.json";
 const TASK_R2_PREFIX = "system/tasks/";
+const LOCAL_STATE_R2_KEY = "system/state-fallback/local-state.json";
 const MEMORY_EXPORT_KEYS = ["memory:events", "memory:sealed", "memory:profile", "memory:categories", "memory:overrides", "memory:distillation", "memory:forgotten"];
 const SEALED_MEMORY_SOURCES = new Set(["heart_hollow", "private_wing", "memory_nook"]);
 const MEMORY_POLICY = {
@@ -33,9 +34,38 @@ export async function writeState(env, key, value, options) {
   return value;
 }
 
+function kvWriteLimitExceeded(error) {
+  return /KV put\(\) limit exceeded|daily write limit|write quota/i.test(String(error?.message || error || ""));
+}
+
+async function readLocalStateR2Fallback(env) {
+  if (!env.COZY_MEDIA) return null;
+  try {
+    const object = await env.COZY_MEDIA.get(LOCAL_STATE_R2_KEY);
+    if (!object) return null;
+    const value = typeof object.json === "function" ? await object.json() : JSON.parse(await object.text());
+    return value?.state && typeof value.state === "object" && !Array.isArray(value.state) ? value : null;
+  } catch (_error) { return null; }
+}
+
+async function saveLocalStateR2Fallback(env, state, revision) {
+  const payload = {version: 1, updated_at: now(), revision, state};
+  await env.COZY_MEDIA.put(LOCAL_STATE_R2_KEY, JSON.stringify(payload), {
+    httpMetadata: {contentType: "application/json; charset=utf-8"},
+    customMetadata: {kind: "local_state_kv_fallback", revision: String(revision)}
+  });
+  return payload;
+}
+
 export async function readData(env, key) {
   if (!DATA_KEYS.has(key)) throw new Error("不支持的数据区域");
-  return readState(env, `data:${key}`, DEFAULT_DATA[key]);
+  const primary = await readState(env, `data:${key}`, DEFAULT_DATA[key]);
+  if (key !== "local_state") return primary;
+  const fallback = await readLocalStateR2Fallback(env);
+  if (!fallback) return primary;
+  const primaryTime = Date.parse(primary?.updated_at || "") || 0;
+  const fallbackTime = Date.parse(fallback.updated_at || fallback.state?.updated_at || "") || 0;
+  return fallbackTime >= primaryTime ? fallback.state : primary;
 }
 
 async function archiveDataVersion(env, key, value, revision) {
@@ -60,8 +90,19 @@ export async function writeData(env, key, value) {
   const metaKey = `data-meta:${key}`;
   const previous = await readState(env, metaKey, {revision: 0});
   const revision = Number(previous.revision || 0) + 1;
-  await writeState(env, `data:${key}`, value);
-  await writeState(env, metaKey, {revision, updated_at: now()});
+  try {
+    await writeState(env, `data:${key}`, value);
+    await writeState(env, metaKey, {revision, updated_at: now()});
+  } catch (error) {
+    if (key !== "local_state" || !kvWriteLimitExceeded(error) || !env.COZY_MEDIA) throw error;
+    await saveLocalStateR2Fallback(env, value, revision);
+    Object.defineProperty(value, "__storageFallback", {value: "r2", enumerable: false, configurable: true});
+    return value;
+  }
+  if (key === "local_state" && env.COZY_MEDIA) {
+    try { await env.COZY_MEDIA.delete(LOCAL_STATE_R2_KEY); }
+    catch (_error) {}
+  }
   if (env.COZY_PRIVATE || env.COZY_BACKUP) {
     try { await archiveDataVersion(env, key, value, revision); }
     catch (error) {
@@ -607,10 +648,6 @@ export async function memoryAction(env, input) {
   throw new Error("云端暂不支持这个记忆操作");
 }
 
-function taskKvWriteLimitExceeded(error) {
-  return /KV put\(\) limit exceeded|daily write limit|write quota/i.test(String(error?.message || error || ""));
-}
-
 const taskR2Key = id => `${TASK_R2_PREFIX}${encodeURIComponent(String(id))}.json`;
 
 async function readTaskR2Json(env, key, fallback) {
@@ -668,7 +705,7 @@ export async function saveTask(env, task) {
     await writeState(env, "tasks:index", next);
     return value;
   } catch (error) {
-    if (!taskKvWriteLimitExceeded(error) || !env.COZY_MEDIA) throw error;
+    if (!kvWriteLimitExceeded(error) || !env.COZY_MEDIA) throw error;
     await saveTaskToR2(env, value);
     return value;
   }
