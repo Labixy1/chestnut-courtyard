@@ -4,8 +4,8 @@
   <p><strong>把资讯、思考、对话与长期记忆连接成一个持续成长的闭环。</strong></p>
   <p>
     <a href="https://demo.neuralnode.top">在线演示</a> ·
-    <a href="docs/README.md">产品与技术文档</a> ·
-    <a href="docs/07-测试与运维手册.md">测试与运维</a>
+    <a href="https://labixy1.github.io/chestnut-courtyard/">产品与技术文档</a> ·
+    <a href="https://labixy1.github.io/chestnut-courtyard/07-测试与运维手册.html">测试与运维</a>
   </p>
 </div>
 
@@ -127,7 +127,7 @@ cd cloudflare
 wrangler deploy --config wrangler.toml
 ```
 
-口令、会话密钥与模型密钥必须通过 Cloudflare Secret 管理，不能提交到仓库。完整步骤见 [测试与运维手册](docs/07-测试与运维手册.md)。
+口令、会话密钥与模型密钥必须通过 Cloudflare Secret 管理，不能提交到仓库。完整步骤见 [测试与运维手册](https://labixy1.github.io/chestnut-courtyard/07-测试与运维手册.html)。
 
 ## 数据与隐私
 
@@ -149,9 +149,9 @@ node scripts/cloud_worker_test.mjs
 
 ## 进一步阅读
 
-- [文档总览](docs/README.md)
-- [AI 与接口调用链](docs/06-AI与接口调用链.md)
-- [测试与运维手册](docs/07-测试与运维手册.md)
+- [文档总览](https://labixy1.github.io/chestnut-courtyard/)
+- [AI 与接口调用链](https://labixy1.github.io/chestnut-courtyard/06-AI与接口调用链.html)
+- [测试与运维手册](https://labixy1.github.io/chestnut-courtyard/07-测试与运维手册.html)
 - [Cloudflare 部署说明](cloudflare/README.md)
 
 ## 项目状态
