@@ -98,19 +98,22 @@ storage.set('cozy_notice_chest', JSON.stringify([{
 vm.runInContext("CORE={notice_reports:{reports:[{sections:[],insights:[],hot_items:[]}]}}", context);
 context.showNoticeView('categories');
 const rendered = node('notice-content').innerHTML;
-for (const expected of ['An actionable archive test', 'This is the original English summary.', '中文翻译', '这是原始英文摘要的中文翻译。', 'AI 总结', '这是中文摘要。', '英文原摘要', '查看原文', '稍后看', '已入栗夹']) {
+for (const expected of ['An actionable archive test', 'This is the original English summary.', '查看中文摘要', '这是原始英文摘要的中文翻译。', 'AI 总结', '这是中文摘要。', '查看原文', '稍后看', '已入栗夹']) {
   if (!rendered.includes(expected)) throw new Error('category card missing: ' + expected);
 }
 if (!rendered.includes('<details class="notice-translation">')) throw new Error('Chinese summary must be collapsed by default');
 if (!rendered.includes('<details class="category-item">') || rendered.includes('<details class="category-archive" open')) throw new Error('category view must start compact and expand one item at a time');
 if (!html.includes('.category-archive>summary:after') || !html.includes('.category-archive[open]>summary:after')) throw new Error('category disclosure icons must only target direct summaries');
-const cardOrder = rendered.indexOf('AI 总结') < rendered.indexOf('中文翻译') && rendered.indexOf('中文翻译') < rendered.indexOf('英文原摘要');
-if (!cardOrder) throw new Error('AI summary and translation must appear before the source summary');
+const orderedCard=context.reportCardHtml({title:'阅读顺序测试',summary:'This is a visible source summary.',translation_zh:'这是折叠的中文摘要。',ai_summary:'这是直接显示的 AI 总结。',product_tip:'产品经理需要验证用户任务、效果指标与失败边界，再决定是否上线。',media:'测试媒体',published_at:'2026-08-17',url:'https://example.com/ordered'},'产品与实践');
+if (!orderedCard.includes('data-notice-title="阅读顺序测试"><h4>阅读顺序测试</h4>')) throw new Error('notice title must be the first card content');
+const cardOrder=['<h4>阅读顺序测试</h4>','class="notice-original-summary"','<summary>查看中文摘要</summary>','<b>AI 总结</b>','<details class="notice-product-details">','class="notice-note"','class="report-meta"'].map(value=>orderedCard.indexOf(value));
+if (cardOrder.some(index=>index<0)||cardOrder.some((index,position)=>position&&index<=cardOrder[position-1])) throw new Error('notice card reading order is incorrect');
+if (orderedCard.includes('<details class="notice-product-details" open')) throw new Error('product manager tip must be collapsed by default');
 if (context.noticeAISummary({title:'No model summary',summary:'Source text only.'}) !== '') throw new Error('the frontend must not fabricate an AI summary');
 if (context.noticeAISummary({ai_summary:'自动中文整理暂时没有可靠完成，阿栗先保留来源，避免把英文原文误当成中文总结；可以打开原文核对详情。'}) !== '') throw new Error('failed-summary boilerplate must never be displayed as an AI summary');
 if (context.noticeAISummary({ai_summary:'云端生成的真实总结。'}) !== '云端生成的真实总结。') throw new Error('a persisted AI summary must be preserved');
 const chineseCard = context.reportCardHtml({title:'中文资讯',summary:'这是一段本来就是中文的原始摘要，不应该再显示翻译入口。',ai_summary:'这是单独保留的 AI 总结。',url:'https://example.com/chinese'},'行业动态');
-if (chineseCard.includes('<summary>中文翻译</summary>') || !chineseCard.includes('AI 总结')) throw new Error('Chinese source should skip translation but keep AI summary');
+if (chineseCard.includes('<summary>查看中文摘要</summary>') || !chineseCard.includes('AI 总结')) throw new Error('Chinese source should skip translation but keep AI summary');
 const productTipCard = context.reportCardHtml({title:'产品实践资讯',summary:'某产品公开了新的智能体工作流。',ai_summary:'这次更新改变了任务编排方式，但真实完成率仍需验证。',product_tip:'产品经理应先选高频真实任务验证完成率、人工接管率和失败恢复，再决定是否扩大使用范围。',url:'https://example.com/product-practice'},'产品与实践');
 if (!productTipCard.includes('产品经理关注点') || !productTipCard.includes('data-product-tip=')) throw new Error('a grounded Chinese product tip must render and persist with notice actions');
 const noProductTipCard = context.reportCardHtml({title:'普通公司动态',summary:'一家公司发布了季度组织消息。',ai_summary:'该消息主要说明组织安排变化。',product_tip:'',url:'https://example.com/company-update'},'行业动态');
@@ -129,9 +132,9 @@ if (context.noticeItemDisplayable({title:'错误码 - 阿里云帮助文档',ai_
 if (context.noticeItemDisplayable({title:'豆包回应推荐酒店要收费',ai_summary:'这意味着豆包将会收取费用。',url:'https://example.com/articles/response-1'})) throw new Error('a response article must not be displayed with a fabricated conclusion');
 if (!context.noticeItemDisplayable({title:'豆包回应推荐酒店要收费',ai_summary:'豆包回应相关传言，原文未确认收费。',url:'https://example.com/articles/response-2'})) throw new Error('a cautious response summary should remain displayable');
 const fallbackTranslationCard = context.reportCardHtml({title:'English update',summary:'English source summary.',ai_summary:'已有的中文 AI 总结。',url:'https://example.com/english'},'模型与技术');
-if (fallbackTranslationCard.includes('<summary>中文翻译</summary>') || !fallbackTranslationCard.includes('AI 总结')) throw new Error('Missing translation must not duplicate the AI summary');
+if (fallbackTranslationCard.includes('<summary>查看中文摘要</summary>') || !fallbackTranslationCard.includes('AI 总结')) throw new Error('Missing translation must not duplicate the AI summary');
 const invalidTranslationCard = context.reportCardHtml({title:'Broken translation',summary:'English source summary.',translation_zh:'English source summary.',ai_summary:'已有的中文 AI 总结。',url:'https://example.com/broken-translation'},'模型与技术');
-if (invalidTranslationCard.includes('<summary>中文翻译</summary>')) throw new Error('English text must never be labeled as a Chinese translation');
+if (invalidTranslationCard.includes('<summary>查看中文摘要</summary>')) throw new Error('English text must never be labeled as a Chinese translation');
 const datedCard = context.reportCardHtml({id:'dated',title:'Dated update',summary:'Summary',published_at:'2026-08-11T08:00:00Z'},'行业动态');
 if (!datedCard.includes('8月11日') || datedCard.includes('本周 ·')) throw new Error('published_at must render as a concrete date');
 const undatedCard = context.reportCardHtml({id:'undated',title:'Undated update',summary:'Summary'},'行业动态');
