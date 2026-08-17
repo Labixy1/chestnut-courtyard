@@ -1125,7 +1125,7 @@ function parseNewsFeed(xml, source) {
       source_url: source.url,
       publisher_name: rssText(sourceMatch?.[2]),
       publisher_url: sourceMatch?.[1] || "",
-      summary: (field("description") || field("summary") || field("content")).slice(0,1600)
+      summary: (field("description") || field("summary") || field("content")).slice(0,1200)
     };
   }).filter(item => item.title && item.link);
 }
@@ -1212,7 +1212,7 @@ async function fetch36KrNewsflashes(){
     const routeId=String(row?.route||'').match(/[?&]itemId=(\d+)/)?.[1]||'';
     const id=String(row?.itemId||material.itemId||routeId||'');
     const title=rssText(material.widgetTitle||material.title||row?.title||'');
-    const summary=rssText(material.widgetContent||material.summary||material.content||row?.summary||'').slice(0,1600);
+    const summary=rssText(material.widgetContent||material.summary||material.content||row?.summary||'').slice(0,1200);
     return {id:`36kr-${id}`,title,link:id?`https://36kr.com/newsflashes/${id}`:"",published_at:material.publishTime?new Date(Number(material.publishTime)).toISOString():"",media:"36氪",source_url:"https://36kr.com/",summary};
   }).filter(item=>item.title&&item.link);
   if(!items.length)throw new Error(`36氪 没有返回可解析资讯（返回 ${rows.length} 条）`);
@@ -1306,10 +1306,10 @@ function noticeFoundItem(item){
   return {
     id:String(item?.id||`notice_${crypto.randomUUID().slice(0,8)}`),
     title:String(item?.title||'').slice(0,300),
-    summary:String(item?.summary||item?.source_summary||'').slice(0,1600),
-    source_summary:String(item?.source_summary||item?.summary||'').slice(0,1600),
+    summary:String(item?.summary||item?.source_summary||'').slice(0,1200),
+    source_summary:String(item?.source_summary||item?.summary||'').slice(0,1200),
     translation_zh:String(item?.translation_zh||'').slice(0,1200),
-    ai_summary:String(item?.ai_summary||item?.main_takeaway||'').slice(0,1600),
+    ai_summary:String(item?.ai_summary||item?.main_takeaway||'').slice(0,1200),
     ai_summary_version:Number(item?.ai_summary_version||0),
     product_tip:String(item?.product_tip||'').slice(0,700),
     media:String(item?.media||item?.publisher_name||'').slice(0,120),
@@ -1676,13 +1676,13 @@ async function repairReportLanguages(env,report){
     const id=String(index);
     const state=reportItemLanguageState(item);
     let translation=state.originalChinese?'':String(translations.get(id)||(state.translationValid?item.translation_zh:'')||'').slice(0,1200);
-    let aiSummary=String(summaries.get(id)||(state.summaryValid?item.ai_summary:'')||'').slice(0,1600);
+    let aiSummary=String(summaries.get(id)||(state.summaryValid?item.ai_summary:'')||'').slice(0,1200);
     const validTranslation=state.originalChinese||noticeTextIsChinese(translation,4);
     const validSummary=(aiSummary.match(/[\u4e00-\u9fff]/g)||[]).length>=30
       &&!/自动中文整理暂时没有可靠完成|阿栗先保留来源|避免把英文原文误当成中文总结|可以打开原文核对详情/.test(aiSummary)
       &&(!translation||noticeTextSimilarity(translation,aiSummary)<0.55);
     if(!validTranslation)translation='';
-    if(!validSummary)aiSummary=state.summaryValid?String(item.ai_summary||'').slice(0,1600):'';
+    if(!validSummary)aiSummary=state.summaryValid?String(item.ai_summary||'').slice(0,1200):'';
     replacements.set(item,{...item,translation_zh:translation,ai_summary:aiSummary,ai_summary_version:aiSummary?2:0});
   });
   const replace=item=>replacements.get(item)||item;
@@ -2401,7 +2401,7 @@ async function importToolCard(env, value, instruction = "", source = {}) {
     page = {
       title: String(source.title).slice(0, 240), url: url.toString(), source_url: url.toString(),
       media: String(source.media || url.hostname).slice(0, 120), category: String(source.category || ""),
-      summary: String(source.summary || "").slice(0, 1200), ai_summary: String(source.ai_summary || "").slice(0, 1600)
+      summary: String(source.summary || "").slice(0, 1200), ai_summary: String(source.ai_summary || "").slice(0, 1200)
     };
   }
   const categories = new Set(["写代码", "学术", "图像与视频", "产品与原型", "办公与中文", "本地与协议", "模型与技术", "其他"]);
