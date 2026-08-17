@@ -2777,6 +2777,32 @@ function weatherLabel(code) {
   return code === 1 ? "晴间多云" : "晴天";
 }
 
+async function reverseWeatherLocation(latitude, longitude) {
+  const coordinateLabel = `${Number(latitude).toFixed(5)}, ${Number(longitude).toFixed(5)}`;
+  try {
+    const query = new URLSearchParams({format: "jsonv2", lat: String(latitude), lon: String(longitude), zoom: "18", addressdetails: "1", "accept-language": "zh-CN"});
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?${query}`, {
+      headers: {"user-agent": "ChestnutCourtyard/1.0", accept: "application/json"},
+      signal: AbortSignal.timeout(6000)
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    const value = payload?.address || {};
+    const city = String(value.city || value.municipality || value.town || value.county || value.state || "").trim();
+    const parts = [
+      city,
+      value.city_district || value.district || value.county,
+      value.suburb || value.town || value.village,
+      value.road || value.pedestrian || value.residential,
+      value.house_number
+    ].map(item => String(item || "").trim()).filter((item, index, list) => item && list.indexOf(item) === index);
+    const address = parts.join(" · ") || String(payload?.display_name || "").split(",").slice(0, 5).join(" · ").trim();
+    return {city: city || address || coordinateLabel, address: address || city || coordinateLabel, geocoded: Boolean(address || city)};
+  } catch (_error) {
+    return {city: coordinateLabel, address: coordinateLabel, geocoded: false};
+  }
+}
+
 async function currentWeather(request, env, searchParams) {
   const rawLatitude = searchParams.get("latitude");
   const rawLongitude = searchParams.get("longitude");
@@ -2787,10 +2813,14 @@ async function currentWeather(request, env, searchParams) {
   const cf = request.cf || {};
   const latitude = hasBrowserLocation ? requestedLatitude : Number(cf.latitude || 30.2741);
   const longitude = hasBrowserLocation ? requestedLongitude : Number(cf.longitude || 120.1551);
-  const city = hasBrowserLocation ? String(searchParams.get("city") || "当前位置") : String(cf.city || "杭州");
+  const fallbackCity = String(cf.city || "杭州");
   const cacheKey = `weather:current:${latitude.toFixed(2)}:${longitude.toFixed(2)}`;
   const cached = await readState(env, cacheKey, null);
-  if (!force && cached && Date.now() - Date.parse(cached.updated_at || 0) < 2 * 60 * 60 * 1000) return {...cached, ok: true, cached: true};
+  const cachedAddressParts = String(cached?.location?.address || "").split("·").map(value => value.trim()).filter(Boolean);
+  const cachedAddressValid = cachedAddressParts.length > 0 && new Set(cachedAddressParts).size === cachedAddressParts.length && !cachedAddressParts.includes("当前位置");
+  if (!force && cached && cachedAddressValid && Date.now() - Date.parse(cached.updated_at || 0) < 2 * 60 * 60 * 1000) return {...cached, ok: true, cached: true};
+  const cloudLocationParts = [cf.region, fallbackCity].map(value => String(value || "").trim()).filter((value, index, list) => value && list.indexOf(value) === index);
+  const resolvedLocation = hasBrowserLocation ? await reverseWeatherLocation(latitude, longitude) : {city: fallbackCity, address: cloudLocationParts.join(" · ") || fallbackCity, geocoded: false};
   try {
     const query = new URLSearchParams({latitude: String(latitude), longitude: String(longitude), current: "weather_code,temperature_2m,is_day", timezone: "auto"});
     const response = await fetch(`https://api.open-meteo.com/v1/forecast?${query}`);
@@ -2801,7 +2831,7 @@ async function currentWeather(request, env, searchParams) {
     const localTime = String(current.time || now());
     const payload = {
       ok: true, cached: false, stale: false, updated_at: now(),
-      location: {city, region: hasBrowserLocation ? "" : String(cf.region || ""), country: hasBrowserLocation ? "" : String(cf.country || ""), latitude, longitude, source: hasBrowserLocation ? "browser" : "cloudflare-ip", timezone: data.timezone || cf.timezone || "Asia/Shanghai"},
+      location: {...resolvedLocation, region: hasBrowserLocation ? "" : String(cf.region || ""), country: hasBrowserLocation ? "" : String(cf.country || ""), latitude, longitude, source: hasBrowserLocation ? "browser" : "cloudflare-ip", timezone: data.timezone || cf.timezone || "Asia/Shanghai"},
       current: {weather_code: code, condition: weatherLabel(code), temperature: current.temperature_2m, temperature_unit: data.current_units?.temperature_2m || "°C", local_time: localTime, is_day: Boolean(current.is_day), scene: weatherScene(code, localTime), timezone: data.timezone || "auto"}
     };
     await writeState(env, cacheKey, payload);
@@ -2809,7 +2839,7 @@ async function currentWeather(request, env, searchParams) {
   } catch (error) {
     if (cached) return {...cached, ok: true, cached: true, stale: true, error: String(error.message || error)};
     const localTime = now();
-    return {ok: true, fallback: true, location: {city, latitude, longitude, source: hasBrowserLocation ? "browser" : "cloudflare-ip"}, current: {weather_code: 0, condition: "晴天", temperature: null, temperature_unit: "°C", local_time: localTime, is_day: true, scene: weatherScene(0, localTime), timezone: "Asia/Shanghai"}, updated_at: localTime};
+    return {ok: true, fallback: true, location: {...resolvedLocation, latitude, longitude, source: hasBrowserLocation ? "browser" : "cloudflare-ip"}, current: {weather_code: 0, condition: "晴天", temperature: null, temperature_unit: "°C", local_time: localTime, is_day: true, scene: weatherScene(0, localTime), timezone: "Asia/Shanghai"}, updated_at: localTime};
   }
 }
 

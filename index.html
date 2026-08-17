@@ -3499,7 +3499,7 @@ function sceneWeatherTitle(data){
   const location = data && data.location || {};
   const current = data && data.current || {};
   const temperature = current.temperature == null ? '' : ' · '+Math.round(Number(current.temperature))+String(current.temperature_unit || '°C');
-  return [location.city, current.condition].filter(Boolean).join(' · ')+temperature;
+  return [location.address||location.city, current.condition].filter(Boolean).join(' · ')+temperature;
 }
 
 let estateSceneRequestId = 0;
@@ -3549,7 +3549,7 @@ function estateWeatherPosition(){
   if(!navigator.geolocation||location.protocol!=='https:')return Promise.resolve('');
   estatePositionPromise=new Promise(resolve=>navigator.geolocation.getCurrentPosition(position=>{
     const latitude=Number(position.coords.latitude).toFixed(5),longitude=Number(position.coords.longitude).toFixed(5);
-    resolve('?latitude='+encodeURIComponent(latitude)+'&longitude='+encodeURIComponent(longitude)+'&city='+encodeURIComponent('当前位置'));
+    resolve('?latitude='+encodeURIComponent(latitude)+'&longitude='+encodeURIComponent(longitude));
   },()=>resolve(''),{enableHighAccuracy:false,timeout:7000,maximumAge:30*60*1000}));
   return estatePositionPromise;
 }
@@ -3572,7 +3572,7 @@ function updateButlerClock(weatherData){
   const clock=String(now.getMonth()+1).padStart(2,'0')+'月'+String(now.getDate()).padStart(2,'0')+'日 '+String(now.getHours()).padStart(2,'0')+':'+String(now.getMinutes()).padStart(2,'0');
   const data=latestEstateWeather||{};const location=data.location||{};const current=data.current||{};
   const temperature=current.temperature==null?'':Math.round(Number(current.temperature))+'°';
-  const weather=[location.city,current.condition,temperature].filter(Boolean).join(' ');
+  const weather=[location.address||location.city,current.condition,temperature].filter(Boolean).join(' ');
   node.textContent=clock+(weather?' · '+weather:' · 天气待更新');
 }
 

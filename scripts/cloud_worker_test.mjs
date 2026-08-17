@@ -464,14 +464,22 @@ globalThis.fetch = async url => {
   if (parsed.hostname === "api.open-meteo.com") return new Response(JSON.stringify({
     timezone: "Asia/Shanghai", current: {weather_code: 2, temperature_2m: Number(parsed.searchParams.get("latitude")), is_day: 1, time: "2026-08-17T15:00"}, current_units: {temperature_2m: "°C"}
   }), {status: 200, headers: {"content-type": "application/json"}});
+  if (parsed.hostname === "nominatim.openstreetmap.org") {
+    const hangzhou = Number(parsed.searchParams.get("lat")) > 30;
+    return new Response(JSON.stringify({address: hangzhou
+      ? {city: "杭州市", city_district: "西湖区", suburb: "北山街道", road: "北山街"}
+      : {city: "广州市", city_district: "越秀区", suburb: "北京街道", road: "中山五路"}}), {status: 200, headers: {"content-type": "application/json"}});
+  }
   return nativeFetch(url);
 };
-result = await payload(await request("/api/weather?latitude=30.27410&longitude=120.15510&city=%E5%BD%93%E5%89%8D%E4%BD%8D%E7%BD%AE", undefined, weatherEnv));
-assert.equal(result.body.location.city, "当前位置");
+result = await payload(await request("/api/weather?latitude=30.27410&longitude=120.15510", undefined, weatherEnv));
+assert.equal(result.body.location.city, "杭州市");
+assert.equal(result.body.location.address, "杭州市 · 西湖区 · 北山街道 · 北山街");
 assert.equal(result.body.location.source, "browser");
 assert.equal(result.body.location.latitude, 30.2741);
-result = await payload(await request("/api/weather?latitude=23.12910&longitude=113.26440&city=%E5%BD%93%E5%89%8D%E4%BD%8D%E7%BD%AE", undefined, weatherEnv));
+result = await payload(await request("/api/weather?latitude=23.12910&longitude=113.26440", undefined, weatherEnv));
 assert.equal(result.body.location.latitude, 23.1291);
+assert.equal(result.body.location.address, "广州市 · 越秀区 · 北京街道 · 中山五路");
 assert.equal(weatherKv.values.has("weather:current:30.27:120.16"), true);
 assert.equal(weatherKv.values.has("weather:current:23.13:113.26"), true);
 globalThis.fetch = nativeFetch;
