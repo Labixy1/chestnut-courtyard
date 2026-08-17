@@ -1902,7 +1902,7 @@ async function openNotice(){
       '<button onclick="showNoticeView(\'inbox\',this)">稍后看</button>'+
     '</div></div>'+
     '<div id="notice-content"></div>'+
-    '<section id="notice-composer" class="notice-dialogue"><h3>给阿栗留言</h3><details class="notice-task-log" id="notice-task-log"><summary><span id="notice-task-summary">最近操作</span></summary><div class="notice-task-list" id="notice-task-list" aria-live="polite"></div></details>'+
+    '<section id="notice-composer" class="notice-dialogue"><h3>给阿栗留言</h3>'+
     '<div class="notice-hints"><span>下次重点</span><span>总结口径</span><span>链接归类</span><span>工具箱补充</span><span>以后也看看这个来源</span></div>'+
     '<textarea id="notice-request" placeholder="例如：这篇链接归到产品效率；以后也看看某某媒体；把 Claude Science 工具放进学术分类。"></textarea>'+
     '<div class="voice-note"><button class="send-note-btn" id="notice-send-btn" onclick="saveNoticeRequest()" aria-label="交给阿栗" title="发送给阿栗"><span></span></button><button class="parse-note-btn" id="notice-parse-btn" onclick="parseNoticeRequestLink()" aria-label="解析链接" title="抓取并解析链接"><span></span></button><button class="mic-note-btn" id="notice-mic-btn" onclick="startNoticeVoice()" aria-label="语音留言" title="语音留言" aria-pressed="false"><span></span></button></div>'+
@@ -1974,7 +1974,9 @@ async function runWeeklyNow(){
       noticeManualRefreshPending=false;
       const coverage=data.report?.coverage||{},sources=data.report?.source_status||{};
       const followupStorage=data.report?.notice_followups?.persisted_to||'';
-      const detail=data.report?.storage_degraded
+      const detail=data.report?.storage_fallback==='r2'
+        ?'云端 KV 今日写入额度已满，本版巡报已由 R2 保存，并会同步到手机和电脑。'
+        :data.report?.storage_degraded
         ?'云端 KV 今日写入额度已用完；现有 '+((CORE.notice_reports?.reports||[]).filter(report=>report?.id!=='fallback').length)+' 版巡报未受影响。'+(foundCount?(followupStorage==='r2'?' 已找到 '+foundCount+' 条留言相关内容，并由 R2 兜底同步到手机和电脑。':' 已在当前页面找到 '+foundCount+' 条留言相关内容，额度恢复后再写回云端。'):'')
         :Number.isFinite(coverage.domestic)&&Number.isFinite(coverage.international)
           ?'国内 '+coverage.domestic+' 条、海外 '+coverage.international+' 条；'+(sources.failed||0)+' 个失败信源已自动跳过。'+(foundCount?' 另找到 '+foundCount+' 条留言相关内容。':'')
@@ -2085,9 +2087,24 @@ function activeNoticeReport(){
 }
 
 function noticeWeekLabel(report){
+  const format=value=>{
+    const date=new Date(value);
+    if(Number.isNaN(date.getTime()))return '';
+    const parts=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(date);
+    const get=type=>parts.find(part=>part.type===type)?.value||'';
+    return Number(get('month'))+'月'+Number(get('day'))+'日 '+get('hour')+':'+get('minute');
+  };
+  if(report?.schedule_slot){
+    const slot=format(report.schedule_slot);
+    if(slot)return slot+(report.update_mode==='manual_retry'?' 计划 · 手动补更':' 计划更新');
+  }
   if(report && report.generated_at){
-    const generated=new Date(report.generated_at);
-    if(!Number.isNaN(generated.getTime()))return (generated.getMonth()+1)+'月'+generated.getDate()+'日 '+String(generated.getHours()).padStart(2,'0')+':'+String(generated.getMinutes()).padStart(2,'0')+' 更新';
+    const generated=new Date(report.generated_at),label=format(report.generated_at);
+    if(!Number.isNaN(generated.getTime())&&label){
+      const shanghaiWeekday=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Shanghai',weekday:'short'}).format(generated);
+      const shanghaiHour=new Intl.DateTimeFormat('en-US',{timeZone:'Asia/Shanghai',hour:'2-digit',hourCycle:'h23'}).format(generated);
+      return label+(['Mon','Wed','Fri'].includes(shanghaiWeekday)&&shanghaiHour==='08'?' 计划更新':' 手动更新');
+    }
   }
   if(report && report.week_start && report.week_end){
     return formatIsoDate(report.week_start)+' - '+formatIsoDate(report.week_end);
@@ -2447,6 +2464,7 @@ function weeklyReportBody(report){
 }
 
 function noticeInsightBlock(report){
+  if(report?.provider==='source-fallback')return '<section class="insight-box notice-error-box"><h3>本版整理状态</h3><p>资讯 AI 整理失败：旧版未保存具体错误；该版仅保留原始资讯。</p></section>';
   const items=report.insights||[];
   return '<section class="insight-box"><h3>案例总结</h3><ul>'+(items.length?items.map(item=>'<li>'+escapeNotice(item)+'</li>').join(''):'<li>阿栗还在整理这批资讯之间的共同变化。</li>')+'</ul></section>';
 }
@@ -2464,6 +2482,7 @@ function noticeAdvice(report){
 }
 
 function noticeAdviceBlock(report){
+  if(report?.provider==='source-fallback')return '';
   const items=noticeAdvice(report);
   return '<section class="insight-box advice-box"><h3>阿栗的建议</h3><ul>'+items.map(item=>'<li>'+escapeNotice(item)+'</li>').join('')+'</ul></section>';
 }
@@ -2517,7 +2536,8 @@ function showNoticeView(view, btn){
       '<section class="report-section"><h3>产品相关动态</h3>'+
         (productItems.length ? productItems.map(item=>reportCardHtml(item, item.category)).join('') : emptyNoticeLine('阿栗本周没有抓到足够明确的产品相关动态。'))+
       '</section>'+ownerBlock+
-      noticeInsightBlock(report)+noticeAdviceBlock(report);
+      noticeInsightBlock(report)+noticeAdviceBlock(report)+noticeTaskLogHtml();
+    renderNoticeJobs();
   }else if(view === 'weeks'){
     const reports = getNoticeReports();
     if(!reports.length){box.innerHTML='<p class="notice-empty-line">还没有已归档的真实巡报。</p>';return;}
@@ -3100,7 +3120,15 @@ function readNoticeJobs(){
 }
 
 function writeNoticeJobs(jobs){
-  localStorage.setItem(NOTICE_JOB_KEY,JSON.stringify((jobs||[]).slice(0,10)));
+  localStorage.setItem(NOTICE_JOB_KEY,JSON.stringify((jobs||[]).slice(0,20)));
+}
+
+function noticeJobTime(job){
+  return Date.parse(job?.updated_at||job?.started_at||job?.date||'')||0;
+}
+
+function noticeTaskLogHtml(){
+  return '<details class="notice-task-log" id="notice-task-log"><summary><span id="notice-task-summary">最近操作</span></summary><div class="notice-task-list" id="notice-task-list" aria-live="polite"></div></details>';
 }
 
 function noticeTaskLabel(status){
@@ -3112,7 +3140,7 @@ function noticeTaskLabel(status){
 function renderNoticeJobs(){
   const box=document.getElementById('notice-task-list');
   if(!box)return;
-  const jobs=readNoticeJobs().slice(0,10),summary=document.getElementById('notice-task-summary'),log=document.getElementById('notice-task-log');
+  const jobs=readNoticeJobs().sort((a,b)=>noticeJobTime(b)-noticeJobTime(a)).slice(0,5),summary=document.getElementById('notice-task-summary'),log=document.getElementById('notice-task-log');
   const running=jobs.filter(job=>!['completed','failed'].includes(job.status)).length;
   if(summary)summary.textContent=running?'最近操作 · '+running+' 项进行中':'最近操作 · '+jobs.length+' 条';
   if(log)log.style.display=jobs.length?'block':'none';
@@ -3153,7 +3181,7 @@ async function syncNoticeTasks(){
   try{
     const data=await cozyApi('/api/tasks',undefined,6000);
     const localById=new Map(readNoticeJobs().map(job=>[job.task_id,job]));
-    const serverJobs=(data.tasks||[]).filter(task=>task.kind==='notice_request').slice(0,20);
+    const serverJobs=(data.tasks||[]).filter(task=>task.kind==='notice_request').sort((a,b)=>noticeJobTime(b)-noticeJobTime(a)).slice(0,20);
     let justCompleted=null;
     const jobs=serverJobs.map(task=>{
       const local=localById.get(task.id)||{};

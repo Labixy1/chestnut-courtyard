@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {handleRequest, providerTimeoutMs} from "../cloudflare/worker.js";
+import {handleRequest, noticeScheduleSlotAt, providerTimeoutMs, reportNoticeScheduleSlot, runCloudReport} from "../cloudflare/worker.js";
 import {memoryContext} from "../cloudflare/state.js";
 
 class MemoryKV {
@@ -49,6 +49,11 @@ const baseEnv = {
   PUBLIC_READ_ONLY: "false"
 };
 const pendingTasks = [];
+assert.equal(noticeScheduleSlotAt("2026-08-16T08:01:00+08:00"), "2026-08-14T08:00:00+08:00");
+assert.equal(noticeScheduleSlotAt("2026-08-17T07:59:00+08:00"), "2026-08-14T08:00:00+08:00");
+assert.equal(noticeScheduleSlotAt("2026-08-17T08:01:00+08:00"), "2026-08-17T08:00:00+08:00");
+assert.equal(reportNoticeScheduleSlot({generated_at: "2026-08-16T08:01:00+08:00"}), "");
+assert.equal(reportNoticeScheduleSlot({generated_at: "2026-08-17T08:01:00+08:00"}), "2026-08-17T08:00:00+08:00");
 assert.equal(providerTimeoutMs({}, "deepseek"), 20000);
 assert.equal(providerTimeoutMs({}, "workers-ai"), 45000);
 assert.equal(providerTimeoutMs({}, "deepseek", {providerTimeouts: {deepseek: 70000}}), 70000);
@@ -57,6 +62,13 @@ const request = (path, body, env = baseEnv) => handleRequest(new Request(`https:
   method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(body)
 }), env, {waitUntil: promise => pendingTasks.push(promise)});
 const payload = async response => ({status: response.status, body: await response.json()});
+
+const loginLimitedKv=new WriteLimitedKV();
+loginLimitedKv.blocked=true;
+const loginLimitedEnv={COZY_STATE:loginLimitedKv,AUTH_MODE:"passcode",OWNER_PASSCODE:"test-owner-passcode",SESSION_SECRET:"test-session-secret"};
+const limitedLoginResult = await payload(await request("/api/auth/login",{passcode:"test-owner-passcode"},loginLimitedEnv));
+assert.equal(limitedLoginResult.status,200);
+assert.equal(limitedLoginResult.body.ok,true);
 
 let result = await payload(await request("/api/status"));
 assert.equal(result.status, 200);
@@ -623,13 +635,15 @@ await request("/api/local-state",{values:{cozy_notice_requests:[{date:"2026-08-1
 limitedKv.blocked=true;
 result=await payload(await request("/api/weekly/run",{force:true},cloudflareLimitedEnv));
 assert.equal(result.status,200);
-assert.equal(result.body.report.storage_degraded,true);
+assert.equal(result.body.report.storage_fallback,"r2");
 assert.equal(result.body.report.notice_followups.persisted,true);
 assert.equal(result.body.report.notice_followups.persisted_to,"r2");
 assert.equal(result.body.report.notice_followups.kv_persisted,false);
 assert.equal(result.body.report.notice_followups.matches[0].request_text,"你后面关注一下cloudflare他的新增加的钱包功能");
 assert.equal(result.body.report.notice_followups.matches[0].items[0].link,cloudflareArticle);
 assert.equal((await limitedKv.get("data:notice_reports","json")).reports.length,1);
+assert.equal(limitedNoticeR2.objects.has("system/state-fallback/notice-reports.json"),true);
+assert.notEqual((await payload(await request("/api/data?key=notice_reports",undefined,cloudflareLimitedEnv))).body.reports[0].id,"saved-report");
 assert.equal(limitedNoticeR2.objects.has("system/notice-followups.json"),true);
 const limitedCrossDevice=(await payload(await request("/api/local-state",undefined,cloudflareLimitedEnv))).body.state.values.cozy_notice_requests;
 assert.equal(limitedCrossDevice[0].found_items[0].link,cloudflareArticle);
@@ -740,7 +754,10 @@ globalThis.fetch = async url => {
 result = await payload(await request("/api/weekly/run", {force: true}, aiEnv));
 await Promise.all(pendingTasks.splice(0));
 assert.equal((await payload(await request("/api/automation", undefined, aiEnv))).body.automation.jobs.notice_report.status, "completed");
-assert.equal((await payload(await request("/api/data?key=notice_reports", undefined, aiEnv))).body.reports.length, 2);
+const retriedSlotReports=(await payload(await request("/api/data?key=notice_reports", undefined, aiEnv))).body.reports;
+assert.equal(retriedSlotReports.length, 1);
+assert.equal(retriedSlotReports[0].update_mode, "manual_retry");
+assert.equal(retriedSlotReports[0].schedule_slot, noticeScheduleSlotAt());
 
 const slowCurationEnv = {...baseEnv, COZY_STATE: new MemoryKV(), COZY_NEWS_AI_TIMEOUT_MS: "10", AI: {run: async () => new Promise(() => {})}};
 globalThis.fetch = async url => {
@@ -749,14 +766,37 @@ globalThis.fetch = async url => {
 };
 result = await payload(await request("/api/weekly/run", {force: true}, slowCurationEnv));
 await Promise.all(pendingTasks.splice(0));
-assert.equal((await payload(await request("/api/automation", undefined, slowCurationEnv))).body.automation.jobs.notice_report.status, "completed");
-const sourceFallbackReport = (await payload(await request("/api/data?key=notice_reports", undefined, slowCurationEnv))).body.reports[0];
-assert.equal(sourceFallbackReport.provider, "source-fallback");
-assert.equal(sourceFallbackReport.hot_items[0].translation_zh, "");
-assert.equal(sourceFallbackReport.hot_items[0].ai_summary, "");
-assert.doesNotMatch(sourceFallbackReport.hot_items[0].summary, /&lt;|href=|<a/);
+assert.equal(result.status, 500);
+assert.match(result.body.error, /资讯 AI 整理失败：测试要求立即使用来源兜底/);
+const failedCurationAutomation=(await payload(await request("/api/automation", undefined, slowCurationEnv))).body.automation.jobs.notice_report;
+assert.equal(failedCurationAutomation.status, "failed");
+assert.match(failedCurationAutomation.message, /资讯 AI 整理失败/);
+assert.equal((await payload(await request("/api/data?key=notice_reports", undefined, slowCurationEnv))).body.reports.length, 0);
 
-const balancedFallbackEnv = {...baseEnv, COZY_STATE: new MemoryKV(), COZY_NEWS_AI_TIMEOUT_MS: "10", AI: {run: async () => new Promise(() => {})}};
+const malformedFallbackEnv={...fallbackEnv,COZY_STATE:new MemoryKV()};
+globalThis.fetch=async (url,options)=>{
+  const value=String(url);
+  if(value.includes("openai.com/news/rss.xml"))return new Response(newsXml("Fallback validates notice JSON","https://news.example/validated-fallback","A concrete model update with product implications."),{status:200});
+  if(value.includes("api.deepseek.com"))return new Response(JSON.stringify({choices:[{message:{content:'{"focus_title":"broken","hot_items":['}}]}),{status:200,headers:{"content-type":"application/json"}});
+  if(value.includes("api.openai.com/v1/responses")){
+    const body=JSON.parse(options?.body||"{}");
+    const id=String(body.input||"").match(/"id":"([^"]+)"/)?.[1]||"candidate-0";
+    const item={source_id:id,category:"模型与技术",translation_zh:"这是一项具体的模型更新。",ai_summary:"这项更新改变了模型能力边界，产品团队需要用真实任务核验质量、成本、稳定性和失败恢复。",product_tip:"产品经理应使用同一批真实任务对比新旧方案，确认质量、成本、延迟和失败恢复后再决定是否迁移。"};
+    return new Response(JSON.stringify({output_text:JSON.stringify({focus_title:"备用模型完成资讯整理",hot_items:[item],sections:[],insights:["模型能力更新需要重跑产品评测。"],advice:["先完成小样本对照，再决定迁移。"]})}),{status:200,headers:{"content-type":"application/json"}});
+  }
+  return new Response("upstream unavailable",{status:503});
+};
+result=await payload(await request("/api/weekly/run",{force:true},malformedFallbackEnv));
+assert.equal(result.status,200);
+assert.equal(result.body.report.provider,"openai");
+assert.equal((await payload(await request("/api/data?key=notice_reports",undefined,malformedFallbackEnv))).body.reports.length,1);
+
+const balancedFallbackEnv = {...baseEnv, COZY_STATE: new MemoryKV(), AI: {run: async (_model,input) => {
+  const prompt=String(input.messages?.[0]?.content||"");
+  const ids=[...prompt.matchAll(/"id":"([^"]+)"/g)].map(match=>match[1]);
+  const items=ids.slice(0,4).map((source_id,index)=>({source_id,category:index<2?"产品与实践":"模型与技术",translation_zh:index<2?"":"这是一项具体的国际模型与产品能力更新。",ai_summary:"这项更新改变了智能体产品的能力边界，团队需要用真实任务核验质量、成本、稳定性和失败恢复。",product_tip:"产品经理应把发布能力放进真实工作流，对照旧方案验证任务完成率、成本、延迟和失败恢复，再决定是否接入。"}));
+  return {response:JSON.stringify({focus_title:"国内外 AI 产品进展",hot_items:items,sections:[],insights:["国内外团队都在把模型能力放进具体工作流。"],advice:["用同一组真实任务比较能力、成本和失败恢复。"]})};
+}}};
 globalThis.fetch = async url => {
   const value=String(url);
   if(value.includes("ithome.com/rss/"))return new Response(newsXml("IT之家国内 Qwen 智能体产品更新", "https://www.ithome.com/0/100/001.htm", "国内团队发布了新的大模型智能体工作流能力。"),{status:200});
@@ -775,6 +815,19 @@ assert.ok(balancedItems.some(item=>item.media==="极客公园"));
 assert.ok(new Set(balancedItems.filter(item=>["IT之家","极客公园"].includes(item.media)).map(item=>item.media)).size>=2);
 assert.equal(balancedReport.coverage.domestic,2);
 assert.equal(balancedReport.coverage.international,2);
+
+const scheduleEnv={...aiEnv,COZY_STATE:new MemoryKV()};
+await payload(await request("/api/data",{key:"notice_reports",value:{version:1,reports:[{id:"sunday-manual",generated_at:"2026-08-16T08:01:00+08:00",hot_items:[],sections:[]}]}},scheduleEnv));
+globalThis.fetch=async url=>{
+  if(String(url).includes("openai.com/news/rss.xml"))return new Response(newsXml("Monday scheduled model update","https://news.example/monday-slot","A concrete model and product update for Monday."),{status:200});
+  return new Response("upstream unavailable",{status:503});
+};
+const mondayReport=await runCloudReport(scheduleEnv,{force:false,trigger:"scheduled",at:"2026-08-17T08:05:00+08:00"});
+assert.equal(mondayReport.schedule_slot,"2026-08-17T08:00:00+08:00");
+assert.equal(mondayReport.update_mode,"scheduled");
+const scheduledReports=(await payload(await request("/api/data?key=notice_reports",undefined,scheduleEnv))).body.reports;
+assert.equal(scheduledReports.length,2);
+assert.equal(scheduledReports[1].id,"sunday-manual");
 globalThis.fetch = nativeFetch;
 
 globalThis.fetch = async url => new Response("blocked", {status: 403});

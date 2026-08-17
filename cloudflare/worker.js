@@ -192,10 +192,12 @@ async function login(request, env) {
   if (!safeEqual(inputHash, expectedHash)) {
     const count = previousCount + 1;
     const remaining = Math.max(0, LOGIN_ATTEMPT_LIMIT - count);
-    await writeState(env, attemptKey, {count, blocked_until: count >= LOGIN_ATTEMPT_LIMIT ? Date.now() + LOGIN_BLOCK_MS : 0}, {expirationTtl: 15 * 60});
+    try{await writeState(env, attemptKey, {count, blocked_until: count >= LOGIN_ATTEMPT_LIMIT ? Date.now() + LOGIN_BLOCK_MS : 0}, {expirationTtl: 15 * 60});}
+    catch(_error){}
     return json({ok: false, error: remaining ? `口令不正确，还可尝试 ${remaining} 次` : "口令不正确，已达到 50 次上限，请在 15 分钟后再试", remaining_attempts: remaining}, 401);
   }
-  await writeState(env, attemptKey, {count: 0, blocked_until: 0}, {expirationTtl: 60});
+  try{await writeState(env, attemptKey, {count: 0, blocked_until: 0}, {expirationTtl: 60});}
+  catch(_error){}
   const payload = encodePayload({sub: "owner", exp: Date.now() + 7 * 24 * 60 * 60 * 1000});
   const token = `${payload}.${await hmac(env.SESSION_SECRET, payload)}`;
   const headers = new Headers(securityHeaders);
@@ -234,19 +236,25 @@ async function callText(env, prompt, maxTokens = 1600, options = {}) {
   if (!providers.length) throw new Error("还没有配置在线文本模型 API Key");
   const failures = [];
   for (const provider of providers) {
-    let timeoutId;
-    try {
-      const timeoutMs=providerTimeoutMs(env,provider,options);
-      const response=await Promise.race([
-        callTextProvider(env,provider,prompt,maxTokens,options),
-        new Promise((_,reject)=>{timeoutId=setTimeout(()=>reject(new Error(`${provider} 响应超时`)),timeoutMs);})
-      ]);
-      if(typeof options.validate==="function"&&!options.validate(response.text,response))throw new Error(`${provider} 返回内容未通过校验`);
-      return response;
-    } catch (error) {
-      failures.push(`${provider}: ${String(error?.message || error)}`);
-    } finally {
-      if(timeoutId)clearTimeout(timeoutId);
+    const attempts=Math.max(1,Math.min(2,Number(options?.providerAttempts?.[provider])||1));
+    for(let attempt=0;attempt<attempts;attempt+=1){
+      let timeoutId;
+      try {
+        const timeoutMs=providerTimeoutMs(env,provider,options);
+        const response=await Promise.race([
+          callTextProvider(env,provider,prompt,maxTokens,options),
+          new Promise((_,reject)=>{timeoutId=setTimeout(()=>reject(new Error(`${provider} 响应超时`)),timeoutMs);})
+        ]);
+        if(typeof options.validate==="function"){
+          const validation=options.validate(response.text,response);
+          if(validation!==true)throw new Error(typeof validation==="string"&&validation?validation:`${provider} 返回内容未通过校验`);
+        }
+        return response;
+      } catch (error) {
+        failures.push(`${provider}${attempts>1?` 第${attempt+1}次`:''}: ${String(error?.message || error)}`);
+      } finally {
+        if(timeoutId)clearTimeout(timeoutId);
+      }
     }
   }
   throw new Error(`文本模型均不可用：${failures.join("；")}`);
@@ -765,6 +773,40 @@ const BLACKBOARD_REFERENCE_FORMAT=`你正在独立准备一道黑板题的完整
 
 function dateInShanghai(offsetDays = 0) {
   return new Date(Date.now() + offsetDays * 86400000).toLocaleDateString("en-CA", {timeZone: "Asia/Shanghai"});
+}
+
+function shanghaiDateTimeParts(value = Date.now()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).formatToParts(new Date(value));
+  const get = type => Number(parts.find(part => part.type === type)?.value || 0);
+  return {year: get("year"), month: get("month"), day: get("day"), hour: get("hour"), minute: get("minute")};
+}
+
+export function noticeScheduleSlotAt(value = Date.now()) {
+  const local = shanghaiDateTimeParts(value);
+  let day = Date.UTC(local.year, local.month - 1, local.day);
+  if (local.hour < 8) day -= 86400000;
+  while (![1, 3, 5].includes(new Date(day).getUTCDay())) day -= 86400000;
+  const date = new Date(day);
+  const yyyy = date.getUTCFullYear();
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(date.getUTCDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}T08:00:00+08:00`;
+}
+
+export function reportNoticeScheduleSlot(report) {
+  if (report?.schedule_slot) return String(report.schedule_slot);
+  if (!report?.generated_at) return "";
+  const generated = new Date(report.generated_at);
+  if (Number.isNaN(generated.getTime())) return "";
+  const local = shanghaiDateTimeParts(generated);
+  const calendarDay = Date.UTC(local.year, local.month - 1, local.day);
+  if (local.hour !== 8 || ![1, 3, 5].includes(new Date(calendarDay).getUTCDay())) return "";
+  const mm = String(local.month).padStart(2, "0");
+  const dd = String(local.day).padStart(2, "0");
+  return `${local.year}-${mm}-${dd}T08:00:00+08:00`;
 }
 
 const BLACKBOARD_ARCHIVE_CATEGORIES = ["AI 产品与用户体验", "Agent 与系统设计", "模型与技术理解", "评测、质量与安全", "商业化与落地"];
@@ -1690,15 +1732,52 @@ async function updateNoticeProgress(env,message,extra={}){
   return writeNoticeStatus(env,{last_check:now(),jobs:{notice_report:{status:"running",message,...extra}}});
 }
 
-async function runCloudReport(env, force = false) {
+function parseCuratedNotice(text,pool){
+  const parsed=extractJson(text);
+  const seenIds=new Set();
+  const unique=item=>{
+    const id=String(item?.source_id||'');
+    if(!id||seenIds.has(id))return false;
+    seenIds.add(id);return true;
+  };
+  const curated={...parsed,hot_items:(parsed.hot_items||[]).filter(unique),sections:(parsed.sections||[]).map(section=>({...section,items:(section.items||[]).filter(unique)})).filter(section=>section.items.length)};
+  const selectedRaw=[...(curated.hot_items||[]),...(curated.sections||[]).flatMap(section=>section.items||[])];
+  if(selectedRaw.length<Math.min(5,pool.length))throw new Error("模型选择的有效资讯数量不足");
+  const poolById=new Map(pool.map(item=>[String(item.id),item]));
+  if(selectedRaw.some(item=>!poolById.has(String(item?.source_id||''))))throw new Error("模型选择了候选之外的资讯");
+  const sourceKey=newsSourceKey;
+  const availableSources=new Set(pool.map(sourceKey));
+  const selectedCounts=new Map();
+  const selectedRegions=new Map();
+  selectedRaw.forEach(item=>{
+    const selectedSource=poolById.get(String(item?.source_id||''));
+    if(misleadingNoticeSummary(selectedSource,item?.ai_summary))throw new Error("模型把回应或澄清错误写成了事实");
+    const key=sourceKey(selectedSource);
+    selectedCounts.set(key,(selectedCounts.get(key)||0)+1);
+    const region=newsRegion(selectedSource);
+    selectedRegions.set(region,(selectedRegions.get(region)||0)+1);
+  });
+  if(availableSources.size>=4&&(selectedCounts.size<4||Math.max(0,...selectedCounts.values())>2))throw new Error("模型选择的资讯来源不够多样");
+  const requiredDomestic=Math.min(2,pool.filter(item=>newsRegion(item)==='domestic').length);
+  const requiredInternational=Math.min(2,pool.filter(item=>newsRegion(item)==='international').length);
+  if((selectedRegions.get("domestic")||0)<requiredDomestic||(selectedRegions.get("international")||0)<requiredInternational)throw new Error("模型选择的资讯没有达到国内外最低覆盖");
+  return curated;
+}
+
+export async function runCloudReport(env, options = {}) {
+  const settings = typeof options === "boolean" ? {force: options, trigger: options ? "manual" : "scheduled"} : options;
+  const force = Boolean(settings.force);
+  const trigger = settings.trigger === "scheduled" ? "scheduled" : "manual";
+  const scheduleSlot = noticeScheduleSlotAt(settings.at || Date.now());
   const reportsData = await readData(env, "notice_reports");
   const butlerState = await readData(env, "butler_state");
   const watchTopics = (butlerState.watch_topics || []).map(item => String(item.text || item.title || "").trim()).filter(Boolean).slice(0, 8);
   const latest = (reportsData.reports || [])[0];
-  if (!force && latest?.generated_at && Date.now() - Date.parse(latest.generated_at) < 46 * 60 * 60 * 1000) {
+  const slotReport = (reportsData.reports || []).find(report => reportNoticeScheduleSlot(report) === scheduleSlot);
+  if (!force && slotReport) {
     let noticeFollowups={matched_requests:0,found_items:0};
-    try{noticeFollowups=await resolveCloudNoticeRequests(env,reportItems(latest));}catch(_error){}
-    return {...latest, unchanged: true, report_count: (reportsData.reports || []).length, notice_followups:noticeFollowups};
+    try{noticeFollowups=await resolveCloudNoticeRequests(env,reportItems(slotReport));}catch(_error){}
+    return {...slotReport, unchanged: true, report_count: (reportsData.reports || []).length, notice_followups:noticeFollowups};
   }
   const sourceJobs=buildCloudNewsSourceJobs(butlerState);
   const settled = await Promise.allSettled(sourceJobs.map(source=>source.load()));
@@ -1774,58 +1853,22 @@ async function runCloudReport(env, force = false) {
     await writeNoticeStatus(env,{last_check:now(),jobs:{notice_report:{status:"completed",last_success:now(),unchanged:true,degraded:usingSourceFallback,message}}});
     return {...(latest || {focus_title: "暂无新资讯"}), unchanged: true, degraded:usingSourceFallback, report_count: reportCount,notice_followups:noticeFollowups};
   }
-  const prompt = `你是阿栗，负责为 AI 产品经理整理一次“资讯巡报”。从候选中只挑真正重要、具体、多样的 7 到 11 条，不要为了凑数收录普通软文。
-只返回 JSON：{"focus_title":"本期最重要变化","hot_items":[{"source_id":"候选id","category":"模型与技术","translation_zh":"原摘要非中文时给忠实中文翻译，原摘要是中文时留空","ai_summary":"120到200字中文总结，说明具体变化、关键数字或能力、值得关注的结论","product_tip":"仅在该资讯能形成明确产品实践启发时，写60到120字中文产品经理关注点，否则留空"}],"sections":[{"name":"国内外动态","items":[同结构]},{"name":"产品相关动态","items":[同结构]},{"name":"主人关注","items":[同结构]}],"insights":["跨文章案例总结"],"advice":["给正在做AI产品的主人一个有深度且可执行的建议"]}。
+  const curationPool=balancedNewsSelection(pool,Math.min(9,pool.length));
+  const prompt = `你是阿栗，负责为 AI 产品经理整理一次“资讯巡报”。候选已经由程序按来源和国内外比例预筛选，请整理其中真正重要的 6 到 9 条，不要另选候选外内容。控制总输出长度，确保 JSON 完整闭合。
+只返回 JSON：{"focus_title":"本期最重要变化","hot_items":[{"source_id":"候选id","category":"模型与技术","translation_zh":"原摘要非中文时给80到160字忠实中文翻译，原摘要是中文时留空","ai_summary":"100到160字中文总结，说明具体变化、关键数字或能力、值得关注的结论","product_tip":"仅在该资讯能形成明确产品实践启发时，写50到100字中文产品经理关注点，否则留空"}],"sections":[{"name":"国内外动态","items":[同结构]},{"name":"产品相关动态","items":[同结构]},{"name":"主人关注","items":[同结构]}],"insights":["最多3条跨文章案例总结"],"advice":["最多3条给正在做AI产品的主人有深度且可执行的建议"]}。
 热点速览只放行业级重要发布；候选足够时，整版必须至少选择 2 条国内资讯和 2 条海外资讯，覆盖至少 4 个不同来源，单一来源最多 2 条。国内优先 DeepSeek、Kimi、通义、豆包等产品和 36氪、量子位、机器之心、InfoQ 中文的有效报道；海外兼顾 OpenAI、Anthropic、Google 的重要发布、热门国际科技消息，以及真正有产品实践价值的海外产品案例、GitHub 开源实践、AWS 工程案例和 arXiv 研究。产品相关动态只放评测、记忆、Agent、原型、工作流等真正能提升产品能力的案例。product_tip 不是新闻复述：必须指出产品经理在需求、用户、指标、评测、成本、交互、风险或落地实践中应注意什么；没有明确启发就留空，禁止每条硬加。所有 ai_summary 和 product_tip 必须使用简体中文。分类只用模型与技术、产品与实践、行业动态、学术研究。不得编造候选中没有的价格、指标和事实。标题含“回应、澄清、辟谣、否认”时必须保留原文立场，绝不能把被回应的传言写成已确认事实；信息不足就明确写“原文未确认”，不要推断收费、涨价、停服等结论。
 主人关注方向：${JSON.stringify(watchTopics)}。只有候选中确实有直接相关内容时才增加“主人关注”栏目；没有匹配内容就不要生成该栏目，不能拿普通 AI 新闻凑数。
-候选：${JSON.stringify(pool).slice(0, 30000)}`;
-  let result = {provider: "source-fallback"};
+候选：${JSON.stringify(curationPool).slice(0, 18000)}`;
+  let result;
   let curated;
   try {
     const configuredTimeout=Number(env.COZY_NEWS_AI_TIMEOUT_MS);
     if(configuredTimeout>0&&configuredTimeout<500)throw new Error("测试要求立即使用来源兜底");
-    const curationTimeout = Math.max(5000, configuredTimeout || 16000);
-    result = await callText(env,prompt,3600,{temperature:.25,thinking:false,providerTimeouts:{deepseek:curationTimeout,openai:curationTimeout,glm:curationTimeout,qwen:curationTimeout,"workers-ai":Math.min(curationTimeout,12000)}});
-    curated = extractJson(result.text);
-    const selectedRaw=[...(curated.hot_items||[]),...(curated.sections||[]).flatMap(section=>section.items||[])];
-    if(selectedRaw.length<Math.min(7,pool.length))throw new Error("模型选择的有效资讯数量不足");
-    const selectedIds=selectedRaw.map(item=>String(item?.source_id||'')).filter(Boolean);
-    if(new Set(selectedIds).size!==selectedIds.length)throw new Error("模型重复选择了同一条资讯");
-    const poolById=new Map(pool.map(item=>[String(item.id),item]));
-    if(selectedRaw.some(item=>!poolById.has(String(item?.source_id||''))))throw new Error("模型选择了候选之外的资讯");
-    const sourceKey=newsSourceKey;
-    const availableSources=new Set(pool.map(sourceKey));
-    const selectedCounts=new Map();
-    const selectedRegions=new Map();
-    selectedRaw.forEach(item=>{
-      const selectedSource=poolById.get(String(item?.source_id||''));
-      if(misleadingNoticeSummary(selectedSource,item?.ai_summary))throw new Error("模型把回应或澄清错误写成了事实");
-      const key=sourceKey(selectedSource);
-      selectedCounts.set(key,(selectedCounts.get(key)||0)+1);
-      const region=newsRegion(selectedSource);
-      selectedRegions.set(region,(selectedRegions.get(region)||0)+1);
-    });
-    if(availableSources.size>=4&&(selectedCounts.size<4||Math.max(0,...selectedCounts.values())>2))throw new Error("模型选择的资讯来源不够多样");
-    const requiredDomestic=Math.min(2,pool.filter(item=>newsRegion(item)==='domestic').length);
-    const requiredInternational=Math.min(2,pool.filter(item=>newsRegion(item)==='international').length);
-    if((selectedRegions.get("domestic")||0)<requiredDomestic||(selectedRegions.get("international")||0)<requiredInternational)throw new Error("模型选择的资讯没有达到国内外最低覆盖");
-  } catch (_error) {
-    const selected = balancedNewsSelection(pool,9);
-    const shape = item => ({
-      source_id: item.id,
-      category: categoryForArticle(item.title),
-      original_summary: item.summary || '',
-      translation_zh: '',
-      ai_summary: '',
-      product_tip: ''
-    });
-    curated = {
-      focus_title: selected[0]?.title || "近期 AI 进展",
-      hot_items: selected.slice(0, 4).map(shape),
-      sections: selected.length > 4 ? [{name: "近期动态", items: selected.slice(4).map(shape)}] : [],
-      insights: ["本期先按来源原始信息归档，后续可继续补充深度判断。"],
-      advice: ["先核对与你当前产品最相关的变化，再决定是否调整评测、模型或工作流。"]
-    };
+    const curationTimeout = Math.max(5000, configuredTimeout || 30000);
+    result = await callText(env,prompt,4200,{temperature:.2,thinking:false,validate:text=>{try{parseCuratedNotice(text,curationPool);return true;}catch(error){return String(error?.message||error||"返回内容未通过校验");}},providerAttempts:{deepseek:2},providerTimeouts:{deepseek:curationTimeout,openai:curationTimeout,glm:curationTimeout,qwen:curationTimeout,"workers-ai":Math.min(curationTimeout,30000)}});
+    curated = parseCuratedNotice(result.text,curationPool);
+  } catch (error) {
+    throw new Error(`资讯 AI 整理失败：${String(error?.message || error || "未知错误").slice(0, 420)}`);
   }
   const byId = new Map(pool.map(item => [item.id, item]));
   const hydrate = raw => {
@@ -1836,8 +1879,8 @@ async function runCloudReport(env, force = false) {
     const normalize=value=>String(value||'').toLowerCase().replace(/[^0-9a-z\u4e00-\u9fff]+/g,'');
     if(!sourceSummary||normalize(sourceSummary)===normalize(source.title)||!exactArticleLink(source))return null;
     const translation=noticeTextIsChinese(sourceSummary,8)?'':noticeTextIsChinese(raw.translation_zh,4)?String(raw.translation_zh).slice(0,1200):'';
-    const aiSummary=result.provider==="source-fallback"?'':ensureChineseAiSummary(raw.ai_summary,source,category);
-    const productTip=result.provider==="source-fallback"?'':ensureChineseProductTip(raw.product_tip,{...source,translation_zh:translation,ai_summary:aiSummary});
+    const aiSummary=ensureChineseAiSummary(raw.ai_summary,source,category);
+    const productTip=ensureChineseProductTip(raw.product_tip,{...source,translation_zh:translation,ai_summary:aiSummary});
     return {...source, category,
       source_summary: sourceSummary,
       original_summary: sourceSummary,
@@ -1845,14 +1888,15 @@ async function runCloudReport(env, force = false) {
       translation_zh: translation,
       ai_summary: aiSummary,
       product_tip: productTip,
-      ai_summary_version: aiSummary&&result.provider!=="source-fallback"&&(!translation||noticeTextSimilarity(translation,aiSummary)<0.55)?2:0};
+      ai_summary_version: aiSummary&&(!translation||noticeTextSimilarity(translation,aiSummary)<0.55)?2:0};
   };
   const hotItems = (curated.hot_items || []).map(hydrate).filter(Boolean).slice(0, 4);
   const sections = (curated.sections || []).slice(0, 3).map(section => ({name: String(section.name || "动态"), items: (section.items || []).map(hydrate).filter(Boolean).slice(0, 5)})).filter(section => section.items.length);
   if (!hotItems.length && !sections.length) throw new Error("模型没有选出可用资讯");
   const selectedItems=[...hotItems,...sections.flatMap(section=>section.items||[])];
   const coverage={domestic:selectedItems.filter(item=>newsRegion(item)==='domestic').length,international:selectedItems.filter(item=>newsRegion(item)==='international').length,other:selectedItems.filter(item=>newsRegion(item)==='other').length};
-  let report = {id: `report_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, generated_at: now(), week_start: dateInShanghai(-6), week_end: dateInShanghai(), degraded:usingSourceFallback,
+  let report = {id: `report_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`, generated_at: now(), schedule_slot: scheduleSlot,
+    update_mode: trigger === "scheduled" ? "scheduled" : "manual_retry", week_start: dateInShanghai(-6), week_end: dateInShanghai(), degraded:usingSourceFallback,
     source_status:{succeeded:fulfilled.length,failed:failedSources.length,failed_sources:failedSources,used_cache:usingSourceFallback},coverage,
     focus_title: String(curated.focus_title || hotItems[0]?.title || "近期 AI 进展").slice(0, 120), hot_items: hotItems, sections,
     insights: (curated.insights || []).slice(0, 5).map(String), advice: (curated.advice || []).slice(0, 5).map(String), provider: result.provider};
@@ -1869,9 +1913,10 @@ async function runCloudReport(env, force = false) {
   let noticeFollowups={matched_requests:0,found_items:0};
   try{noticeFollowups=await resolveCloudNoticeRequests(env,[...reportItems(report),...followupPool]);}catch(_error){}
   report={...report,notice_followups:noticeFollowups};
-  const next = {version: 1, updated_at: now(), reports: [report, ...(reportsData.reports || []).filter(item => item.id !== report.id)].slice(0, 30)};
+  const next = {version: 1, updated_at: now(), reports: [report, ...(reportsData.reports || []).filter(item => item.id !== report.id && reportNoticeScheduleSlot(item) !== scheduleSlot)].slice(0, 30)};
   try{
-    await writeData(env,"notice_reports",next);
+    const saved=await writeData(env,"notice_reports",next);
+    if(saved?.__storageFallback==="r2")report={...report,storage_fallback:"r2"};
   }catch(error){
     if(!noticeKvWriteLimitExceeded(error)||!latest)throw error;
     return {...latest,unchanged:true,storage_degraded:true,storage_error:"KV_DAILY_WRITE_LIMIT",report_count:(reportsData.reports||[]).length,
@@ -3021,7 +3066,7 @@ export async function handleRequest(request, env, ctx = {}) {
     if (url.pathname === "/api/weekly/run") {
       await writeNoticeStatus(env,{last_check:now(),jobs:{notice_report:{status:"running",message:"阿栗正在巡逻近期资讯"}}});
       try {
-        const report=await runCloudReport(env,Boolean(input.force));
+        const report=await runCloudReport(env,{force:Boolean(input.force),trigger:"manual"});
         return json({ok:true,accepted:false,status:"completed",report});
       } catch(error) {
         await writeNoticeStatus(env,{last_check:now(),jobs:{notice_report:{status:"failed",last_error:now(),message:String(error.message||error).slice(0,300)}}});
@@ -3045,7 +3090,7 @@ export async function scheduled(_event, env, ctx) {
     const status = {last_check: now(), jobs: {weather: {status: "cached_for_two_hours"}, memory: {status: "available"}, notice_report: {status: "running", message: "阿栗正在巡逻近期资讯"}}};
     await writeNoticeStatus(env,status);
     try {
-      const report = await runCloudReport(env, false);
+      const report = await runCloudReport(env, {force: false, trigger: "scheduled"});
       status.jobs.notice_report = report.unchanged
         ? {status: "completed", last_success: now(), unchanged: true, degraded:Boolean(report.degraded), message: report.degraded?`资讯源暂时不可用，已保留 ${report.report_count || 0} 版巡报，稍后自动重试`:`已检查，暂无新资讯；保留 ${report.report_count || 0} 版巡报`}
         : {status: "completed", last_success: now(), message: `巡报已准备：${report.focus_title}`};
