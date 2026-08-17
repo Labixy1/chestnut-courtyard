@@ -649,9 +649,9 @@
     .stage.has-panorama .spot,.stage.has-panorama #wall{display:none}
     .stage.has-panorama .spot.noticeboard,.stage.has-panorama .spot.oldtree,.stage.has-panorama .spot.orchard,.stage.has-panorama .spot.stump,
     .stage.has-panorama .spot.luggage,.stage.has-panorama .spot.cottage{display:block;z-index:8}
-    .stage.has-panorama .spot.noticeboard{left:82%;top:51%;width:22%;height:15%}
+    .stage.has-panorama .spot.noticeboard{left:82%;top:51.5%;width:20%;height:6.5%}
     .stage.has-panorama .spot.orchard{left:15%;top:39%;width:25%;height:30%}
-    .stage.has-panorama .spot.oldtree{left:84%;top:45%;width:22%;height:20%}
+    .stage.has-panorama .spot.oldtree{left:84%;top:44.5%;width:20%;height:6.5%}
     .stage.has-panorama .spot.stump{left:13%;top:64%;width:22%;height:15%}
     .stage.has-panorama .spot.luggage{left:50%;top:73%;width:30%;height:15%}
     .stage.has-panorama .spot.cottage{left:50%;top:48%;width:19%;height:23%}
@@ -1886,8 +1886,6 @@ function acceptNoticeFollowupResponse(followups){
 }
 
 async function openNotice(){
-  await CORE_READY;
-  await syncNoticeFoundResultsFromCloud();
   openOverlay('<div class="notice-board-large">'+
     '<div class="notice-sticky"><div class="notice-board-heading"><h2>公告板 · 阿栗资讯巡报<span class="notice-cadence" id="notice-cadence"></span></h2><div class="notice-heading-actions"><button class="notice-refresh" id="notice-refresh" onclick="runWeeklyNow()" aria-label="获取最新资讯" title="获取最新资讯">获取最新资讯</button><span class="butler-connection" id="butler-connection">正在连接阿栗</span></div></div><div class="week-title" id="notice-week-title"></div>'+
     '<div class="notice-tabs">'+
@@ -1911,6 +1909,11 @@ async function openNotice(){
   resumeNoticeTasks();
   resumeNoticeRefresh();
   refreshNoticeReportsFromCloud();
+  await CORE_READY.catch(()=>CORE);
+  await syncNoticeFoundResultsFromCloud().catch(()=>[]);
+  const active=document.querySelector('.notice-tabs button.active');
+  if(active?.textContent.includes('最新'))showNoticeView('current',active);
+  updateNoticeCadence();
 }
 
 async function refreshNoticeReportsFromCloud(){
