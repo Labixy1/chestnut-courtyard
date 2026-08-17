@@ -29,6 +29,8 @@ if (fs.existsSync('pages/private_wing.html') || serviceWorker.includes('pages/pr
 if (!fs.readFileSync('pages/orchard.html', 'utf8').includes('orchard_field.webp')) throw new Error('orchard must use the optimized WebP background');
 const orchard = fs.readFileSync('pages/orchard.html', 'utf8');
 if (!orchard.includes("slice(0,-1).slice(-8)") || !orchard.includes("current_topic_id:chat?.topicId||''")) throw new Error('orchard chat must send prior turns separately from the current question');
+if (!(orchard.indexOf('id="orchard-chat-thread"') < orchard.indexOf('class="chat-examples" aria-label="提问模板"') && orchard.indexOf('class="chat-examples" aria-label="提问模板"') < orchard.indexOf('id="seed-input"'))) throw new Error('orchard prompt templates must sit directly above the composer');
+if (!orchard.includes('function renderOrchardChat(pending=orchardBusy)') || !orchard.includes('正在回复') || !orchard.includes("aria-busy',String(Boolean(pending))")) throw new Error('orchard chat must keep a visible reply state across sync renders');
 if (!orchard.includes('openEmptyPlotPanel()') || !orchard.includes('这块空地的知识专题')) throw new Error('empty orchard plots must open a knowledge-topic empty state');
 if (!orchard.includes('fingerprint===knowledgeRenderFingerprint') || !orchard.includes("details[open][data-topic-id]") || orchard.includes("open=first?' open':''")) throw new Error('knowledge topics must preserve manual collapse state across sync renders');
 if (!home.includes('String(item.awarded??0)') || !home.includes('String(item.max??25)')) throw new Error('blackboard must display explicit zero scores');

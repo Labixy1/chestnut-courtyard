@@ -408,6 +408,9 @@ assert.match(latestOrchardPrompt, /当前“主人”消息是唯一主任务/);
 assert.match(latestOrchardPrompt, /旧对话不得盖过当前问题/);
 assert.match(latestOrchardPrompt, /当前主人问题（最高优先级）：OpenJiuwen 是个什么组织/);
 assert.match(latestOrchardPrompt, /不能用旧专题内容替代答案/);
+assert.match(latestOrchardPrompt, /这是学习讲解，不是简短问答/);
+assert.match(latestOrchardPrompt, /解释概念时必须说明它是什么、为什么这样运作/);
+assert.match(latestOrchardPrompt, /不能因为用户问题短就只回答几句/);
 assert.doesNotMatch(latestOrchardPrompt, /想学习 AI 评测集/);
 assert.match(latestOrchardPrompt, /记忆只调整讲解方式，不替代事实判断/);
 

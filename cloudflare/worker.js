@@ -2540,7 +2540,7 @@ async function roomReply(env, room, message, context) {
 1. 当前“主人”消息是唯一主任务，必须准确回答它所问的对象和问题，不能擅自换题。
 2. context.conversation 仅用于理解“它、这个、上面那个”等追问指代；若当前问题已经完整明确，以当前问题为准。旧对话不得盖过当前问题。
 3. context.knowledge_topics 仅用于回答完成后决定归入哪个专题，不能用旧专题内容替代答案。相关非封存记忆也只能提供稳定偏好，和问题无关时必须忽略。
-4. 先给明确结论，再用2到4个清晰要点解释原因、差异、步骤或适用场景；必要时给一个具体例子。不得只复述问题，不得只提问，不得泛泛安慰。
+4. 这是学习讲解，不是简短问答。先给明确结论，再用3到5个清晰部分讲透定义、形成机制、关键差异、适用条件与限制，并至少给一个能帮助理解的具体例子。不得只复述问题，不得只提问，不得泛泛安慰。
 5. 用户问事实、产品或技术时，回答具体机制和边界；不确定、可能过时或未经联网核验的信息必须明确标注，不能编造。
 6. 只有确实缺少关键条件、无法合理作答时，才在已经给出当前可答部分后追问最多一个问题。
 7. 学习偏好只允许调整解释结构、例子密度和表达方式，不能改变事实结论，不能隐藏相反观点，也不能把过去偏好强加给当前问题。
@@ -2554,7 +2554,7 @@ ${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最�
     blackboard: blackboardIntent === "question_helper"
       ? '只返回 JSON：{"reply":"80到180字、直接关联当前题目和用户追问的背景解释","material":"用户问：问题；阿栗补充：可独立阅读的答案摘要"}。可使用模型通用知识补足背景；最新归属、版本、价格和指标未联网核验时必须明确标注。不得泄露标准答案或代写方案。'
       : blackboardIntent === "reference_answer" ? BLACKBOARD_REFERENCE_FORMAT : stagedBlackboardGrade?BLACKBOARD_GRADING_CORE_FORMAT:BLACKBOARD_GRADING_FORMAT,
-    orchard: '只返回合法 JSON，不要 Markdown 代码围栏：{"reply":"直接回答当前问题的完整中文回复，通常180到500字；结论优先，分段或编号清楚，问题简单时可以更短","answer_focus":"20到50字概括本轮实际回答的问题，用于检查是否答偏","seed_summary":"本轮关注点的简短概括","key_insight":"一句可独立复习的核心判断","next_step":"一个确实有帮助的后续验证或学习动作，没有必要则留空","knowledge_topic":{"match_id":"能归入 context.knowledge_topics 中现有专题时必须填写其id，否则留空","title":"稳定且可扩展的专题名，不要把一次问题或单个产品机械建成一类","category":"优先复用现有分类，确实不同才新建","entities":["本轮实际涉及的产品、组织或概念"],"summary":"融合本轮正确答案与已有专题后的可复习摘要","knowledge_points":["3到7条具体事实、差异、方法或判断"],"comparison_rows":[{"item":"比较对象","traits":"主要特点","scenarios":"适用场景","considerations":"限制或注意点"}],"scenarios":["实际应用场景"],"conclusion":"专题当前结论"}}。reply 必须独立完整，即使后面的专题整理字段全部删掉也能直接解决用户问题。',
+    orchard: '只返回合法 JSON，不要 Markdown 代码围栏：{"reply":"直接回答当前问题的完整中文学习讲解，通常300到700字；先给结论，再分段讲定义、机制、例子与边界","answer_focus":"20到50字概括本轮实际回答的问题，用于检查是否答偏","seed_summary":"本轮关注点的简短概括","key_insight":"一句可独立复习的核心判断","next_step":"一个确实有帮助的后续验证或学习动作，没有必要则留空","knowledge_topic":{"match_id":"能归入 context.knowledge_topics 中现有专题时必须填写其id，否则留空","title":"稳定且可扩展的专题名，不要把一次问题或单个产品机械建成一类","category":"优先复用现有分类，确实不同才新建","entities":["本轮实际涉及的产品、组织或概念"],"summary":"融合本轮正确答案与已有专题后的可复习摘要","knowledge_points":["3到7条具体事实、差异、方法或判断"],"comparison_rows":[{"item":"比较对象","traits":"主要特点","scenarios":"适用场景","considerations":"限制或注意点"}],"scenarios":["实际应用场景"],"conclusion":"专题当前结论"}}。reply 必须独立完整，即使后面的专题整理字段全部删掉也能直接解决用户问题。解释概念时必须说明它是什么、为什么这样运作、一个例子和至少一个容易混淆的边界；比较方案时必须在相同维度下比较差异、取舍和选择条件；梳理困惑时必须先指出卡点属于事实、概念、目标还是决策，再逐层拆开。不能因为用户问题短就只回答几句。',
     heart_hollow: String(context?.mode || "oracle") === "dialogue"
       ? '只返回 JSON：{"reply":"自然、有内容的对话回应","mode":"dialogue","response_style":"listen/clarify/reframe/suggest/lighten/challenge 六选一","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。回应一个具体细节后向前推进，不复述整段话。可以表达判断或自然幽默；不必每轮安慰或追问。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。'
       : '只返回 JSON：{"reply":"18到45字、回应具体内容的一句签语","mode":"oracle","response_style":"oracle","growth_signal":{"should_grow":true或false,"title":"不含原话和私密细节的成长主题","hint":"正在形成的判断或变化","nourishment":1到3}}。只有具体经历或可持续成长线索才生长；短促情绪、试音、重复句为 false。成长信号不得包含人物、公司、地点等私密细节。',
@@ -2569,7 +2569,7 @@ ${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最�
     : await memoryContext(env, memoryPurpose, {query: message, recentIds, roomId: String(context?.trip_id || "")});
   const answerMemory = memory;
   const roomPrompt = `${guide}\n${formats[room] || "请直接回应。"}\n不得编造主人没有说过的经历。\n房间：${room}\n当前主人问题（最高优先级）：${message.slice(0, 8000)}\n辅助上下文（只用于指代消解和归档）：${JSON.stringify(context).slice(0, 7000)}\n房间限定记忆（最多两条，可以完全不用；不得为了展示记忆而提起过去）：${JSON.stringify(answerMemory).slice(0, 5000)}`;
-  const roomTokens=room === "orchard" ? 2600 : blackboardIntent==="grade_answer" ? stagedBlackboardGrade?3600:6500 : blackboardIntent==="reference_answer" ? 3200 : 1800;
+  const roomTokens=room === "orchard" ? 3200 : blackboardIntent==="grade_answer" ? stagedBlackboardGrade?3600:6500 : blackboardIntent==="reference_answer" ? 3200 : 1800;
   const generationOptions = blackboardIntent === "grade_answer"
     ? {temperature:0.1,thinking:false,providerTimeouts:{deepseek:70000,openai:20000,"workers-ai":45000}}
     : blackboardIntent === "reference_answer" ? {temperature:0.2,thinking:false} : {temperature: 0.35};
@@ -2592,7 +2592,7 @@ ${decisionAudit ? `9. 本轮触发“决策审查”：第一阶段必须用最�
     }
   }
   if (room === "orchard" && !orchardAnswerAligned(message, parsed)) {
-    result = await callText(env, `${roomPrompt}\n\n上一版输出没有准确对齐当前问题，禁止沿用其中无关内容。请重新阅读“当前主人问题”，确保 answer_focus 准确概括该问题，reply 明确提到问题中的产品、组织或概念并直接作答。上一版输出：${String(result.text).slice(0, 5000)}`, 2600, generationOptions);
+    result = await callText(env, `${roomPrompt}\n\n上一版输出没有准确对齐当前问题，禁止沿用其中无关内容。请重新阅读“当前主人问题”，确保 answer_focus 准确概括该问题，reply 明确提到问题中的产品、组织或概念并直接作答。上一版输出：${String(result.text).slice(0, 5000)}`, 3200, generationOptions);
     parsed = extractJson(result.text);
     if (!orchardAnswerAligned(message, parsed)) throw new Error("阿栗两次回答都没有对准当前问题，请换一种问法后重试");
   }
