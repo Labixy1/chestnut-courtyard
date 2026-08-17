@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {handleRequest, noticeScheduleSlotAt, providerTimeoutMs, reportNoticeScheduleSlot, runCloudReport} from "../cloudflare/worker.js";
+import {handleRequest, memoryDistillationDue, noticeScheduleSlotAt, providerTimeoutMs, reportNoticeScheduleSlot, runCloudReport, scheduled} from "../cloudflare/worker.js";
 import {memoryContext, memoryState} from "../cloudflare/state.js";
 
 class MemoryKV {
@@ -58,6 +58,9 @@ assert.equal(providerTimeoutMs({}, "deepseek"), 20000);
 assert.equal(providerTimeoutMs({}, "workers-ai"), 45000);
 assert.equal(providerTimeoutMs({}, "deepseek", {providerTimeouts: {deepseek: 70000}}), 70000);
 assert.equal(providerTimeoutMs({COZY_TEXT_PROVIDER_TIMEOUT_MS: "30000"}, "deepseek"), 30000);
+assert.equal(memoryDistillationDue({status:"completed",last_auto_success:"2026-08-15T20:00:00.000Z"},Date.parse("2026-08-17T20:00:00.000Z")),true);
+assert.equal(memoryDistillationDue({status:"completed",last_auto_success:"2026-08-16T20:00:00.000Z"},Date.parse("2026-08-17T20:00:00.000Z")),false);
+assert.equal(memoryDistillationDue({status:"running",last_auto_success:"2026-08-14T20:00:00.000Z"},Date.parse("2026-08-17T20:00:00.000Z")),false);
 const request = (path, body, env = baseEnv) => handleRequest(new Request(`https://owner.example${path}`, body === undefined ? {} : {
   method: "POST", headers: {"content-type": "application/json"}, body: JSON.stringify(body)
 }), env, {waitUntil: promise => pendingTasks.push(promise)});
@@ -171,6 +174,36 @@ assert.ok(travelMemory.selected_memory_ids.includes("travel-hz-1"));
 result = await payload(await request("/api/memory"));
 assert.equal(result.body.memory.events.some(item => item.source === "heart_hollow"), false);
 assert.deepEqual(result.body.memory.sealed, []);
+
+const distillKv=new MemoryKV();
+const distillEnv={...baseEnv,COZY_STATE:distillKv,AI:{run:async(_model,input)=>{
+  const prompt=String(input.messages?.[0]?.content||"");
+  const ids=[...prompt.matchAll(/"id":"(card_[^"]+)"/g)].map(match=>match[1]);
+  return{response:JSON.stringify({summary:"主人倾向通过清晰结构和具体例子掌握复杂概念，当前成长主线是提升 AI 产品判断与评测能力。回答时应先给结论，再解释机制、验证方法和边界，同时保留相反证据，避免让既有偏好限制新观点。",sections:[{title:"学习与合作方式",text:"优先使用结构化比较与具体例子，但事实结论仍以当前证据为准。",source_card_ids:[ids[0]]},{title:"成长主线",text:"持续关注 AI 产品评测与真实任务验证，适合用案例、失败路径和判断阈值巩固。",source_card_ids:[ids[1]||ids[0]]}]})};
+}}};
+await payload(await request("/api/memory/event",{event:{id:"distill-pref",source:"butler",type:"preference",summary:"学习复杂概念时希望先看结构化比较和具体例子",explicit:true,scope:"learning_format"}},distillEnv));
+await payload(await request("/api/memory/event",{event:{id:"distill-goal",source:"orchard",type:"goal",summary:"持续提升 AI 产品评测与真实任务判断能力",explicit:true,scope:"topic_selection"}},distillEnv));
+result=await payload(await request("/api/memory/distill",{force:true},distillEnv));
+assert.equal(result.status,200);
+assert.equal(result.body.profile.generator,"ai_distillation");
+assert.ok(result.body.profile.summary.length>=40);
+assert.equal(result.body.profile.sections.length,2);
+await distillKv.put("memory:distillation",JSON.stringify({...await distillKv.get("memory:distillation","json"),status:"completed",last_success:"2026-08-14T20:00:00.000Z",last_run:"2026-08-14T20:00:00.000Z"}));
+const scheduledJobs=[];
+await scheduled({cron:"0 20 * * *",scheduledTime:Date.parse("2026-08-17T20:00:00.000Z")},distillEnv,{waitUntil:promise=>scheduledJobs.push(promise)});
+await Promise.all(scheduledJobs);
+assert.equal((await distillKv.get("memory:distillation","json")).status,"completed");
+assert.ok((await distillKv.get("memory:distillation","json")).last_auto_success);
+const quotaDistillKv=new WriteLimitedKV(),quotaDistillR2=new MemoryR2();
+const quotaDistillEnv={...distillEnv,COZY_STATE:quotaDistillKv,COZY_MEDIA:quotaDistillR2};
+await payload(await request("/api/memory/event",{event:{id:"quota-distill-pref",source:"butler",type:"preference",summary:"希望复杂问题先给结论再解释机制",explicit:true,scope:"learning_format"}},quotaDistillEnv));
+await payload(await request("/api/memory/event",{event:{id:"quota-distill-goal",source:"orchard",type:"goal",summary:"持续练习 AI 产品判断与评测",explicit:true,scope:"topic_selection"}},quotaDistillEnv));
+quotaDistillKv.blocked=true;
+result=await payload(await request("/api/memory/distill",{force:true},quotaDistillEnv));
+assert.equal(result.status,200);
+assert.equal(result.body.profile.generator,"ai_distillation");
+assert.equal(quotaDistillR2.objects.has("system/state-fallback/memory-profile.json"),true);
+assert.equal(quotaDistillR2.objects.has("system/state-fallback/memory-distillation.json"),true);
 
 let companionTravelCalls = 0;
 const companionEnv = {
@@ -1046,11 +1079,17 @@ globalThis.fetch = async (url, options = {}) => {
 result = await payload(await request("/api/media/generate", {kind: "image", provider: "seedream", prompt: "省空间的小院图"}, mediaEnv));
 assert.equal(result.status, 200);
 assert.equal(seedreamRequestBody.size, "1K");
-assert.equal(seedreamRequestBody.output_format, "jpeg");
+assert.equal(Object.hasOwn(seedreamRequestBody,"output_format"),false);
 assert.equal(result.body.task.outputs[0].size, 4);
 assert.match(result.body.task.outputs[0].key, /\.jpg$/);
+await payload(await request("/api/local-state",{values:{cozy_hollow_buried_media:[{id:"buried-generated",title:"一段记忆",summary:"在雨后散步时慢慢平静下来",status:"queued_for_night"}]}},mediaEnv));
+result=await payload(await request("/api/media/generate",{kind:"image",provider:"seedream",target:"tree_hollow",replace_id:"buried-generated",title:"雨后散步",note:"在雨后散步时慢慢平静下来",prompt:"二维绘本风格的雨后散步"},mediaEnv));
+assert.equal(result.status,200);
+assert.equal(result.body.local_state.values.cozy_hollow_buried_media[0].status,"ready");
+assert.match(result.body.local_state.values.cozy_hollow_buried_media[0].file,/^\/api\/media\/file\?id=/);
+assert.equal(result.body.local_state.values.cozy_hollow_buried_media.some(item=>item.id==="buried-generated"),false);
 result = await payload(await request("/api/media/storage", undefined, mediaEnv));
-assert.deepEqual(result.body.storage, {enabled: true, used_bytes: 4, limit_bytes: 9000000000, remaining_bytes: 8999999996, object_count: 1});
+assert.deepEqual(result.body.storage, {enabled: true, used_bytes: 8, limit_bytes: 9000000000, remaining_bytes: 8999999992, object_count: 2});
 result = await payload(await request("/api/media/generate", {kind: "video", provider: "seedance", prompt: "五秒树影"}, mediaEnv));
 assert.equal(result.status, 202);
 assert.equal(seedanceRequestBody.resolution, "480p");
@@ -1060,6 +1099,14 @@ const fullMediaEnv = {...mediaEnv, COZY_STATE: new MemoryKV(), COZY_MEDIA_LIMIT_
 result = await payload(await request("/api/media/generate", {kind: "image", provider: "seedream", prompt: "空间已满"}, fullMediaEnv));
 assert.equal(result.status, 500);
 assert.match(result.body.error, /接近 10GB 上限/);
+const quotaGenerationKv=new WriteLimitedKV();quotaGenerationKv.blocked=true;
+const quotaGenerationR2=new MemoryR2();
+const quotaGenerationEnv={...mediaEnv,COZY_STATE:quotaGenerationKv,COZY_MEDIA:quotaGenerationR2};
+result=await payload(await request("/api/media/generate",{kind:"image",provider:"seedream",target:"tree_hollow",replace_id:"quota-buried",title:"额度不足时的影像",note:"即使 KV 超额也要保存",prompt:"二维绘本风格的安静树影"},quotaGenerationEnv));
+assert.equal(result.status,200);
+assert.equal(result.body.local_state.values.cozy_hollow_buried_media[0].status,"ready");
+assert.ok([...quotaGenerationR2.objects.keys()].some(key=>key.startsWith("system/state-fallback/generation-tasks/")));
+assert.equal(quotaGenerationR2.objects.has("system/state-fallback/local-state.json"),true);
 globalThis.fetch = nativeFetch;
 
 const uploadR2 = new MemoryR2();

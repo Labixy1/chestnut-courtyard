@@ -7,6 +7,10 @@ const TASK_R2_INDEX_KEY = "system/tasks/index.json";
 const TASK_R2_PREFIX = "system/tasks/";
 const LOCAL_STATE_R2_KEY = "system/state-fallback/local-state.json";
 const MEMORY_EVENTS_R2_KEY = "system/state-fallback/memory-events.json";
+const STATE_R2_FALLBACK_KEYS = {
+  "memory:profile": "system/state-fallback/memory-profile.json",
+  "memory:distillation": "system/state-fallback/memory-distillation.json"
+};
 const DATA_R2_FALLBACK_KEYS = {
   local_state: LOCAL_STATE_R2_KEY,
   notice_reports: "system/state-fallback/notice-reports.json",
@@ -32,13 +36,43 @@ export function requireState(env) {
   return env.COZY_STATE;
 }
 
+function stateR2FallbackKey(key) {
+  if (STATE_R2_FALLBACK_KEYS[key]) return STATE_R2_FALLBACK_KEYS[key];
+  if (String(key).startsWith("memory:profile:snapshot:")) return `system/state-fallback/memory-profile-snapshots/${encodeURIComponent(key)}.json`;
+  if (String(key).startsWith("generation:")) return `system/state-fallback/generation-tasks/${encodeURIComponent(key)}.json`;
+  return "";
+}
+
+async function readStateR2Fallback(env, key) {
+  const objectKey = stateR2FallbackKey(key);
+  if (!objectKey || !env.COZY_MEDIA) return null;
+  try {
+    const object = await env.COZY_MEDIA.get(objectKey);
+    if (!object) return null;
+    const payload = typeof object.json === "function" ? await object.json() : JSON.parse(await object.text());
+    if (payload.expires_at && Date.now() > Date.parse(payload.expires_at)) { await env.COZY_MEDIA.delete(objectKey); return null; }
+    return payload;
+  } catch (_error) { return null; }
+}
+
 export async function readState(env, key, fallback) {
-  const value = await requireState(env).get(key, "json");
-  return value == null ? clone(fallback) : value;
+  const [value, r2] = await Promise.all([requireState(env).get(key, "json"), readStateR2Fallback(env, key)]);
+  return r2 && Object.prototype.hasOwnProperty.call(r2, "value") ? r2.value : value == null ? clone(fallback) : value;
 }
 
 export async function writeState(env, key, value, options) {
-  await requireState(env).put(key, JSON.stringify(value), options);
+  const objectKey = stateR2FallbackKey(key);
+  try {
+    await requireState(env).put(key, JSON.stringify(value), options);
+    if (objectKey && env.COZY_MEDIA) await env.COZY_MEDIA.delete(objectKey).catch(() => {});
+  } catch (error) {
+    if (!kvWriteLimitExceeded(error) || !objectKey || !env.COZY_MEDIA) throw error;
+    const expirationTtl = Number(options?.expirationTtl || 0);
+    await env.COZY_MEDIA.put(objectKey, JSON.stringify({version: 1, updated_at: now(), expires_at: expirationTtl > 0 ? new Date(Date.now() + expirationTtl * 1000).toISOString() : "", value}), {
+      httpMetadata: {contentType: "application/json; charset=utf-8"}, customMetadata: {kind: "state_kv_fallback", stateKey: String(key)}
+    });
+    if (value && typeof value === "object") Object.defineProperty(value, "__storageFallback", {value: "r2", enumerable: false, configurable: true});
+  }
   return value;
 }
 

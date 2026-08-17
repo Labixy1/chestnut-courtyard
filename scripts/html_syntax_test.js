@@ -25,6 +25,10 @@ if (!travel.includes('function deleteReflection()') || !travel.includes('id="ref
 if (!travel.includes('function updateReflectionDeleteButton()') || !travel.includes('button.hidden=!exists') || !travel.includes("action:'forget',id")) throw new Error('travel reflection deletion must expose the action only for saved data and forget its memory events');
 const heart = fs.readFileSync('pages/heart_hollow.html', 'utf8');
 if (!heart.includes('heartReplyBusy') || !heart.includes('id="heart-send"') || !heart.includes("sendButton.textContent='等待回复中…'")) throw new Error('tree hollow reply must expose and guard its pending state');
+if (!heart.includes('class="history-open-mobile"') || !heart.includes('function openHistory()') || !heart.includes('function generateBuriedImage(id)') || !heart.includes("target:'tree_hollow'")) throw new Error('mobile tree hollow must expose the haystack and support persisted image generation');
+if (!heart.includes("String(item.file||'').startsWith('/')") || !heart.includes("/assets\\/generated\\//") || !heart.includes("status==='legacy_missing'")) throw new Error('tree hollow must keep R2 URLs root-relative and expose legacy local images for regeneration');
+const nook = fs.readFileSync('pages/memory_nook.html', 'utf8');
+if (!nook.includes('<h2>综合总结</h2>') || !nook.includes('<h2>内在轨迹总结</h2>') || !nook.includes('每两天 04:00 自动更新')) throw new Error('memory nook must show summaries and the automatic distillation schedule');
 const home = fs.readFileSync('index.html', 'utf8');
 const mobile = fs.readFileSync('core/mobile.js', 'utf8');
 const serviceWorker = fs.readFileSync('sw.js', 'utf8');

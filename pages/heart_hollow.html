@@ -119,9 +119,11 @@
   .memory-mode{display:inline-flex;padding:2px 6px;border-radius:999px;font-size:9px;background:#dcebe6;color:#456d63}.memory-mode.dialogue{background:#dce8ef;color:#496c7a}
   .memory-item .echo-line{color:#4e796d;margin-top:4px}
   .memory-actions{display:flex;gap:6px;margin-top:7px}.memory-actions button{border:0;border-radius:999px;background:rgba(105,88,65,.09);color:#806b53;padding:4px 8px;font-family:inherit;font-size:10px;cursor:pointer}.memory-actions button.danger{color:#9a655d}.memory-editor{display:grid;gap:7px}.memory-editor textarea{width:100%;min-height:72px;box-sizing:border-box;border:1px solid rgba(91,70,48,.18);border-radius:8px;background:rgba(255,255,255,.72);color:#4a3b2b;padding:8px;font-family:inherit;font-size:12px;line-height:1.6;resize:vertical}.memory-editor label{font-size:10px;color:#927d64}
+  .history-open-mobile{display:none}
   @media(max-width:760px){
     body{padding-bottom:var(--mobile-nav-h,62px)}.back{display:none}.hollow-stage{height:calc(100dvh - var(--mobile-nav-h,62px));padding:12px}.hollow-stage:before{background-image:linear-gradient(180deg,rgba(218,235,237,.06),rgba(38,65,60,.23)),url("../assets/estate/heart_hollow_mobile.webp");background-position:center center}
     .talk-btn{bottom:16%}.talk-status{bottom:25%}.tree-reply{bottom:31%;width:88vw;font-size:14px}.tree-reply.dialogue{font-size:13px}.hollow-mode{bottom:4%}.quiet-type{right:12px;bottom:12px}.quiet-type[open]{left:12px;right:12px;bottom:12px}.quiet-type[open] summary{margin-left:auto;width:max-content}.composer{width:100%;margin-top:7px;padding:11px}.composer textarea{min-height:74px;max-height:150px;font-size:16px}.composer button{font-size:12px}
+    .history-open-mobile{display:inline-flex;position:absolute;z-index:7;right:12px;top:max(12px,env(safe-area-inset-top));align-items:center;justify-content:center;border:1px solid rgba(255,255,255,.28);border-radius:8px;background:rgba(40,70,64,.72);color:#fff;padding:8px 11px;font:600 12px/1.2 inherit;backdrop-filter:blur(8px)}
     .history-wrap{position:fixed;left:0;right:0;top:0;bottom:var(--mobile-nav-h,62px);height:auto;border-radius:0;grid-template-columns:1fr;grid-template-rows:minmax(220px,56%) minmax(0,44%)}.buried-wrap{max-height:none;border-right:0;border-bottom:1px solid rgba(74,59,43,.14);padding:18px 14px}.buried-thumb{height:min(34vh,280px)}.history-main{padding:14px;overflow:auto}.history-close{position:fixed;top:max(10px,env(safe-area-inset-top));right:10px}.live-transcript{top:32%;width:86vw;font-size:15px}
   }
 </style>
@@ -130,6 +132,7 @@
 <a class="back" href="../index.html">← 回小院</a>
 <main class="hollow-stage" id="hollow-stage">
 <button class="grass-secret" aria-label="草坪" onclick="tapGrass()"></button>
+<button class="history-open-mobile" type="button" onclick="openHistory()">打开草堆</button>
 <button class="talk-btn" onclick="startVoice()" aria-label="倾诉" title="倾诉">
   <span class="voice-wave"></span>
   <span class="voice-icon"><span class="voice-stem"></span></span>
@@ -237,16 +240,19 @@ function renderBuriedMedia(){
   if(!box) return;
   const items = JSON.parse(localStorage.getItem('cozy_hollow_buried_media') || '[]');
   box.innerHTML = items.length ? items.slice(0,8).map(item=>{
-    const status=String(item.status||'pending');
+    const legacyLocalImage=/assets\/generated\//.test(String(item.file||''));
+    const usableFile=item.file&&!legacyLocalImage;
+    const status=legacyLocalImage?'legacy_missing':String(item.status||'pending');
     const error=String(item.last_error||item.error||'').slice(0,180);
-    const label=status==='failed'?'生成失败':status==='generating'?'正在生成':status==='queued_for_night'?'等待夜间生成':'等待生成';
-    const thumb=item.file
-      ? '<div class="buried-thumb" style="background-image:url(\'../'+escapeHtml(item.file)+'\')"></div>'
+    const label=status==='legacy_missing'?'旧图片没有上传云端':status==='failed'?'生成失败':status==='generating'?'正在生成':status==='queued_for_night'?'等待生成':'等待生成';
+    const mediaSrc=String(item.file||'').startsWith('/')?String(item.file):'../'+String(item.file||'');
+    const thumb=usableFile
+      ? '<div class="buried-thumb" style="background-image:url(\''+escapeHtml(mediaSrc)+'\')"></div>'
       : '<div class="buried-thumb '+(status==='failed'?'status-failed':'status-waiting')+'"><span>'+label+'</span>'+(status==='failed'?'<small>'+escapeHtml(error||'图片接口没有返回可用结果。')+'</small>':'')+'</div>';
     const editing=window.editingBuriedId===item.id;
     const copy=editing
       ? '<div class="buried-editor"><input id="buried-edit-title" maxlength="40" aria-label="影像标题" value="'+escapeHtml(item.title||'')+'"><textarea id="buried-edit-summary" maxlength="600" aria-label="影像文字">'+escapeHtml(item.summary||'')+'</textarea><div class="buried-actions"><button onclick="saveBuriedText(\''+escapeHtml(item.id)+'\')">保存</button><button onclick="cancelBuriedEdit()">取消</button></div></div>'
-      : '<div><h3>'+escapeHtml(item.title||'未命名影像')+'</h3><p>'+escapeHtml(item.summary||'这张影像还没有文字。')+'</p><div class="buried-actions">'+(item.file?'':'<button onclick="chooseBuriedPhoto(\''+escapeHtml(item.id)+'\')">补一张照片</button>')+'<button onclick="editBuriedText(\''+escapeHtml(item.id)+'\')">编辑文字</button>'+(item.summary?'<button onclick="clearBuriedText(\''+escapeHtml(item.id)+'\')">删除</button>':'')+'<button class="danger" onclick="deleteBuriedItem(\''+escapeHtml(item.id)+'\')">删除</button></div></div>';
+      : '<div><h3>'+escapeHtml(item.title||'未命名影像')+'</h3><p>'+escapeHtml(item.summary||'这张影像还没有文字。')+'</p><div class="buried-actions">'+(usableFile?'':'<button '+(status==='generating'?'disabled':'')+' onclick="generateBuriedImage(\''+escapeHtml(item.id)+'\')">'+(status==='generating'?'生成中…':status==='failed'||status==='legacy_missing'?'重新生成':'生成影像')+'</button><button onclick="chooseBuriedPhoto(\''+escapeHtml(item.id)+'\')">上传照片</button>')+'<button onclick="editBuriedText(\''+escapeHtml(item.id)+'\')">编辑文字</button>'+(item.summary?'<button onclick="clearBuriedText(\''+escapeHtml(item.id)+'\')">删除文字</button>':'')+'<button class="danger" onclick="deleteBuriedItem(\''+escapeHtml(item.id)+'\')">删除</button></div></div>';
     return '<article class="buried-card">'+thumb+copy+'</article>';
   }).join('') : '<p style="font-size:12px;color:#8b765d;line-height:1.6">还没有需要留下的影像。阿栗每天最多挑一段真正具体的内容；如果没有，就不会生成。</p>';
 }
@@ -444,6 +450,19 @@ async function uploadBuriedPhoto(file){
     renderBuriedMedia();showStatus('照片埋好了');
   }catch(error){showStatus('没有埋好：'+error.message);}
 }
+async function generateBuriedImage(id){
+  const items=buriedItems(),item=items.find(entry=>entry.id===id);if(!item||item.status==='generating')return;
+  item.status='generating';delete item.error;saveBuriedItems(items);renderBuriedMedia();showStatus('正在生成草堆影像');
+  const prompt='二维绘本插画，安静温暖的树洞回忆场景，不出现文字，不画清晰真人面孔，保留自然光影和生活细节。回忆主题：'+String(item.summary||item.title||'一段被认真记住的片刻').slice(0,500);
+  try{
+    const data=await CozyButler.api('/api/media/generate',{kind:'image',provider:'seedream',target:'tree_hollow',replace_id:id,title:item.title||'一张记忆影像',note:item.summary||'',prompt},120000);
+    const serverItems=data?.local_state?.values?.cozy_hollow_buried_media;
+    if(Array.isArray(serverItems))localStorage.setItem('cozy_hollow_buried_media',JSON.stringify(serverItems));
+    await syncBuriedMediaState();renderBuriedMedia();showStatus('影像已经放进草堆');
+  }catch(error){
+    const current=buriedItems(),failed=current.find(entry=>entry.id===id);if(failed){failed.status='failed';failed.error=String(error.message||error).slice(0,180);saveBuriedItems(current);}renderBuriedMedia();showStatus('生成失败：'+String(error.message||error).slice(0,80));
+  }
+}
 
 let voiceController = null;
 function setTreeVoiceState(state,message){
@@ -494,6 +513,7 @@ function tapGrass(){
   }
   grassTimer = setTimeout(()=>{ grassCount = 0; }, 1600);
 }
+function openHistory(){document.getElementById('hollow-stage').classList.add('history-unlocked');syncBuriedMediaState();}
 function closeHistory(){document.getElementById('hollow-stage').classList.remove('history-unlocked');grassCount=0;}
 window.addEventListener('cozy:state-synced',load);
 const buriedSyncTimer=setInterval(syncBuriedMediaState,30000);

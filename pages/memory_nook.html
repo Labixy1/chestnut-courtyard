@@ -189,9 +189,9 @@ function renderMemoryNook(){
   const profile=memory.profile||{};
   const innerProfile=memory.inner_profile||{};
   const sections=profile.sections||[];
-  document.getElementById('profile-sections').innerHTML=sections.length?sections.map(section=>'<section class="profile-section"><h2>'+esc(section.title)+'</h2><p>'+esc(section.text)+'</p></section>').join(''):'<section class="profile-section"><p>'+esc(profile.summary||'阿栗还没有足够确定的记忆。')+'</p></section>';
+  document.getElementById('profile-sections').innerHTML='<section class="profile-section profile-summary"><h2>综合总结</h2><p>'+esc(profile.summary||'阿栗还没有足够确定的记忆。')+'</p></section>'+sections.map(section=>'<section class="profile-section"><h2>'+esc(section.title)+'</h2><p>'+esc(section.text)+'</p></section>').join('');
   const innerSections=innerProfile.sections||[];
-  document.getElementById('inner-profile-sections').innerHTML=innerSections.length?innerSections.map(section=>'<section class="profile-section"><h2>'+esc(section.title)+'</h2><p>'+esc(section.text)+'</p></section>').join(''):'<section class="profile-section"><p>'+esc(innerProfile.summary||'树洞里还没有足够内容形成内在轨迹。')+'</p></section>';
+  document.getElementById('inner-profile-sections').innerHTML='<section class="profile-section profile-summary"><h2>内在轨迹总结</h2><p>'+esc(innerProfile.summary||'树洞里还没有足够内容形成内在轨迹。')+'</p></section>'+innerSections.map(section=>'<section class="profile-section"><h2>'+esc(section.title)+'</h2><p>'+esc(section.text)+'</p></section>').join('');
   document.getElementById('inner-profile-meta').textContent='根据 '+(innerProfile.source_count||0)+' 条树洞记录提炼 · 不展示原话 · 单次倾诉不会定义你';
   const profileSource=profile.generator==='ai_distillation'?'AI 已整理':'规则档案';
   document.getElementById('profile-meta').textContent='根据 '+activeTotal+' 条已确认记忆整理 · '+profileSource+' · '+String(profile.generated_at||'').slice(0,16).replace('T',' ');
@@ -229,7 +229,7 @@ function renderDistillation(){
   const undo=document.getElementById('distill-undo');undo.style.display=state.recent_runs?.length?'inline-block':'none';
   const labels={completed:'上次整理已完成',failed:'上次整理失败',queued:'等待开始整理',running:'阿栗正在整理记忆档案',restored:'已恢复整理前档案',idle:'尚未进行 AI 整理'};
   const time=String(state.last_success||state.last_run||'').slice(0,16).replace('T',' ');const provider=state.provider?' · '+state.provider:'';
-  document.getElementById('distill-status').textContent=(labels[state.status]||'等待自动整理')+(time?' · '+time:'')+provider+(state.last_error?' · '+state.last_error:'');
+  document.getElementById('distill-status').textContent='每两天 04:00 自动更新 · '+(labels[state.status]||'等待自动整理')+(time?' · '+time:'')+provider+(state.last_error?' · '+state.last_error:'');
 }
 async function runDistillation(){
   const button=document.getElementById('distill-button');button.disabled=true;button.textContent='整理中…';document.getElementById('distill-status').textContent='阿栗正在整理记忆档案，你可以离开这个页面。';

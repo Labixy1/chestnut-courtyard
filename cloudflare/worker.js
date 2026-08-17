@@ -2200,11 +2200,10 @@ async function generateImage(env, input) {
   try {
     let payload;
     if (provider === "seedream" || provider === "ark") {
-      const outputFormat = input.output_format || env.COZY_SEEDREAM_DEFAULT_FORMAT || "jpeg";
       payload = await providerRequest(env, "ark", "/images/generations", {
         model: input.model || env.COZY_SEEDREAM_MODEL || "doubao-seedream-4-0-250828",
         prompt: task.prompt, image: input.images || undefined, size: input.size || env.COZY_SEEDREAM_DEFAULT_SIZE || "1K",
-        output_format: outputFormat, response_format: "url", watermark: Boolean(input.watermark)
+        response_format: "url", watermark: Boolean(input.watermark)
       });
     } else if (provider === "openai" || provider === "gpt-image") {
       payload = await providerRequest(env, "openai", "/images/generations", {
@@ -2246,6 +2245,26 @@ async function generateImage(env, input) {
     await saveGenerationTask(env, {...task, status: "failed", error: error.message});
     throw error;
   }
+}
+
+async function attachGeneratedTreeHollow(env, task, input) {
+  const output = (task.outputs || [])[0];
+  if (!output?.url) throw new Error("图片模型没有返回可保存的影像");
+  const replaceId = String(input.replace_id || "").trim();
+  if (!replaceId) throw new Error("没有找到要替换的草堆记录");
+  const item = {
+    id: `media_${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`,
+    file: output.url,
+    storage_key: output.key || "",
+    title: String(input.title || "一张记忆影像").replace(/[\r\n]+/g, " ").trim().slice(0, 100),
+    summary: String(input.note || "").replace(/[\r\n]+/g, " ").trim().slice(0, 600),
+    date: dateInShanghai(), created_at: now(), kind: "image", source: "heart_hollow", status: "ready",
+    generation_task_id: task.id, provider: task.provider
+  };
+  const localState = await mergeLocalState(env, {changes: {cozy_hollow_buried_media: {
+    type: "array", upserts: [item], deleted: [`id:${replaceId}`]
+  }}});
+  return {item, local_state: localState};
 }
 
 async function createVideo(env, input) {
@@ -2877,7 +2896,9 @@ async function transcribeVoice(request, env) {
 
 async function distillMemory(env) {
   const memory = await memoryState(env, false);
-  const cards = memory.cards.filter(item => item.status === "active" && item.sensitivity !== "sealed").slice(0, 120);
+  const cards = memory.cards.filter(item => item.status === "active" && item.sensitivity !== "sealed")
+    .filter(item => !/希望阿栗帮忙做一件事|帮忙做点事|交给阿栗处理|一条行为记录/.test(String(item.statement || "")))
+    .slice(0, 120);
   if (!cards.length) throw new Error("还没有经过确认或重复验证的记忆可整理");
   const previousStatus = await readState(env, "memory:distillation", {status: "idle", recent_runs: []});
   const runId = `distill_${Date.now()}_${crypto.randomUUID().slice(0, 8)}`;
@@ -2886,11 +2907,17 @@ async function distillMemory(env) {
   const status = {status: "running", run_id: runId, last_run: now(), provider: textProvider(env), recent_runs: previousStatus.recent_runs || []};
   await writeState(env, "memory:distillation", status);
   try {
-    let result = await callText(env, `请增量更新一份给私人 AI 助手使用的中文记忆档案。只能使用下列 status=active 的卡片；候选线索和树洞封存原文没有提供给你，也不得推测。记忆只描述稳定的学习偏好、习惯、长期目标和关注领域，不得把单次行为写成人格结论。返回 JSON：{"summary":"...","sections":[{"title":"偏好与合作方式","text":"...","source_card_ids":["card id"]},{"title":"长期目标与成长方向","text":"...","source_card_ids":["card id"]},{"title":"知识关注","text":"...","source_card_ids":["card id"]}]}。每个非空 section 必须引用至少一个输入 card id。\n旧档案：${JSON.stringify(memory.profile)}\n已确认卡片：${JSON.stringify(cards)}`, 2000, {temperature: 0.1});
+    let result = await callText(env, `你是私人 AI 助手的记忆编辑，不是分类器。请把已确认卡片综合成一份简洁、可执行、可核验的中文档案。
+只能使用下列 status=active 的卡片；候选线索和树洞封存原文没有提供给你，也不得推测。单次行为不能上升为人格结论；卡片冲突时写明“目前证据不一致”，不要强行合并。
+全文称呼“主人”，禁止使用“该用户”“他们”“用户画像”。
+先写 summary：80到220字，必须真正概括主人当前稳定的合作方式、成长主线和知识关注，并指出这些记忆应如何帮助回答；禁止只写“共有多少条记忆”或逐条罗列。
+再写 sections：保留2到4个有信息密度的主题，只能从“合作与学习方式、成长与长期目标、知识与产品关注、生活与节奏”中选择有证据的主题。每个主题综合相关卡片，说明稳定结论、适用边界和对助手的具体指导，不要把卡片换个标题原样堆叠。不得生成“使用原则”“隐私规则”“系统边界”等主题，这些不是主人的个人记忆。
+只返回 JSON：{"summary":"综合总结","sections":[{"title":"主题名","text":"综合结论、边界与使用方式","source_card_ids":["card id"]}]}。每个 section 必须引用至少一个输入 card id。
+已确认卡片：${JSON.stringify(cards)}`, 2400, {temperature: 0.1, preferredProviders:["deepseek","openai","workers-ai"]});
     let parsed;
     try { parsed = extractJson(result.text); }
     catch (_error) {
-      result = await callText(env, `只修复下面输出的 JSON 语法和缺失闭合，不新增事实，不输出 Markdown：\n${String(result.text).slice(0, 14000)}`, 1800, {temperature: 0});
+      result = await callText(env, `只修复下面输出的 JSON 语法和缺失闭合，不新增事实，不输出 Markdown：\n${String(result.text).slice(0, 14000)}`, 1800, {temperature: 0, preferredProviders:["deepseek","openai","workers-ai"]});
       parsed = extractJson(result.text);
     }
     const allowedIds = new Set(cards.map(item => item.id));
@@ -2898,16 +2925,42 @@ async function distillMemory(env) {
       title: String(item.title || "记忆").slice(0, 40), text: String(item.text || "").slice(0, 1800),
       source_card_ids: (Array.isArray(item.source_card_ids) ? item.source_card_ids : []).map(String).filter(id => allowedIds.has(id))
     })).filter(item => item.text && item.source_card_ids.length);
-    if (!sections.length || String(parsed.summary || "").trim().length < 8) throw new Error("AI 整理结果缺少可核验的记忆卡片引用，原档案已保留");
+    if (sections.length < 2 || String(parsed.summary || "").trim().length < 40) throw new Error("AI 整理结果没有形成合格的综合总结或可核验主题，原档案已保留");
     const sourceCardIds = [...new Set(sections.flatMap(item => item.source_card_ids))];
-    const profile = {summary: String(parsed.summary || "").slice(0, 800), sections, source_card_ids: sourceCardIds, source_count: sourceCardIds.length, generator: "ai_distillation", generated_at: now()};
+    const personalLanguage = value => String(value || "").replace(/该用户|这位用户|他们/g, "主人").replace(/用户画像/g, "记忆档案");
+    const profile = {summary: personalLanguage(parsed.summary).slice(0, 800), sections: sections.map(section => ({...section, text: personalLanguage(section.text)})), source_card_ids: sourceCardIds, source_count: sourceCardIds.length, generator: "ai_distillation", generated_at: now()};
     await writeState(env, "memory:profile", profile);
     const run = {id: runId, completed_at: now(), provider: result.provider, snapshot_key: snapshotKey, source_card_ids: sourceCardIds};
-    await writeState(env, "memory:distillation", {...status, status: "completed", last_success: now(), last_error: "", provider: result.provider, recent_runs: [run, ...(status.recent_runs || []).filter(item => item.id !== runId)].slice(0, 12)});
+    await writeState(env, "memory:distillation", {...status, status: "completed", last_success: now(), last_error: "", provider: result.provider, schedule: "every_2_days_04_00_asia_shanghai", recent_runs: [run, ...(status.recent_runs || []).filter(item => item.id !== runId)].slice(0, 12)});
     return profile;
   } catch (error) {
     await writeState(env, "memory:distillation", {...status, status: "failed", last_error: String(error.message || error).slice(0, 500)});
     throw error;
+  }
+}
+
+export function memoryDistillationDue(status, at = Date.now()) {
+  if (["queued", "running"].includes(String(status?.status || ""))) return false;
+  const previous = Date.parse(status?.last_auto_run || status?.last_auto_success || "");
+  return !Number.isFinite(previous) || Number(at) - previous >= 47 * 60 * 60 * 1000;
+}
+
+async function runScheduledMemoryDistillation(env, scheduledTime) {
+  const previous = await readState(env, "memory:distillation", {status: "idle", recent_runs: []});
+  if (!memoryDistillationDue(previous, scheduledTime || Date.now())) return {status: "skipped", reason: "not_due"};
+  try {
+    await writeState(env, "memory:distillation", {...previous, last_auto_run: now(), schedule: "every_2_days_04_00_asia_shanghai"});
+    const profile = await distillMemory(env);
+    const latest = await readState(env, "memory:distillation", previous);
+    await writeState(env, "memory:distillation", {...latest, last_auto_success: now(), schedule: "every_2_days_04_00_asia_shanghai"});
+    return {status: "completed", profile};
+  }
+  catch (error) {
+    if (/还没有经过确认或重复验证/.test(String(error?.message || error))) {
+      await writeState(env, "memory:distillation", {...previous, status: "idle", last_run: now(), last_error: "暂无已确认记忆，本次未整理", schedule: "every_2_days_04_00_asia_shanghai"});
+      return {status: "skipped", reason: "no_active_memory"};
+    }
+    return {status: "failed", error: String(error?.message || error)};
   }
 }
 
@@ -3113,7 +3166,9 @@ export async function handleRequest(request, env, ctx = {}) {
     if (url.pathname === "/api/voice/start" || url.pathname === "/api/voice/stop") return json({ok: false, error: "云端使用浏览器语音识别，不启用本机语音服务"}, 501);
     if (url.pathname === "/api/media/generate") {
       const task = input.kind === "video" ? await createVideo(env, input) : await generateImage(env, input);
-      return json({ok: true, task}, input.kind === "video" ? 202 : 200);
+      const attached = input.kind !== "video" && String(input.target || "") === "tree_hollow"
+        ? await attachGeneratedTreeHollow(env, task, input) : {};
+      return json({ok: true, task, ...attached}, input.kind === "video" ? 202 : 200);
     }
     if (url.pathname === "/api/media/task/refresh") return json({ok: true, task: await refreshVideo(env, input.id)});
     return json({ok: false, error: "接口不存在"}, 404);
@@ -3122,7 +3177,12 @@ export async function handleRequest(request, env, ctx = {}) {
   }
 }
 
-export async function scheduled(_event, env, ctx) {
+export async function scheduled(event, env, ctx) {
+  if (String(event?.cron || "") === "0 20 * * *") {
+    const memoryJob = runScheduledMemoryDistillation(env, Number(event?.scheduledTime) || Date.now());
+    if (ctx?.waitUntil) ctx.waitUntil(memoryJob); else await memoryJob;
+    return;
+  }
   const job = (async () => {
     const status = {last_check: now(), jobs: {weather: {status: "cached_for_two_hours"}, memory: {status: "available"}, notice_report: {status: "running", message: "阿栗正在巡逻近期资讯"}}};
     await writeNoticeStatus(env,status);
