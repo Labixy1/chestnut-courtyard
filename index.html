@@ -1104,7 +1104,7 @@ async function openBlackboard(){
   );
   const saved = JSON.parse(localStorage.getItem('cozy_blackboard_answers') || '[]');
   const requiresFreshQuestion=location.protocol!=='file:';
-  window.BB_STATE = {today, history, questionData:getBlackboardQuestionData(today),locked:false,submitting:false,refreshing:false,loading:requiresFreshQuestion,loadError:''};
+  window.BB_STATE = {today, history, questionData:getBlackboardQuestionData(today),locked:false,submitting:false,regrading:false,regradeStartedAt:'',helperPending:false,helperQuestion:'',helperReply:'',refreshing:false,loading:requiresFreshQuestion,loadError:'',mode:'question'};
   const initialSaved = findSavedBlackboardAnswer(saved,window.BB_STATE.questionData);
   if(initialSaved){window.BB_STATE.answer=initialSaved.answer;window.BB_STATE.review=initialSaved.review;window.BB_STATE.nextQuestion=initialSaved.next_question||'';window.BB_STATE.nextQuestionReference=initialSaved.next_question_reference||[];window.BB_STATE.nextQuestionIdealAnswer=initialSaved.next_question_ideal_answer||'';window.BB_STATE.questionData.supplementalMaterials=initialSaved.supplementalMaterials||[];window.BB_STATE.locked=true;}
   showBlackboardMode('question');
@@ -1194,6 +1194,7 @@ async function refreshBlackboardQuestion(){
 
 function showBlackboardMode(mode){
   const s = window.BB_STATE || {};
+  s.mode=mode;
   const today = s.today || {title:'每日产品题', tags:[]};
   const q = s.questionData || getBlackboardQuestionData(today);
   document.querySelectorAll('.bb-actions button').forEach(b=>b.classList.remove('active'));
@@ -1208,6 +1209,10 @@ function showBlackboardMode(mode){
   }else if(mode === 'result'){
     if(!s.answer){
       content.innerHTML = '<section class="bb-question"><div class="eyebrow">批改结果</div><h3>先提交一次答案</h3><p>提交答案后，在这里查看批改与参考答案。</p><button class="bb-submit" onclick="showBlackboardMode(\'question\')">去答题</button></section>';
+      return;
+    }
+    if(s.submitting){
+      content.innerHTML='<section class="bb-question"><div class="eyebrow">批改结果</div><h3>阿栗正在批改这道题</h3><p class="bb-note" role="status">评分结果还没有返回，当前仍在等待中。可以切换栏目，回来后这里会继续显示进度。</p><button class="bb-submit" disabled aria-busy="true">批改中…</button></section>';
       return;
     }
     content.innerHTML = renderBlackboardResult(q, s.answer, s.review || buildBbReview(s.answer, q));
@@ -1326,10 +1331,15 @@ function renderBlackboardCoaching(value){
   return '<section class="bb-plain-coaching"><h5>大白话学会这题</h5><h6>这题到底要你答什么</h6><p>'+escapeNotice(coaching.whatTheQuestionWants)+'</p><h6>面试时按这个顺序答</h6><ol>'+coaching.answerSteps.map(item=>'<li>'+escapeNotice(item)+'</li>').join('')+'</ol><h6>真正要记住的点</h6><ul>'+coaching.remember.map(item=>'<li>'+escapeNotice(item)+'</li>').join('')+'</ul><p class="bb-memory-hook">答题口诀：'+escapeNotice(coaching.memoryHook)+'</p></section>';
 }
 
+function blackboardRegradeButton(){
+  const busy=Boolean(window.BB_STATE&&window.BB_STATE.regrading);
+  return '<button id="bb-regrade" class="bb-submit" onclick="regradeBlackboardAnswer()"'+(busy?' disabled aria-busy="true"':'')+'>'+(busy?'核分中…':'重新核分')+'</button>';
+}
+
 function renderBlackboardEvidenceReview(review,allowRegrade){
   review=review&&typeof review==='object'?review:{};
-  if(review.reviewUnavailable)return '<article class="bb-review-card"><h4>批改没有完成</h4><div class="bb-review-error">'+escapeNotice(review.unavailableMessage||'这次没有拿到可核对的批改结果，原答案已经保留。')+'</div>'+(allowRegrade?'<button id="bb-regrade" class="bb-submit" onclick="regradeBlackboardAnswer()">重新核分</button>':'')+'</article>';
-  if(Number(review.reviewVersion||0)<2)return '<article class="bb-review-card"><h4>旧版批改不再采用</h4><div class="bb-review-error">这份结果没有逐条引用原答案，不能证明评分依据。'+(allowRegrade?'请重新核分生成新版证据对照。':'可以再次作答生成新版证据对照。')+'</div>'+(allowRegrade?'<button id="bb-regrade" class="bb-submit" onclick="regradeBlackboardAnswer()">重新核分</button>':'')+'</article>';
+  if(review.reviewUnavailable)return '<article class="bb-review-card"><h4>批改没有完成</h4><div class="bb-review-error">'+escapeNotice(review.unavailableMessage||'这次没有拿到可核对的批改结果，原答案已经保留。')+'</div>'+(allowRegrade?blackboardRegradeButton():'')+'</article>';
+  if(Number(review.reviewVersion||0)<2)return '<article class="bb-review-card"><h4>旧版批改不再采用</h4><div class="bb-review-error">这份结果没有逐条引用原答案，不能证明评分依据。'+(allowRegrade?'请重新核分生成新版证据对照。':'可以再次作答生成新版证据对照。')+'</div>'+(allowRegrade?blackboardRegradeButton():'')+'</article>';
   const scores=Array.isArray(review.scoreBreakdown)?review.scoreBreakdown:[];
   const bandText={excellent:'准确充分',solid:'基本扎实',developing:'部分成立',weak:'较为薄弱',absent:'尚未形成'};
   const scoreGrid=scores.length?'<div class="bb-score-grid">'+scores.map(item=>{const band=item.band||blackboardScoreBand(item.awarded,item.max);return'<section class="bb-score-item"><b><span class="bb-score-heading"><span>'+escapeNotice(item.criterion||'评分项')+'</span><small class="bb-score-band '+escapeNotice(band)+'">'+escapeNotice(bandText[band]||'待判断')+'</small></span><span>'+escapeNotice(String(item.awarded??0))+' / '+escapeNotice(String(item.max??25))+'</span></b>'+(item.evidence?'<blockquote>“'+escapeNotice(item.evidence)+'”</blockquote>':'')+'<p><strong>评分判断</strong>'+escapeNotice(item.reason||'')+'</p>'+(item.teaching?'<p class="bb-score-teaching"><strong>怎样提高</strong>'+escapeNotice(item.teaching)+'</p>':'')+'</section>'}).join('')+'</div>':'';
@@ -1344,7 +1354,7 @@ function renderBlackboardEvidenceReview(review,allowRegrade){
   const priority=review.priorityFix?'<div class="bb-priority-fix"><strong>下一步先练这一件事：</strong>'+escapeNotice(review.priorityFix)+'</div>':'';
   const policy=review.gradingPolicy?'<p class="bb-grading-policy">'+escapeNotice(review.gradingPolicy)+'</p>':'';
   const coaching=renderBlackboardCoaching(review.plainLanguageCoaching||review.plain_language_coaching);
-  return '<article class="bb-review-card bb-tutoring-review"><h4>得分与学习建议</h4><p class="bb-score-summary">'+escapeNotice(review.score||review.scoreSummary||'')+'</p>'+policy+coaching+scoreGrid+strengths+personalizedAdvice+correction+priority+evidence+(allowRegrade?'<button id="bb-regrade" class="bb-submit" onclick="regradeBlackboardAnswer()">重新核分</button>':'')+'</article>';
+  return '<article class="bb-review-card bb-tutoring-review"><h4>得分与学习建议</h4><p class="bb-score-summary">'+escapeNotice(review.score||review.scoreSummary||'')+'</p>'+policy+coaching+scoreGrid+strengths+personalizedAdvice+correction+priority+evidence+(allowRegrade?blackboardRegradeButton():'')+'</article>';
 }
 
 function renderBlackboardHistoryAttempt(attempt,question,index,total){
@@ -1406,7 +1416,8 @@ async function submitBbAnswer(){
   const note = document.getElementById('bb-answer-note');
   if(!input || !note) return;
   window.BB_STATE = window.BB_STATE || {};
-  if(window.BB_STATE.locked||window.BB_STATE.submitting){note.textContent='今日答案已经提交并锁定。';return;}
+  if(window.BB_STATE.submitting){note.textContent='阿栗还在批改这道题，请等待结果返回。';return;}
+  if(window.BB_STATE.locked){note.textContent='今日答案已经提交并锁定。';return;}
   const value = input.value.trim();
   if(!value){
     note.textContent = '先写一点答案，哪怕只有三句话也可以。';
@@ -1435,7 +1446,7 @@ async function submitBbAnswer(){
   if(!window.BB_STATE.redoMode&&duplicateIndex>=0)saved.splice(duplicateIndex,1);
   saved.unshift(record);
   localStorage.setItem('cozy_blackboard_answers', JSON.stringify(saved.slice(0,30)));
-  if(window.CozyButler)await CozyButler.persistLocal(['cozy_blackboard_answers']);
+  if(window.CozyButler)await CozyButler.persistLocal(['cozy_blackboard_answers']).catch(()=>null);
   if(window.CozyMemory){
     CozyMemory.add({
       source:'blackboard',
@@ -1449,7 +1460,7 @@ async function submitBbAnswer(){
   window.BB_STATE.locked=true;
   window.BB_STATE.redoMode=false;
   window.BB_STATE.submitting=false;
-  showBlackboardMode('result');
+  showBlackboardMode(window.BB_STATE.mode||'result');
 }
 
 function normalizeBlackboardScores(items,q){
@@ -1505,18 +1516,22 @@ function renderPolishedAnswer(value){
 }
 
 async function regradeBlackboardAnswer(){
-  const state=window.BB_STATE,q=state?.questionData,button=document.getElementById('bb-regrade');if(!state?.answer||!q||button?.disabled)return;
-  button.disabled=true;button.textContent='核分中…';
+  const state=window.BB_STATE,q=state?.questionData,answer=state?.answer;if(!answer||!q||state.regrading)return;
+  state.regrading=true;state.regradeStartedAt=new Date().toISOString();
+  showBlackboardMode(state.mode||'result');
   try{
     await ensureBlackboardIdealAnswer(q);
-    const data=await CozyButler.api('/api/room',{room:'blackboard',message:state.answer,context:blackboardGradeContext(q)}),result=data?.result||{};
-    state.review=normalizeBlackboardReview(result,state.answer,q);
+    const data=await CozyButler.api('/api/room',{room:'blackboard',message:answer,context:blackboardGradeContext(q)}),result=data?.result||{};
+    state.review=normalizeBlackboardReview(result,answer,q);
     const practice=normalizeNextBlackboardPractice(result);
     state.nextQuestion=practice.question;state.nextQuestionReference=practice.reference;state.nextQuestionIdealAnswer=practice.idealAnswer;
     const saved=JSON.parse(localStorage.getItem('cozy_blackboard_answers')||'[]'),index=saved.findIndex(item=>blackboardQuestionKey(item)===blackboardQuestionKey(q));
     if(index>=0){saved[index]={...saved[index],review:state.review,standard:q.standard,idealAnswer:String(q.idealAnswer||''),idealAnswerVersion:Number(q.idealAnswerVersion||0),rubric:q.rubric||defaultBlackboardRubric(q.standard,q.question),rubricVersion:Number(q.rubricVersion||3),taskType:q.taskType||blackboardTaskProfile(q.question).type,taskScoringFocus:q.taskScoringFocus||blackboardTaskProfile(q.question).focus,referenceFrozenAt:q.referenceFrozenAt||'',questionFingerprint:q.questionFingerprint||blackboardQuestionFingerprint(q),answerIndependent:q.answerIndependent!==false,materials:q.materials||[],supplementalMaterials:q.supplementalMaterials||[],next_question:state.nextQuestion,next_question_reference:state.nextQuestionReference,next_question_ideal_answer:state.nextQuestionIdealAnswer};localStorage.setItem('cozy_blackboard_answers',JSON.stringify(saved));window.CozyButler?.persistLocal(['cozy_blackboard_answers']);}
-    showBlackboardMode('result');
-  }catch(error){state.review=buildBbReview(state.answer,q,error.message);showBlackboardMode('result');}
+  }catch(error){state.review=buildBbReview(answer,q,error.message);}
+  finally{
+    state.regrading=false;state.regradeStartedAt='';
+    showBlackboardMode(state.mode||'result');
+  }
 }
 
 function blackboardTaskProfile(question=''){
@@ -1648,8 +1663,8 @@ function renderBlackboardQuestion(q, answer){
   return '<section class="bb-question"><div class="bb-question-head"><div class="eyebrow">今日题目 · '+escapeNotice(q.date||localCalendarDate())+'</div><div class="bb-question-tools"><button type="button" class="bb-star '+(starred?'active':'')+'" onclick="toggleCurrentBlackboardStar()" aria-label="'+(starred?'取消星标':'星标题目')+'" aria-pressed="'+starred+'" title="'+(starred?'取消星标':'星标题目')+'">★</button><button class="bb-refresh-question" onclick="refreshBlackboardQuestion()" '+(refreshing?'disabled':'')+' title="换一道新题" aria-label="换一道新题">'+(refreshing?'…':'↻')+'</button></div></div>'+
     '<h3>'+escapeNotice(q.question)+'</h3>'+renderBlackboardCategoryMeta(q)+'<div class="bb-pills">'+pills+related+'</div>'+
     (q.seedHint ? '<p>'+escapeNotice(q.seedHint)+'</p>' : '')+materials+renderBlackboardHelper()+
-    '<textarea id="bb-answer-input" class="bb-answer-box" placeholder="写你的答案。可以按 1、2、3 列，也可以先用几句话说清楚。"'+(window.BB_STATE&&window.BB_STATE.locked?' disabled':'')+'>'+escapeNotice(answer)+'</textarea>'+
-    '<br><button id="bb-submit-button" class="bb-submit" onclick="submitBbAnswer()"'+(window.BB_STATE&&window.BB_STATE.locked?' disabled':'')+'>'+(window.BB_STATE&&window.BB_STATE.locked?'本题已完成':'提交并批改')+'</button><div class="bb-note" id="bb-answer-note">'+(refreshing?'阿栗正在准备一道不同的新题……':(window.BB_STATE&&window.BB_STATE.locked?'答案已锁定，可在“批改结果”和“历史题目”中查看。':'提交后会说明你哪里想对了、为什么成立，以及下一步怎样答得更好。'))+'</div></section>';
+    '<textarea id="bb-answer-input" class="bb-answer-box" placeholder="写你的答案。可以按 1、2、3 列，也可以先用几句话说清楚。"'+(window.BB_STATE&&(window.BB_STATE.locked||window.BB_STATE.submitting)?' disabled':'')+'>'+escapeNotice(answer)+'</textarea>'+
+    '<br><button id="bb-submit-button" class="bb-submit" onclick="submitBbAnswer()"'+(window.BB_STATE&&(window.BB_STATE.locked||window.BB_STATE.submitting)?' disabled':'')+(window.BB_STATE&&window.BB_STATE.submitting?' aria-busy="true"':'')+'>'+(window.BB_STATE&&window.BB_STATE.submitting?'批改中…':window.BB_STATE&&window.BB_STATE.locked?'本题已完成':'提交并批改')+'</button><div class="bb-note" id="bb-answer-note">'+(window.BB_STATE&&window.BB_STATE.submitting?'阿栗正在批改，结果返回前会一直保持等待状态。':refreshing?'阿栗正在准备一道不同的新题……':(window.BB_STATE&&window.BB_STATE.locked?'答案已锁定，可在“批改结果”和“历史题目”中查看。':'提交后会说明你哪里想对了、为什么成立，以及下一步怎样答得更好。'))+'</div></section>';
 }
 
 function renderBlackboardCategoryMeta(q){
@@ -1666,20 +1681,20 @@ async function openBlackboardRelatedNotice(){
   });
 }
 
-function renderBlackboardHelper(){return '<section class="bb-helper"><div class="bb-helper-head"><span class="bb-helper-avatar"></span><span><strong>题边的阿栗</strong><small>只补背景，不替你作答</small></span></div><div class="bb-helper-chat" id="bb-helper-chat"></div><div class="bb-helper-row"><input id="bb-helper-input" placeholder="例如：openJiuwen 是什么组织？" onkeydown="if(event.key===\'Enter\'){event.preventDefault();askBlackboardHelper()}"><button id="bb-helper-send" onclick="askBlackboardHelper()">问问</button></div></section>';}
+function renderBlackboardHelper(){const state=window.BB_STATE||{},pending=Boolean(state.helperPending),reply=pending?'阿栗正在结合题目资料查清楚……':String(state.helperReply||'');return '<section class="bb-helper"><div class="bb-helper-head"><span class="bb-helper-avatar"></span><span><strong>题边的阿栗</strong><small>只补背景，不替你作答</small></span></div><div class="bb-helper-chat '+(reply?'show':'')+'" id="bb-helper-chat" aria-live="polite" aria-busy="'+pending+'">'+(reply?'<p>'+escapeNotice(reply)+'</p>':'')+'</div><div class="bb-helper-row"><input id="bb-helper-input" value="'+escapeNotice(pending?state.helperQuestion:'')+'" placeholder="例如：openJiuwen 是什么组织？" '+(pending?'disabled':'')+' onkeydown="if(event.key===\'Enter\'){event.preventDefault();askBlackboardHelper()}"><button id="bb-helper-send" onclick="askBlackboardHelper()" '+(pending?'disabled aria-busy="true"':'')+'>'+(pending?'等待回复中…':'问问')+'</button></div></section>';}
 
 async function askBlackboardHelper(){
   const input=document.getElementById('bb-helper-input'),button=document.getElementById('bb-helper-send'),chat=document.getElementById('bb-helper-chat');
-  const question=(input?.value||'').trim(),q=window.BB_STATE?.questionData;if(!question||!q||button?.disabled)return;
-  button.disabled=true;button.textContent='查找中';chat.className='bb-helper-chat show';chat.innerHTML='<p>阿栗正在结合题目资料查清楚……</p>';
+  const state=window.BB_STATE||{},question=(input?.value||'').trim(),q=state.questionData;if(!question||!q||state.helperPending)return;
+  state.helperPending=true;state.helperQuestion=question;state.helperReply='';
+  button.disabled=true;button.textContent='等待回复中…';chat.className='bb-helper-chat show';chat.setAttribute('aria-busy','true');chat.innerHTML='<p>阿栗正在结合题目资料查清楚……</p>';
   try{
     const data=await CozyButler.api('/api/room',{room:'blackboard',message:question,context:{intent:'question_helper',title:q.title,question:q.question,materials:[...(q.materials||[]),...(q.supplementalMaterials||[])]}});
     const result=data?.result||{},reply=result.reply||data?.reply||'暂时没有找到可靠信息。';
-    chat.innerHTML='<p>'+escapeNotice(reply)+'</p>';
+    state.helperReply=reply;
     if(result.material){q.supplementalMaterials=Array.isArray(q.supplementalMaterials)?q.supplementalMaterials:[];let material=String(result.material).trim();if(material&&!/^用户问[:：]/.test(material))material='用户问：'+question+'；阿栗补充：'+material;if(material&&!q.supplementalMaterials.includes(material)){q.supplementalMaterials.push(material);const list=document.getElementById('bb-material-list');if(list)list.insertAdjacentHTML('beforeend','<li class="bb-added-material">'+escapeNotice(material)+'</li>');}}
-    input.value='';
-  }catch(error){chat.innerHTML='<p>这次没有查到：'+escapeNotice(error.message)+'</p>';}
-  finally{button.disabled=false;button.textContent='问问';}
+  }catch(error){state.helperReply='这次没有查到：'+error.message;}
+  finally{state.helperPending=false;state.helperQuestion='';if(state.mode==='question')showBlackboardMode('question');}
 }
 
 function renderBlackboardResult(q, answer, review){

@@ -20,6 +20,9 @@ if (!travel.includes('data-travel-view="records"') || !travel.includes("showMobi
 if (travel.includes('id="trip-place" placeholder=') || travel.includes('id="trip-activity" placeholder=') || travel.includes('id="edit-trip-place" placeholder=') || travel.includes('id="edit-trip-activity" placeholder=')) throw new Error('travel destination and theme fields must not show placeholder hints');
 if (!travel.includes('← 返回旅行') || !travel.includes('.trip-editor-card,.trip-detail-card{width:100%;height:100%')) throw new Error('travel detail and editor must use full-screen page views');
 if (!travel.includes('function removeNewTripPhoto(index)') || !travel.includes('class="new-trip-photo-remove"')) throw new Error('new trip photo previews must support removing individual selections');
+if (!travel.includes('reflectionSaveBusy') || !travel.includes('id="reflection-save-button"') || !travel.includes("saveButton.textContent='保存中…'")) throw new Error('travel reflection save must expose and guard its pending state');
+const heart = fs.readFileSync('pages/heart_hollow.html', 'utf8');
+if (!heart.includes('heartReplyBusy') || !heart.includes('id="heart-send"') || !heart.includes("sendButton.textContent='等待回复中…'")) throw new Error('tree hollow reply must expose and guard its pending state');
 const home = fs.readFileSync('index.html', 'utf8');
 const mobile = fs.readFileSync('core/mobile.js', 'utf8');
 const serviceWorker = fs.readFileSync('sw.js', 'utf8');
@@ -52,6 +55,8 @@ if (!home.includes("loading:requiresFreshQuestion") || !home.includes("/api/blac
 if (!home.includes('手机与云端的连接在批改完成前中断') || !home.includes('模型本次响应超时')) throw new Error('blackboard grading failures must be readable on mobile');
 if (!home.includes("今日题目 · '+escapeNotice(q.date||localCalendarDate())")) throw new Error('blackboard must show the active question date');
 if (!home.includes("setBlackboardHistoryFilter(\\'category\\')") || !home.includes('全部按最近作答时间排列') || !home.includes('function blackboardHistoryTimestamp')) throw new Error('blackboard history must support chronological, category, and starred views');
+if (!home.includes("regrading:false") || !home.includes("if(!answer||!q||state.regrading)return") || !home.includes("busy?'核分中…':'重新核分'")) throw new Error('blackboard regrade state must survive mode rerenders and block duplicate requests');
+if (!home.includes("window.BB_STATE&&window.BB_STATE.submitting?'批改中…'") || !home.includes('state.helperPending') || !home.includes('等待回复中…')) throw new Error('blackboard grading and helper waits must survive mode rerenders');
 if (!home.includes('function blackboardQuestionIsDuplicate') || !home.includes('连续三次都生成了做过或高度相似的题目')) throw new Error('blackboard refresh must reject answered and highly similar questions');
 if (!home.includes('openBlackboardRelatedNotice()') || !home.includes("q.related_notice&&q.related_notice.title")) throw new Error('blackboard related-news action must be conditional');
 if (!home.includes('function noticePublishedLabel(item)') || !home.includes('item.published_at')) throw new Error('notice cards must use concrete publication dates with a weekly fallback');

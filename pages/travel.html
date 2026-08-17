@@ -143,7 +143,7 @@
     <div class="reflection-actions">
       <button class="mic-btn" onclick="startReflectionVoice()" aria-label="语音修改" title="语音修改"><span class="travel-mic-icon"><span class="travel-mic-stem"></span></span></button>
       <button id="reflection-summary-button" onclick="summarizeReflection()">阿栗总结</button>
-      <button onclick="saveReflection()">保存感悟</button>
+      <button id="reflection-save-button" onclick="saveReflection()">保存感悟</button>
     </div>
   </div>
   <div class="reflection-ai" id="reflection-ai"></div>
@@ -317,6 +317,7 @@ function startReflectionVoice(){
   reflectionVoice.toggle();
 }
 let reflectionSummaryBusy=false;
+let reflectionSaveBusy=false;
 async function summarizeReflection(options={}){
   const select = document.getElementById('reflection-trip');
   const textarea = document.getElementById('reflection-text');
@@ -355,9 +356,13 @@ async function saveReflection(){
   const select = document.getElementById('reflection-trip');
   const textarea = document.getElementById('reflection-text');
   const ai = document.getElementById('reflection-ai');
-  if(!select || !textarea || !ai) return;
+  if(!select || !textarea || !ai || reflectionSaveBusy) return;
   const text = textarea.value.trim();
   if(!select.value || !text){ ai.textContent = '先选择旅行，并写下一点感悟。'; return; }
+  const saveButton=document.getElementById('reflection-save-button');
+  reflectionSaveBusy=true;if(saveButton){saveButton.disabled=true;saveButton.textContent='保存中…';saveButton.setAttribute('aria-busy','true');}
+  ai.textContent='阿栗正在总结并保存这段感悟…';
+  try{
   const tripKey=select.value;
   const all = getReflections();
   const previous=all[tripKey]||{},createdAt=new Date().toISOString(),memoryEventId='travel_reflection_'+tripKey.replace(/[^a-zA-Z0-9_-]/g,'_')+'_'+Date.now(),entries=[...(previous.entries||reflectionPieces(previous).map(value=>({text:value,createdAt:previous.updatedAt||''}))),{id:memoryEventId,text,createdAt}].slice(-30);
@@ -392,6 +397,7 @@ async function saveReflection(){
   ai.textContent = reflectionResultText(companionReply,summary,true);
   render();
   if(matchMedia('(max-width:760px)').matches)showMobileTravelView('records');
+  }finally{reflectionSaveBusy=false;if(saveButton){saveButton.disabled=false;saveButton.textContent='保存感悟';saveButton.removeAttribute('aria-busy');}}
 }
 function getSelectedTrip(){
   const select = document.getElementById('reflection-trip');

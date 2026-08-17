@@ -147,7 +147,7 @@
       <div class="write-mode"><span>回应方式</span><button id="write-mode-oracle" type="button" onclick="setHollowMode('oracle')">签语</button><button id="write-mode-dialogue" type="button" onclick="setHollowMode('dialogue')">对话</button></div>
       <textarea id="input" placeholder="轻轻写在这里……"></textarea>
       <div class="btns">
-        <button class="send" onclick="addEntry()">埋进树洞</button>
+        <button class="send" id="heart-send" onclick="addEntry()">埋进树洞</button>
         <span class="hint" id="hint"></span>
       </div>
     </div>
@@ -316,7 +316,9 @@ function pendingOracleText(text,date){
 }
 function clearPendingOracle(){localStorage.removeItem('cozy_hollow_oracle_pending');}
 
+let heartReplyBusy=false;
 async function addEntry(){
+  if(heartReplyBusy){showStatus('阿栗还在等待上一条回复');return;}
   const t = document.getElementById('input').value.trim();
   if(!t) return;
   const now = new Date();
@@ -352,6 +354,7 @@ async function addEntry(){
     return;
   }
   showStatus(hollowMode==='oracle'?'正在抽取一句签语':'树洞正在回你');
+  const sendButton=document.getElementById('heart-send');heartReplyBusy=true;if(sendButton){sendButton.disabled=true;sendButton.textContent='等待回复中…';sendButton.setAttribute('aria-busy','true');}
   try{
     const recent=entries.filter(item=>item.date===e.date).slice(0,6).map(item=>({transcript:item.transcript,echo:item.echo,mode:item.mode||'oracle'}));
     const data = window.CozyButler ? await CozyButler.api('/api/room',{room:'heart_hollow',message:requestText,context:{date:e.date,time:e.time,mode:hollowMode,recent,current_text:t,memory_event_id:e.id,recent_memory_ids:hollowRecentMemoryIds(),recent_reply_styles:hollowRecentReplyStyles()}}) : null;
@@ -368,7 +371,7 @@ async function addEntry(){
     e.echo=hollowMode==='oracle'?'这会儿阿栗没连上模型，话已经封存好；签语等连接恢复后再抽。':'这会儿阿栗没连上模型，话已经封存好。我先不拿套话敷衍你，连接恢复后再接着聊。';
     const local=JSON.parse(localStorage.getItem('cozy_heart_entries')||'[]');const match=local.find(item=>item.id===e.id);if(match)match.echo=e.echo;localStorage.setItem('cozy_heart_entries',JSON.stringify(local));window.CozyButler?.persistLocal(['cozy_heart_entries']);
     recordOrchardGrowth(e,null);render();showTreeReply(e.echo,hollowMode);showStatus('阿栗暂时没连上模型，内容已经封存');
-  }
+  }finally{heartReplyBusy=false;if(sendButton){sendButton.disabled=false;sendButton.textContent='埋进树洞';sendButton.removeAttribute('aria-busy');}}
 }
 
 function saveLocalHeartEntry(entry){

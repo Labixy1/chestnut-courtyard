@@ -166,6 +166,28 @@ for(const expected of ['得分与学习建议','大白话学会这题','真正�
 if(reviewHtml.includes('阿栗帮答')||reviewHtml.includes('AI 修改建议'))throw new Error('legacy generic grading blocks must be removed');
 if(!context.buildBbReview(commercialAnswer,commercialQuestion,'模型失败').reviewUnavailable)throw new Error('model failure must remain explicit instead of fabricating local feedback');
 
+context.BB_STATE={today:{title:'商业验证',tags:['产品判断']},questionData:commercialQuestion,answer:commercialAnswer,review:normalizedReview,history:[],regrading:true,mode:'result'};
+context.showBlackboardMode('result');
+if(!node('bb-content').innerHTML.includes('核分中…')||!node('bb-content').innerHTML.includes('disabled aria-busy="true"'))throw new Error('busy regrade state must render as disabled');
+context.showBlackboardMode('history');
+context.showBlackboardMode('result');
+if(!node('bb-content').innerHTML.includes('核分中…')||context.BB_STATE.mode!=='result')throw new Error('regrade state must survive history and result mode switching');
+let regradeCalls=0;
+context.CozyButler={api:async()=>{regradeCalls+=1;return{result:commercialResult};},persistLocal(){}};
+context.regradeBlackboardAnswer();
+if(regradeCalls!==0)throw new Error('a second regrade request must be ignored while one is running');
+context.BB_STATE.regrading=false;
+context.BB_STATE.submitting=true;
+context.showBlackboardMode('question');
+if(!node('bb-content').innerHTML.includes('批改中…')||!node('bb-content').innerHTML.includes('aria-busy="true"'))throw new Error('initial grading must stay visibly pending after a question rerender');
+context.showBlackboardMode('history');
+context.showBlackboardMode('result');
+if(!node('bb-content').innerHTML.includes('评分结果还没有返回')||context.BB_STATE.mode!=='result')throw new Error('initial grading must stay pending across history and result switching');
+context.BB_STATE.submitting=false;context.BB_STATE.helperPending=true;context.BB_STATE.helperQuestion='正在查询的问题';
+const pendingHelper=context.renderBlackboardHelper();
+if(!pendingHelper.includes('等待回复中…')||!pendingHelper.includes('aria-busy="true"')||!pendingHelper.includes('disabled'))throw new Error('blackboard helper must keep a visible non-repeatable wait state');
+context.BB_STATE.helperPending=false;
+
 if(context.detectButlerTaskKind('你后面关注一下cloudflare他的新增加的钱包功能')!=='watch_topic')throw new Error('product feature updates must not be mistaken for a new media source');
 if(context.detectButlerTaskKind('新增 36氪 来源')!=='media_source')throw new Error('explicit media source requests must remain media_source tasks');
 
