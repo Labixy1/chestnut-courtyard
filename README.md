@@ -1,125 +1,159 @@
-# 栗壳小院
+<div align="center">
+  <img src="assets/app/icon-192.png" width="88" alt="阿栗应用图标">
+  <h1>阿栗 · AI 个人成长助手</h1>
+  <p><strong>把资讯、思考、对话与长期记忆连接成一个持续成长的闭环。</strong></p>
+  <p>
+    <a href="https://demo.neuralnode.top">在线演示</a> ·
+    <a href="docs/README.md">产品与技术文档</a> ·
+    <a href="docs/07-测试与运维手册.md">测试与运维</a>
+  </p>
+</div>
 
-一个只服务主人的本地优先个人系统。页面保持纯静态，本地 Python 服务让阿栗能够真正解析网页、调用 AI、写入记忆、生成周报和执行系统任务。
+> 这是一个由产品经理通过持续自然语言对话驱动 Codex，从需求定义、交互设计到开发、测试和云端部署完成的 AI 原生个人项目。仓库只包含程序、公开素材和演示数据，不包含真实树洞、记忆、照片、口令或 API Key。
 
-完整的产品、使用、架构、同步、AI 调用和测试运维说明见 [docs/README.md](docs/README.md)。
+## 为什么做阿栗
 
-## 分发模式
+普通 AI 对话很容易停在“一问一答”：资讯看过就忘，思考没有反馈，长期对话也难以形成可靠积累。阿栗尝试把四件事接起来：
 
-同一套代码支持五种运行模式：`dev` 用于本机调试，`owner` 是主人的私人云端实例，`selfhost` 是下载者自己的实例，`interview` 是限时体验空间，`preview` 是公开只读预览。模式由 `core/runtime-config.js` 注入，页面统一通过 `core/runtime.js` 选择数据来源和写入能力。
+1. **公告板**获取并筛选国内外 AI 与产品资讯，保留来源、中文摘要、AI 判断和阅读笔记。
+2. **黑板**把值得思考的问题转成每日训练，由独立评分基准完成批改、示范和下一步练习。
+3. **成长田**通过多轮学习对话解释概念、比较方案、梳理困惑，并沉淀为可复习的知识专题。
+4. **密阁记忆**把经过确认或重复验证的信息整理为带依据、边界和适用范围的长期记忆。
 
-GitHub 只保存程序、公开素材、内置 Skill 和 `core/defaults/instance_seed.json`。真实周报、记忆、树洞、密阁、照片、权限、任务、运行日志、实例私有 Skill 和 API Key 都被 `.gitignore` 排除。新下载的副本首次启动时，`scripts/instance_data.py` 会从公开种子创建一套空白私人实例，不会连接原作者的数据。
+```mermaid
+flowchart LR
+    A[国内外 AI / 产品资讯] --> B[公告板筛选与总结]
+    B --> C[黑板思考训练]
+    C --> D[成长田对话与知识沉淀]
+    D --> E[密阁长期记忆]
+    E --> B
+    E --> C
+    E --> D
+```
 
-发布前运行：
+## 手机端体验
+
+以下画面来自隔离的公开演示环境，内容均为虚构示例数据。
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/images/readme-home-mobile.png" width="220" alt="阿栗小院手机首页"><br><b>空间化首页</b><br><sub>用房间组织不同任务与心境</sub></td>
+    <td align="center"><img src="docs/images/readme-notice-mobile.png" width="220" alt="公告板资讯巡报"><br><b>公告板</b><br><sub>资讯、AI 总结与产品判断</sub></td>
+    <td align="center"><img src="docs/images/readme-blackboard-mobile.png" width="220" alt="黑板每日一题"><br><b>黑板</b><br><sub>每日训练、批改与示范回答</sub></td>
+    <td align="center"><img src="docs/images/readme-orchard-mobile.png" width="220" alt="成长田学习对话"><br><b>成长田</b><br><sub>多轮解惑并沉淀知识专题</sub></td>
+  </tr>
+</table>
+
+## 产品亮点
+
+### 1. 不只回答，而是形成成长闭环
+
+资讯不是终点。公告板中的重要主题可以进入黑板训练，答题暴露的知识缺口可以回到成长田继续追问，稳定的学习方式和知识关注再进入密阁，反过来影响后续选题与讲解方式。
+
+### 2. 先有评分基准，再看用户答案
+
+黑板会先冻结参考答案、评分点和题型重点，再对用户答案进行诊断，避免被用户表述带偏。结果不只给分，还包含：答得好的地方、方向偏差、可操作的改进方式、大白话记忆提示和阿栗示范答案。
+
+### 3. 有边界的长期记忆
+
+记忆分为原始证据、候选卡片、生效卡片、综合档案和封存内容。单次行为不会直接上升为人格判断；树洞原文与普通学习记忆隔离；AI 每两天 04:00 对生效卡片进行综合整理，输出必须引用有效卡片 ID，失败则保留旧档案，并支持快照撤销。
+
+### 4. 面向真实失败设计兜底
+
+- 文本模型支持 Workers AI、DeepSeek、OpenAI、GLM、Qwen，并可按任务配置回退顺序。
+- 异步任务在切页或刷新后继续恢复状态，避免按钮重置后重复提交。
+- Cloudflare KV 写入超额时，关键任务和状态自动降级到 R2。
+- 图片、视频和手动上传媒体统一进入私有 R2，并使用容量上限和省空间画质。
+- 资讯采用多来源独立抓取，一个来源失败不会阻断整次巡报。
+
+### 5. 用 Codex 构建产品，而不是只生成代码
+
+项目采用“提出真实问题 → 明确验收标准 → Codex 实现 → 公网手机端测试 → 根据反馈继续迭代”的协作方式。产品决策、隐私边界和最终验收由人负责，Codex承担代码实现、测试、部署与文档同步。
+
+## 功能地图
+
+| 模块 | 核心能力 |
+| --- | --- |
+| 公告板 | 多源资讯、中文摘要、AI 总结、产品经理关注点、笔记、稍后看与归档 |
+| 黑板 | 每日一题、分类轮换、独立评分基准、AI 批改、示范答案、历史与星标 |
+| 成长田 | 多轮学习对话、成长种子、专题本、知识沉淀和复习线索 |
+| 密阁 | 证据卡片、候选确认、分类管理、定时蒸馏、隐私隔离与撤销 |
+| 树洞 | 文字/语音倾诉、陪伴式回复、草堆历史与记忆影像生成 |
+| 旅行/照片墙 | 旅行记录、感悟总结、相册管理和 R2 媒体同步 |
+| 工具箱/管家 | AI 工具管理、网页解析、任务执行、状态追踪和 Skill 展示 |
+
+## 技术架构
+
+```mermaid
+flowchart TB
+    UI[原生 HTML / CSS / JavaScript · PWA] --> W[Cloudflare Worker]
+    W --> KV[(Cloudflare KV\n结构化状态)]
+    W --> R2[(Cloudflare R2\n媒体与配额降级)]
+    W --> M{模型网关}
+    M --> WA[Workers AI]
+    M --> DS[DeepSeek]
+    M --> OA[OpenAI]
+    M --> CN[GLM / Qwen]
+    W --> IMG[Seedream / GPT Image / Gemini]
+    W --> VID[Seedance]
+```
+
+前端保持无框架、无构建依赖；云端由 Worker 提供同源 API、口令会话、状态同步和模型路由。本地模式可由 Python 服务运行，`file://` 模式仍可浏览静态内容。
+
+## 快速运行
+
+### 只看界面
+
+直接双击 `index.html`。静态内容可以浏览，AI、上传和跨设备同步需要本地服务或 Cloudflare Worker。
+
+### 本地完整模式
+
+```bash
+cp .env.example .env
+# 在 .env 中至少配置一个文本模型密钥
+python3 scripts/cozy_server.py --port 8766
+```
+
+打开 `http://127.0.0.1:8766/`。项目不要求安装 npm、前端框架、数据库或 Docker。
+
+### Cloudflare 部署
+
+```bash
+python3 scripts/build_cloud.py --mode owner
+python3 scripts/cloud_owner_test.py
+node scripts/cloud_worker_test.mjs
+
+cd cloudflare
+wrangler deploy --config wrangler.toml
+```
+
+口令、会话密钥与模型密钥必须通过 Cloudflare Secret 管理，不能提交到仓库。完整步骤见 [测试与运维手册](docs/07-测试与运维手册.md)。
+
+## 数据与隐私
+
+- GitHub 只保存程序、公开素材、内置 Skill 和 `core/defaults/instance_seed.json`。
+- 真实巡报、树洞、记忆、照片、旅行、任务、日志和实例私有 Skill 均被排除。
+- 主人版和演示版使用隔离的数据空间；公开构建只读取演示种子。
+- 新克隆的仓库首次启动时会从公开种子创建空白私人实例，不连接原作者数据。
+- 彻底忘记会保留 tombstone，防止旧设备同步时把已删除记忆重新写回。
+
+发布前建议运行：
 
 ```bash
 python3 scripts/privacy_scan.py
 python3 scripts/repository_readiness_test.py
-python3 scripts/build_cloud.py --mode preview
 python3 scripts/cloud_privacy_test.py
-python3 scripts/build_cloud.py --mode owner
 python3 scripts/cloud_owner_test.py
 node scripts/cloud_worker_test.mjs
 ```
 
-公开预览构建只读取公开种子，不读取当前实例的 `core/*.json`。PWA 文件 `manifest.webmanifest` 和 `sw.js` 允许通过浏览器把小院安装成独立应用。
+## 进一步阅读
 
-## 直接使用
+- [文档总览](docs/README.md)
+- [AI 与接口调用链](docs/06-AI与接口调用链.md)
+- [测试与运维手册](docs/07-测试与运维手册.md)
+- [Cloudflare 部署说明](cloudflare/README.md)
 
-- 完整模式：双击 `start.command`，打开 `http://127.0.0.1:8766/index.html`。
-- 主院会根据自动识别到的当地天气与时间切换晴天、清晨、雨、雪、阴天和雾景；天气每 2 小时更新一次，断网时回退最近结果或晴天。
-- 自动启动：双击 `install-autostart.command`，以后登录 Mac 后阿栗会自动运行。
-- 离线浏览：直接双击 `index.html`。`file://` 模式可浏览现有场景和数据，AI、上传和跨页同步需要本地服务。
+## 项目状态
 
-阿栗会出现在每个页面左上角。明确命令如状态检查、巡报刷新、网页解析、归档和待读会直接调用工具；需要理解、规划或内容生成的任务才会交给主人配置的文本模型 API。
-
-## 模型与媒体 API
-
-复制 `.env.example` 为被 Git 忽略的 `.env` 并填入至少一个文本模型密钥；本地服务启动时会自动读取，不要把真实密钥写进其他项目文件。支持：
-
-- 文本：Cloudflare Workers AI、DeepSeek、OpenAI、GLM、Qwen。普通问答、翻译和摘要默认优先使用 Cloudflare 套餐内的 Workers AI 额度，失败时自动切换 DeepSeek；黑板参考答案和正式批改单独优先 DeepSeek，以保留评分与教学质量。可通过 `COZY_TEXT_PROVIDER` 与 `COZY_TEXT_FALLBACK_PROVIDER` 调整全局顺序。
-- 图片：Seedream、GPT Image 和 Gemini Nano Banana，默认模型名分别为 `doubao-seedream-4-0-250828`、`gpt-image-2` 与 `gemini-2.5-flash-image`。
-- 视频：Seedance 2.0 mini，默认模型名为 `doubao-seedance-2-0-mini-260615`，使用持久化异步任务，离开页面后仍可继续查询。
-
-Seedream 与 Seedance 共用 `ARK_API_KEY`；Nano Banana 使用单独的 `GEMINI_API_KEY`。实际账号开放的模型 ID 不同时，只需修改对应 `COZY_*_MODEL` 环境变量。
-
-## 小院房间
-
-- 公告板：每周一、周三、周五 08:00 自动巡逻国内外 AI 与产品资讯，生成新的资讯巡报；保留原摘要、AI 精炼、原文、待读和栗夹归档，往期巡报默认收起、可完整展开。
-- 黑板：每日一道产品问答题，可结合近期资讯、果园线索、历史答案和出题方向留言；提交后由 AI 返回逐点诊断、润色答案、标准要点、修改建议和下一题。
-- 工具箱：按使用场景分类，阿栗可新增、更新、移动或删除工具；Skills 专区展示已接入能力与权限，并可把推荐能力交给掌院阿栗创建为实例私有 Skill。
-- 智慧果园：围绕成长、方向和困惑交流，再沉淀为成长种子和收成。
-- 树洞：语音优先，文字入口较轻。一天可多次记录，原文只进封存记忆。草坪连续点击五次可打开历史和埋下的影像。
-- 照片墙：普通上传与旅行照片按照片集管理，可新增、删除、移动并按时间排序；不读取树洞封存影像。
-- 出发旅行：按地点组织出发日期、回家日期、两三张照片和可编辑的旅行感悟。
-- 卧室与密阁：卧室三处灯光热区可开关灯。书墙连续点击三次打开密阁，按分类查看记忆卡片、候选卡片、封存密库、任务卷宗、Skill 和掌院权限。
-
-## 权限与记忆
-
-掌院权限保存在 `core/permissions.json`。主人在密阁开启后永久生效。系统修改由主人配置的文本模型 API 驱动，代理只能搜索、读取和精确修改项目内文本文件；执行前创建 `core/snapshots/` 快照，完成后自动验证，失败自动回滚，并写入 `core/tasks.json` 和 `core/audit_log.json`。
-
-记忆由四部分组成：不可变的证据流水、可管理的记忆卡片、每次任务临时组装的上下文包，以及独立封存密库。密阁默认把生效卡片自动汇总为一份连贯的“我的记忆档案”，卡片变化后自动重写；候选和封存原文不会进入档案。明确要求记住会立即激活卡片；单次推断只成为候选，重复证据达到阈值后才生效。卡片有稳定基础分类，也支持主人新建和系统按证据自动形成分类，并可改名、移动、合并或删除。阿栗只把与当前任务相关的生效卡片放进上下文，当前要求始终优先。树洞、密阁和最高级秘密只进封存密库；掌院权限开启后，也只有主人明确要求时才按最小范围读取。彻底忘记会留下本地 tombstone，防止旧副本把它复活。
-
-AI 记忆蒸馏在后台读取非封存卡片，合并语义重复、识别有证据支持的冲突，并把已生效记忆改写成自然档案。模型只返回结构化提案；本地会再次校验卡片 id、晋升阈值、分类、档案引用和封存边界，整次校验通过后才原子写入。每次成功保留前后档案、差异和回滚数据。没有模型或模型输出无效时，原有确定性档案继续可用。
-
-## 常用命令
-
-```bash
-# 启动本地服务
-python3 scripts/cozy_server.py --port 8766
-
-# 验证全部固定和动态 Skill（不会修改主人数据）
-python3 scripts/skill_validation.py
-
-# 验证模型协议，不调用真实付费 API
-python3 scripts/model_gateway_test.py
-python3 scripts/memory_distillation_test.py
-
-# 查看或直接执行一个 Skill 工具
-python3 scripts/run_skill.py --list
-
-# 立即生成一份资讯巡报
-python3 scripts/butler_weekly.py
-
-# 只对已有巡报做 AI 精炼，不重新抓取
-python3 scripts/butler_weekly.py --refine-existing
-
-# 手动归档照片
-python3 scripts/ingest.py inbox/tea.jpg --type photo --note "晚上的茶"
-
-# 完整验收
-python3 -m py_compile scripts/*.py
-python3 scripts/system_smoke_test.py
-python3 scripts/service_smoke_test.py
-```
-
-## Cloudflare
-
-`python3 scripts/build_cloud.py --mode preview` 生成公开只读的 `dist/`；`--mode owner` 生成主人专用的 `dist-owner/`。主人版由同源 Worker 提供口令登录、KV 私人状态、阿栗对话、网页解析和非封存记忆档案，口令与模型密钥只存 Cloudflare Secret。公开构建和主人构建都只携带空白种子，树洞、密阁、运行日志和 API Key 不进入 GitHub。主人版生成的图片、视频及手动上传到照片墙、旅行和树洞的照片均保存到私有 R2 `chestnut-courtyard-media`；默认使用省空间画质，并在 9GB 停止写入。演示版不绑定主人 R2，也不能读取或上传主人媒体。
-
-当前发布地址：主人版 `https://dcxin.neuralnode.top`；公开只读演示版 `https://demo.neuralnode.top`。公开分享只使用演示域名，不使用带 Cloudflare 账户子域名的默认地址。
-
-查看云端状态与备份时，优先使用 HTTPS；若公司网络拦截 Python TLS，可安全地改用 Wrangler 传输：
-
-```bash
-python3 scripts/cloud_sync.py status --transport wrangler
-python3 scripts/cloud_sync.py backup --transport wrangler
-python3 scripts/cloud_sync.py pull --transport wrangler
-```
-
-## 数据位置
-
-- `core/estate_state.json`：照片墙、旅行基础记录和小院状态。
-- `core/local_state.json`：浏览器交互在本地服务中的跨页副本。
-- `core/notice_reports.json` / `core/butler_state.json`：资讯巡报和公告板归档。
-- `core/daily_questions.json`：每日黑板题。
-- `core/memory/`：证据流水、记忆卡片、分类、兼容视图与封存密库。
-- `core/skills/`：随框架发布的内置 Skill。
-- `core/private_skills/`：阿栗在当前实例中新建的私有 Skill，不进入 GitHub。
-- `core/data.js`：供 `file://` 读取的 JSON 镜像，由脚本自动重建。
-
-手动修改 `core/*.json` 后，运行 `python3 -c "from scripts import ingest; ingest.rebuild_data_js()"` 同步离线镜像。
-
-## 运行要求
-
-项目不使用 npm、前端框架、数据库或 Docker。本地完整版本只需要现代浏览器、Python 3，以及至少一个主人自己的文本模型 API；主人云端版本使用无依赖 Worker、KV 和 HttpOnly 口令会话，也可配置 OpenAI、DeepSeek、GLM、Qwen、Seedream 与 Seedance。
+阿栗仍在持续迭代。当前重点是提高资讯筛选与教学质量、让记忆更可核验，并继续完善移动端异步任务与跨设备同步体验。
