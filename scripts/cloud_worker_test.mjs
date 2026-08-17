@@ -426,6 +426,24 @@ assert.equal(alignmentAttempts, 2);
 assert.match(result.body.reply, /Cursor/);
 
 const nativeFetch = globalThis.fetch;
+const weatherKv = new MemoryKV();
+const weatherEnv = {...baseEnv, COZY_STATE: weatherKv};
+globalThis.fetch = async url => {
+  const parsed = new URL(String(url));
+  if (parsed.hostname === "api.open-meteo.com") return new Response(JSON.stringify({
+    timezone: "Asia/Shanghai", current: {weather_code: 2, temperature_2m: Number(parsed.searchParams.get("latitude")), is_day: 1, time: "2026-08-17T15:00"}, current_units: {temperature_2m: "°C"}
+  }), {status: 200, headers: {"content-type": "application/json"}});
+  return nativeFetch(url);
+};
+result = await payload(await request("/api/weather?latitude=30.27410&longitude=120.15510&city=%E5%BD%93%E5%89%8D%E4%BD%8D%E7%BD%AE", undefined, weatherEnv));
+assert.equal(result.body.location.city, "当前位置");
+assert.equal(result.body.location.source, "browser");
+assert.equal(result.body.location.latitude, 30.2741);
+result = await payload(await request("/api/weather?latitude=23.12910&longitude=113.26440&city=%E5%BD%93%E5%89%8D%E4%BD%8D%E7%BD%AE", undefined, weatherEnv));
+assert.equal(result.body.location.latitude, 23.1291);
+assert.equal(weatherKv.values.has("weather:current:30.27:120.16"), true);
+assert.equal(weatherKv.values.has("weather:current:23.13:113.26"), true);
+globalThis.fetch = nativeFetch;
 const isDirectNewsFeed = value => ["ithome.com/rss/", "geekpark.net/rss", "github.com/modelscope/ms-swift/releases.atom", "openai.com/news/rss.xml", "blog.cloudflare.com/rss/", "blog.google/technology/ai/rss/", "deepmind.google/blog/rss.xml", "theverge.com/rss/ai-artificial-intelligence", "techcrunch.com/category/artificial-intelligence/feed", "technologyreview.com/topic/artificial-intelligence/feed", "github.blog/ai-and-ml/feed", "aws.amazon.com/blogs/machine-learning/feed", "export.arxiv.org/api/query", "qbitai.com/feed/", "gateway.36kr.com/api/mis/nav/newsflash/flow", "api.rss2json.com/v1/api.json"].some(part => String(value).includes(part));
 const newsXml = (title = "OpenAI 发布重要模型更新", link = "https://news.example/model", summary = "模型能力与价格更新") => `<?xml version="1.0"?><rss><channel><item><title>${title}</title><link>${link}</link><pubDate>Fri, 08 Aug 2026 00:00:00 GMT</pubDate><description>${summary}</description><source url="https://news.example">测试媒体</source></item></channel></rss>`;
 const fallbackEnv = {
@@ -1001,4 +1019,4 @@ result = await payload(await uploadRequest("/api/media/upload", {kind: "photo_wa
 assert.equal(result.status, 400);
 assert.match(result.body.error, /格式与文件内容不一致/);
 
-console.log("cloud worker test ok: auth; KV; cross-device merge/tombstones; memory; model fallback; demo reset/seed/AI gate; cloud sync; backup status; private R2 generation/manual uploads/quota");
+console.log("cloud worker test ok: auth; KV; cross-device merge/tombstones; memory; location-scoped weather; model fallback; demo reset/seed/AI gate; cloud sync; backup status; private R2 generation/manual uploads/quota");

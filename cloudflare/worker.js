@@ -2727,13 +2727,20 @@ function weatherLabel(code) {
   return code === 1 ? "晴间多云" : "晴天";
 }
 
-async function currentWeather(request, env, force = false) {
-  const cached = await readState(env, "weather:current", null);
-  if (!force && cached && Date.now() - Date.parse(cached.updated_at || 0) < 2 * 60 * 60 * 1000) return {...cached, ok: true, cached: true};
+async function currentWeather(request, env, searchParams) {
+  const rawLatitude = searchParams.get("latitude");
+  const rawLongitude = searchParams.get("longitude");
+  const requestedLatitude = rawLatitude === null || rawLatitude === "" ? null : Number(rawLatitude);
+  const requestedLongitude = rawLongitude === null || rawLongitude === "" ? null : Number(rawLongitude);
+  const hasBrowserLocation = Number.isFinite(requestedLatitude) && Number.isFinite(requestedLongitude) && Math.abs(requestedLatitude) <= 90 && Math.abs(requestedLongitude) <= 180;
+  const force = searchParams.get("refresh") === "1";
   const cf = request.cf || {};
-  const latitude = Number(cf.latitude || 30.2741);
-  const longitude = Number(cf.longitude || 120.1551);
-  const city = String(cf.city || "杭州");
+  const latitude = hasBrowserLocation ? requestedLatitude : Number(cf.latitude || 30.2741);
+  const longitude = hasBrowserLocation ? requestedLongitude : Number(cf.longitude || 120.1551);
+  const city = hasBrowserLocation ? String(searchParams.get("city") || "当前位置") : String(cf.city || "杭州");
+  const cacheKey = `weather:current:${latitude.toFixed(2)}:${longitude.toFixed(2)}`;
+  const cached = await readState(env, cacheKey, null);
+  if (!force && cached && Date.now() - Date.parse(cached.updated_at || 0) < 2 * 60 * 60 * 1000) return {...cached, ok: true, cached: true};
   try {
     const query = new URLSearchParams({latitude: String(latitude), longitude: String(longitude), current: "weather_code,temperature_2m,is_day", timezone: "auto"});
     const response = await fetch(`https://api.open-meteo.com/v1/forecast?${query}`);
@@ -2744,15 +2751,15 @@ async function currentWeather(request, env, force = false) {
     const localTime = String(current.time || now());
     const payload = {
       ok: true, cached: false, stale: false, updated_at: now(),
-      location: {city, region: String(cf.region || ""), country: String(cf.country || ""), latitude, longitude, timezone: data.timezone || cf.timezone || "Asia/Shanghai"},
+      location: {city, region: hasBrowserLocation ? "" : String(cf.region || ""), country: hasBrowserLocation ? "" : String(cf.country || ""), latitude, longitude, source: hasBrowserLocation ? "browser" : "cloudflare-ip", timezone: data.timezone || cf.timezone || "Asia/Shanghai"},
       current: {weather_code: code, condition: weatherLabel(code), temperature: current.temperature_2m, temperature_unit: data.current_units?.temperature_2m || "°C", local_time: localTime, is_day: Boolean(current.is_day), scene: weatherScene(code, localTime), timezone: data.timezone || "auto"}
     };
-    await writeState(env, "weather:current", payload);
+    await writeState(env, cacheKey, payload);
     return payload;
   } catch (error) {
     if (cached) return {...cached, ok: true, cached: true, stale: true, error: String(error.message || error)};
     const localTime = now();
-    return {ok: true, fallback: true, location: {city: "杭州", latitude, longitude}, current: {weather_code: 0, condition: "晴天", temperature: null, temperature_unit: "°C", local_time: localTime, is_day: true, scene: weatherScene(0, localTime), timezone: "Asia/Shanghai"}, updated_at: localTime};
+    return {ok: true, fallback: true, location: {city, latitude, longitude, source: hasBrowserLocation ? "browser" : "cloudflare-ip"}, current: {weather_code: 0, condition: "晴天", temperature: null, temperature_unit: "°C", local_time: localTime, is_day: true, scene: weatherScene(0, localTime), timezone: "Asia/Shanghai"}, updated_at: localTime};
   }
 }
 
@@ -2875,7 +2882,7 @@ export async function handleRequest(request, env, ctx = {}) {
       if (!DATA_KEYS.has(key)) return json({ok: false, error: "数据区域不存在"}, 404);
       return json(await readData(env, key));
     }
-    if (request.method === "GET" && url.pathname === "/api/weather") return json(await currentWeather(request, env, url.searchParams.get("refresh") === "1"));
+    if (request.method === "GET" && url.pathname === "/api/weather") return json(await currentWeather(request, env, url.searchParams));
     if (request.method === "GET" && url.pathname === "/api/state") return json({ok: true, state: await readData(env, "butler_state")});
     if (request.method === "GET" && url.pathname === "/api/local-state") return json({ok: true, state: await readLocalStateWithNoticeFallback(env)});
     if (request.method === "GET" && url.pathname === "/api/permissions") return json({ok: true, permissions: await permissions(env)});

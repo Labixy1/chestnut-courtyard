@@ -121,12 +121,13 @@ def build(mode="preview", output=None):
         encoding="utf-8",
     )
     microphone = "()" if mode == "preview" else "(self)"
+    geolocation = "()" if mode == "preview" else "(self)"
     (destination / "_headers").write_text(
         "/*\n"
         "  X-Content-Type-Options: nosniff\n"
         "  Referrer-Policy: no-referrer\n"
         "  X-Frame-Options: DENY\n"
-        f"  Permissions-Policy: camera=(), microphone={microphone}, geolocation=()\n"
+        f"  Permissions-Policy: camera=(), microphone={microphone}, geolocation={geolocation}\n"
         "  Cache-Control: private, no-store\n",
         encoding="utf-8",
     )

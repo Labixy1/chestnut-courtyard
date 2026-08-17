@@ -3499,9 +3499,21 @@ function applyEstateScene(scene, weatherData){
   preload.src = src;
 }
 
+let estatePositionPromise=null;
+function estateWeatherPosition(){
+  if(estatePositionPromise)return estatePositionPromise;
+  if(!navigator.geolocation||location.protocol!=='https:')return Promise.resolve('');
+  estatePositionPromise=new Promise(resolve=>navigator.geolocation.getCurrentPosition(position=>{
+    const latitude=Number(position.coords.latitude).toFixed(5),longitude=Number(position.coords.longitude).toFixed(5);
+    resolve('?latitude='+encodeURIComponent(latitude)+'&longitude='+encodeURIComponent(longitude)+'&city='+encodeURIComponent('当前位置'));
+  },()=>resolve(''),{enableHighAccuracy:false,timeout:7000,maximumAge:30*60*1000}));
+  return estatePositionPromise;
+}
+
 async function refreshEstateWeather(){
   try{
-    const data = await cozyApi('/api/weather', undefined, 12000);
+    const positionQuery=await estateWeatherPosition();
+    const data = await cozyApi('/api/weather'+positionQuery, undefined, 12000);
     applyEstateScene((data.current && data.current.scene) || 'sunny', data);
   }catch(error){
     applyEstateScene(localTimeScene(), null);

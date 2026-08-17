@@ -28,6 +28,7 @@ def main() -> None:
     assert not (DIST / "core/local_state.json").exists()
     headers = (DIST / "_headers").read_text(encoding="utf-8")
     assert "microphone=(self)" in headers
+    assert "geolocation=(self)" in headers
     assert "Cache-Control: private, no-store" in headers
     wrangler = (ROOT / "cloudflare" / "wrangler.toml").read_text(encoding="utf-8")
     assert 'AUTH_MODE = "passcode"' in wrangler
