@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/app/icon-192.png" width="88" alt="阿栗应用图标">
+  <img src="https://github.com/user-attachments/assets/c0780803-dc8f-491b-ac88-cdffba71a437" width="88" alt="阿栗应用图标">
   <h1>阿栗 · AI 个人成长助手</h1>
   <p><strong>把资讯、思考、对话与长期记忆连接成一个持续成长的闭环。</strong></p>
   <p>
@@ -37,10 +37,10 @@ flowchart LR
 
 <table>
   <tr>
-    <td align="center"><img src="docs/images/readme-home-mobile.jpg" width="220" alt="阿栗小院手机首页"><br><b>空间化首页</b><br><sub>用房间组织不同任务与心境</sub></td>
-    <td align="center"><img src="docs/images/readme-notice-mobile.jpg" width="220" alt="公告板资讯巡报"><br><b>公告板</b><br><sub>资讯、AI 总结与产品判断</sub></td>
-    <td align="center"><img src="docs/images/readme-blackboard-mobile.jpg" width="220" alt="黑板每日一题"><br><b>黑板</b><br><sub>每日训练、批改与示范回答</sub></td>
-    <td align="center"><img src="docs/images/readme-orchard-mobile.jpg" width="220" alt="成长田学习对话"><br><b>成长田</b><br><sub>多轮解惑并沉淀知识专题</sub></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/a7c5050f-d420-42f7-8c5a-c00890046864" width="220" alt="阿栗小院手机首页"><br><b>空间化首页</b><br><sub>用房间组织不同任务与心境</sub></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/7a3d06a0-febe-4b1b-a0fb-0d70e1cafed4" width="220" alt="公告板资讯巡报"><br><b>公告板</b><br><sub>资讯、AI 总结与产品判断</sub></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/d5dc5405-63ec-4fa0-a4c5-713b95b960c2" width="220" alt="黑板每日一题"><br><b>黑板</b><br><sub>每日训练、批改与示范回答</sub></td>
+    <td align="center"><img src="https://github.com/user-attachments/assets/0609846f-2c46-454b-9b24-e37bb7b143e5" width="220" alt="成长田学习对话"><br><b>成长田</b><br><sub>多轮解惑并沉淀知识专题</sub></td>
   </tr>
 </table>
 
