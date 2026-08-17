@@ -2,7 +2,7 @@
 
 这套文档同时服务两类读者：主人用它理解和操作小院，技术人员用它接手开发、部署、排错与测试。
 
-![阿栗小院](https://github.com/user-attachments/assets/a7c5050f-d420-42f7-8c5a-c00890046864)
+![阿栗小院](images/readme-home-mobile.jpg)
 
 ## 阅读路径
 
