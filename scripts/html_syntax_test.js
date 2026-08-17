@@ -62,4 +62,5 @@ if (!home.includes('comparableButlerState(localButlerState())') || home.includes
 if (!home.includes('>加入工具箱</button>') || !home.includes('source,instruction:')) throw new Error('notice tool import must send the existing report context');
 if (home.includes('removeCourtyardScene(') || home.includes('从小院照片合集中移除')) throw new Error('courtyard background collection must not expose deletion controls');
 if (!home.includes('.photo-album-cover img{position:static;width:100%;height:100%;object-fit:contain')) throw new Error('photo album covers must preserve source aspect ratios');
+if (!home.includes('function renamePhotoAlbum(albumId)') || !home.includes('>重命名</button>') || !home.includes("album.source==='aggregate'")) throw new Error('editable photo albums must support renaming without changing the aggregate collection');
 console.log(`html syntax test ok: ${files.length} pages; ${count} inline scripts`);

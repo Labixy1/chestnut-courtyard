@@ -1793,11 +1793,18 @@ function createPhotoAlbum(){
   const albums=seedPhotoAlbums();albums.unshift(album);savePhotoAlbums(albums);openPhotoAlbum(album.id);setTimeout(()=>document.getElementById('photo-wall-upload')?.click(),80);
 }
 
+function renamePhotoAlbum(albumId){
+  const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===albumId);if(!album||album.source==='aggregate')return;
+  const title=String(prompt('修改照片集名称',album.title)||'').trim().slice(0,30);if(!title||title===album.title)return;
+  album.title=title;album.updatedAt=new Date().toISOString();savePhotoAlbums(albums);openPhotoAlbum(albumId);
+  const status=document.getElementById('photo-wall-status');if(status)status.textContent='照片集名称已更新。';
+}
+
 function openPhotoAlbum(id){
   const box=document.getElementById('photo-library');const albums=seedPhotoAlbums();const album=albums.find(item=>item.id===id);if(!box||!album)return;
   const aggregate=album.source==='aggregate';
   const photos=(album.photos||[]).map((photo,index)=>'<figure class="photo-detail-item"><img src="'+escapeNotice(photo.src)+'" alt=""><figcaption><span>'+escapeNotice(photo.caption||'照片')+'</span><span class="photo-date-mark">'+escapeNotice(photoDateLabel(photo.date||album.date))+'</span>'+(aggregate?'':'<span class="photo-detail-controls"><button title="向前移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',-1)">←</button><button title="向后移动" onclick="moveAlbumPhoto(\''+escapeNotice(id)+'\','+index+',1)">→</button><button title="删除照片" onclick="removeAlbumPhoto(\''+escapeNotice(id)+'\','+index+')">×</button></span>')+'</figcaption></figure>').join('');
-  box.innerHTML='<div class="photo-album-toolbar"><button onclick="renderPhotoAlbums()">← 照片集</button><h2>'+escapeNotice(album.title)+'</h2>'+(aggregate?'':'<button onclick="document.getElementById(\'photo-wall-upload\').click()">＋ 照片</button><button class="danger" onclick="deletePhotoAlbum(\''+escapeNotice(id)+'\')">删除整组</button>')+'</div><div class="photo-detail-grid">'+(photos||(aggregate?'<div class="empty-note">小院里还没有照片。</div>':'<div class="photo-album-add" onclick="document.getElementById(\'photo-wall-upload\').click()">＋</div>'))+'</div><div class="photo-wall-status" id="photo-wall-status"></div>'+(aggregate?'':'<input id="photo-wall-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onchange="uploadPhotoWallFiles(this.files,\''+escapeNotice(id)+'\')">');
+  box.innerHTML='<div class="photo-album-toolbar"><button onclick="renderPhotoAlbums()">← 照片集</button><h2>'+escapeNotice(album.title)+'</h2>'+(aggregate?'':'<button onclick="renamePhotoAlbum(\''+escapeNotice(id)+'\')">重命名</button><button onclick="document.getElementById(\'photo-wall-upload\').click()">＋ 照片</button><button class="danger" onclick="deletePhotoAlbum(\''+escapeNotice(id)+'\')">删除整组</button>')+'</div><div class="photo-detail-grid">'+(photos||(aggregate?'<div class="empty-note">小院里还没有照片。</div>':'<div class="photo-album-add" onclick="document.getElementById(\'photo-wall-upload\').click()">＋</div>'))+'</div><div class="photo-wall-status" id="photo-wall-status"></div>'+(aggregate?'':'<input id="photo-wall-upload" type="file" accept="image/jpeg,image/png,image/webp" multiple hidden onchange="uploadPhotoWallFiles(this.files,\''+escapeNotice(id)+'\')">');
 }
 
 function fileAsDataUrl(file){
